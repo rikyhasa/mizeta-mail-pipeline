@@ -4,6 +4,7 @@ import { getAlerts, getFilteredCases, getKpis, type DashboardFilters, type Dashb
 import { AlertsBand } from "./_components/AlertsBand";
 import { KpiBand } from "./_components/KpiBand";
 import { FiltersBar } from "./_components/FiltersBar";
+import { ActiveFiltersChips } from "./_components/ActiveFiltersChips";
 import { CasesTable } from "./_components/CasesTable";
 import type { CaseCategory, CasePriority, CaseStatus } from "@/generated/prisma/enums";
 
@@ -46,13 +47,14 @@ export default async function PraticheDashboardPage({ searchParams }: { searchPa
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Dashboard pratiche</h1>
-        <p className="text-sm text-slate-500">Panoramica delle pratiche generate dalle email in arrivo.</p>
+        <h1 className="text-xl font-semibold text-[var(--color-ink)]">Dashboard pratiche</h1>
+        <p className="text-sm text-[var(--color-ink-muted)]">Panoramica delle pratiche generate dalle email in arrivo.</p>
       </div>
 
-      <AlertsBand alerts={alerts} activeQuick={filters.quick} />
+      <AlertsBand alerts={alerts} activeQuick={filters.quick} searchParams={sp} quotesTotal={kpis.quotes.total} />
       <KpiBand kpis={kpis} />
       <FiltersBar filters={sp} users={users} customers={customers} suppliers={suppliers} />
+      <ActiveFiltersChips filters={sp} alerts={alerts} users={users} customers={customers} suppliers={suppliers} />
       <CasesTable items={items} total={total} page={filters.page ?? 1} searchParams={sp} />
     </div>
   );
