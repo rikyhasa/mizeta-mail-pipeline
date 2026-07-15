@@ -28,9 +28,9 @@ export function MailboxesSection({ mailboxes, emailProvider }: { mailboxes: Mail
     <Card padding="compact">
       <CardHeader title="Provider email e stato connessione" />
       {!actionsEnabled && (
-        <div className="mb-3 flex items-center gap-2 rounded-lg bg-amber-50 px-3 py-2">
+        <div className="mb-3 flex items-center gap-2 rounded-lg bg-[var(--color-warning-soft)] px-3 py-2">
           <Badge tone="warning">Non ancora attivo</Badge>
-          <p className="text-xs text-amber-800">
+          <p className="text-xs text-[var(--color-warning)]">
             EMAIL_PROVIDER=&quot;pec_imap&quot; resta uno scheletro documentato in questa fase: test connessione e sincronizzazione manuale non sono disponibili.
           </p>
         </div>

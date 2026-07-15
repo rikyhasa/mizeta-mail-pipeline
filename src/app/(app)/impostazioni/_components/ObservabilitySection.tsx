@@ -52,7 +52,7 @@ export function ObservabilitySection({ snapshot }: { snapshot: ObservabilitySnap
 function Stat({ label, value, tone }: { label: string; value: number; tone?: "warn" }) {
   return (
     <div className="rounded-lg border border-[var(--color-border)] p-2 text-center">
-      <div className={`text-lg font-semibold ${tone === "warn" && value > 0 ? "text-amber-700" : "text-[var(--color-ink)]"}`}>{value}</div>
+      <div className={`text-lg font-semibold ${tone === "warn" && value > 0 ? "text-[var(--color-warning)]" : "text-[var(--color-ink)]"}`}>{value}</div>
       <div className="text-[11px] text-[var(--color-ink-muted)]">{label}</div>
     </div>
   );

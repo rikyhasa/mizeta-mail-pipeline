@@ -5,7 +5,7 @@ import { getRuleSettings } from "@/lib/rules/settings-repository";
 import { getObservabilitySnapshot } from "@/lib/observability/metrics";
 import { env } from "@/lib/config/env";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { Tabs } from "@/components/ui/Tabs";
+import { SettingsNav } from "@/components/ui/SettingsNav";
 import { MailboxesSection } from "./_components/MailboxesSection";
 import { AutomationSettingsForm } from "./_components/AutomationSettingsForm";
 import { CategorySettingsForm } from "./_components/CategorySettingsForm";
@@ -27,12 +27,12 @@ export default async function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-[var(--color-ink)]">Impostazioni</h1>
-        <p className="text-sm text-[var(--color-ink-muted)]">Configurazione riservata agli amministratori.</p>
+        <h1 className="text-page-title font-semibold text-[var(--color-ink)]">Impostazioni</h1>
+        <p className="mt-1 text-sm text-[var(--color-ink-muted)]">Configurazione riservata agli amministratori.</p>
       </div>
 
-      <Tabs
-        tabs={[
+      <SettingsNav
+        items={[
           {
             value: "connessioni",
             label: "Connessioni email",

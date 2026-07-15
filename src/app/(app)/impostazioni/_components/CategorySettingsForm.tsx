@@ -62,14 +62,20 @@ export function CategorySettingsForm({ settings }: { settings: RuleSettingsData 
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <Card padding="compact">
+      <Card padding="compact" variant="flat">
+        <div className="mb-3 flex items-center gap-2">
+          <InactiveBadge />
+          <p className="text-xs text-[var(--color-ink-muted)]">Configurabile e salvato in questa fase, ma non ancora applicato dalla pipeline.</p>
+        </div>
         <CardHeader title="Categorie abilitate" />
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {CATEGORIES.map((c) => (
-            <label key={c} className="flex min-h-[36px] items-center gap-2 text-sm text-[var(--color-ink)]">
+            <label key={c} className="flex min-h-[36px] cursor-not-allowed items-center gap-2 text-sm text-[var(--color-ink-muted)]">
               <input
                 type="checkbox"
                 checked={enabledCategories.has(c)}
+                disabled
+                aria-disabled="true"
                 onChange={(e) => {
                   setEnabledCategories((prev) => {
                     const next = new Set(prev);
@@ -80,21 +86,17 @@ export function CategorySettingsForm({ settings }: { settings: RuleSettingsData 
                   setDirty(true);
                   setSaved(false);
                 }}
-                className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-brand)]"
+                className="h-4 w-4 rounded border-[var(--color-border)] text-[var(--color-brand)] disabled:cursor-not-allowed"
               />
               {CASE_CATEGORY_LABELS[c]}
             </label>
           ))}
         </div>
-        <div className="mt-3 flex items-center gap-2">
-          <InactiveBadge />
-          <p className="text-xs text-[var(--color-ink-muted)]">Configurabile e salvato in questa fase, ma non ancora applicato dalla pipeline.</p>
-        </div>
       </Card>
 
       <Card padding="compact">
         <CardHeader title="Reparto predefinito per categoria" />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {CATEGORIES.map((c) => (
             <label key={c} className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium text-[var(--color-ink)]">{CASE_CATEGORY_LABELS[c]}</span>

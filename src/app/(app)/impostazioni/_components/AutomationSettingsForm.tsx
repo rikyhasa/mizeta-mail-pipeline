@@ -113,7 +113,7 @@ export function AutomationSettingsForm({ settings }: { settings: RuleSettingsDat
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       <Card padding="compact">
         <CardHeader title="Soglie di automazione" description="Confidenze e finestre temporali usate dalle regole automatiche della pipeline." />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {numberField("classificationConfidenceThreshold", "Confidenza minima classificazione (0-1)", 0.01, 0, 1)}
           {numberField("matchingAutoLinkConfidenceThreshold", "Confidenza minima collegamento automatico (0-1)", 0.01, 0, 1)}
           {numberField("matchingPossibleDuplicateConfidenceThreshold", "Confidenza minima possibile duplicato (0-1)", 0.01, 0, 1)}
@@ -127,32 +127,35 @@ export function AutomationSettingsForm({ settings }: { settings: RuleSettingsDat
 
       <Card padding="compact">
         <CardHeader title="Conservazione dati (retention)" />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {nullableDaysField("emailRetentionDays", "Conservazione email")}
           {nullableDaysField("attachmentRetentionDays", "Conservazione allegati")}
           {nullableDaysField("auditLogRetentionDays", "Conservazione audit log")}
         </div>
-        <div className="mt-4">
-          <FormField label="Mittenti/cartelle esclusi (uno per riga)" htmlFor="auto-excluded-senders">
-            <textarea
-              id="auto-excluded-senders"
-              value={excludedSendersText}
-              onChange={(e) => {
-                setExcludedSendersText(e.target.value);
-                setDirty(true);
-                setSaved(false);
-              }}
-              rows={3}
-              className={fieldControlClassName}
-            />
-          </FormField>
-        </div>
-        <div className="mt-3 flex items-center gap-2">
+      </Card>
+
+      <Card padding="compact" variant="flat">
+        <div className="mb-3 flex items-center gap-2">
           <InactiveBadge />
           <p className="text-xs text-[var(--color-ink-muted)]">
             Configurabile e salvato in questa fase, ma non ancora applicato automaticamente dalla pipeline.
           </p>
         </div>
+        <FormField label="Mittenti/cartelle esclusi (uno per riga)" htmlFor="auto-excluded-senders">
+          <textarea
+            id="auto-excluded-senders"
+            value={excludedSendersText}
+            disabled
+            aria-disabled="true"
+            onChange={(e) => {
+              setExcludedSendersText(e.target.value);
+              setDirty(true);
+              setSaved(false);
+            }}
+            rows={3}
+            className={`${fieldControlClassName} cursor-not-allowed bg-white/60 text-[var(--color-ink-muted)]`}
+          />
+        </FormField>
       </Card>
 
       <UnsavedChangesBar

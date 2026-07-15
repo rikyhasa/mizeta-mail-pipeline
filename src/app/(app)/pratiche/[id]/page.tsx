@@ -98,7 +98,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const showCompleteInMenu = isOpenCase && !canCompletePrimary;
 
   const panoramicaContent: ReactNode = (
-    <div className="flex flex-col gap-6">
+    <div className="flex max-w-[960px] flex-col gap-6">
       <Card padding="compact">
         <CardHeader title="Scadenze" />
         {caseRecord.deadlines.length === 0 ? (
@@ -204,7 +204,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   );
 
   const emailContent: ReactNode = (
-    <div className="flex flex-col gap-6">
+    <div className="flex max-w-[960px] flex-col gap-6">
       <Card padding="compact">
         <CardHeader title="Allegati" />
         {caseRecord.messages.every((m) => m.attachments.length === 0) ? (
@@ -259,7 +259,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   );
 
   const attivitaContent: ReactNode = (
-    <div className="flex flex-col gap-6">
+    <div className="flex max-w-[960px] flex-col gap-6">
       <Card padding="compact">
         <CardHeader title="Attività" />
         {caseRecord.tasks.length === 0 ? (
@@ -301,7 +301,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   );
 
   const documentiContent: ReactNode = (
-    <div className="flex flex-col gap-6">
+    <div className="flex max-w-[960px] flex-col gap-6">
       <Card padding="compact">
         <CardHeader
           title="Bozze di risposta"
