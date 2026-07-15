@@ -134,18 +134,18 @@ export function CasesTable({
 
       <div className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-white">
         <table className="min-w-full divide-y divide-[var(--color-border)] text-sm">
-          <thead className="bg-[var(--color-surface-muted)] text-left text-xs font-medium tracking-wide text-[var(--color-ink-muted)] uppercase">
+          <thead className="bg-[var(--color-surface-muted)] text-left text-xs font-semibold tracking-wide text-[var(--color-ink-muted)] uppercase">
             <tr>
-              <th scope="col" className="px-4 py-3">Tipo</th>
-              <th scope="col" className="px-4 py-3">Titolo</th>
-              <th scope="col" className="px-4 py-3">Cliente / Fornitore</th>
-              <th scope="col" className="px-4 py-3">Scadenza</th>
-              <th scope="col" className="px-4 py-3">Priorità</th>
-              <th scope="col" className="px-4 py-3">Stato</th>
-              {showAmount && <th scope="col" className="px-4 py-3">Importo</th>}
-              {showResponsible && <th scope="col" className="px-4 py-3">Responsabile</th>}
-              {showUpdatedAt && <th scope="col" className="px-4 py-3">Ultima attività</th>}
-              <th scope="col" className="px-2 py-3">
+              <th scope="col" className="px-4 py-3.5">Tipo</th>
+              <th scope="col" className="px-4 py-3.5">Titolo</th>
+              <th scope="col" className="px-4 py-3.5">Cliente / Fornitore</th>
+              <th scope="col" className="px-4 py-3.5">Scadenza</th>
+              <th scope="col" className="px-4 py-3.5">Priorità</th>
+              <th scope="col" className="px-4 py-3.5">Stato</th>
+              {showAmount && <th scope="col" className="px-4 py-3.5">Importo</th>}
+              {showResponsible && <th scope="col" className="px-4 py-3.5">Responsabile</th>}
+              {showUpdatedAt && <th scope="col" className="px-4 py-3.5">Ultima attività</th>}
+              <th scope="col" className="px-2 py-3.5">
                 <span className="sr-only">Apri pratica</span>
               </th>
             </tr>
@@ -159,47 +159,49 @@ export function CasesTable({
                   onClick={(event) => goToCase(c.id, event)}
                   className="group cursor-pointer transition-colors hover:bg-[var(--color-surface-muted)]"
                 >
-                  <td className="whitespace-nowrap px-4 py-3 text-[var(--color-ink)]">
-                    <span className="inline-flex items-center gap-1.5">
-                      <CategoryIcon category={c.category} className="h-4 w-4 text-[var(--color-ink-muted)]" />
+                  <td className="px-4 py-4 whitespace-nowrap text-[var(--color-ink)]">
+                    <span className="inline-flex items-center gap-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-muted)] text-[var(--color-anthracite)]">
+                        <CategoryIcon category={c.category} className="h-4 w-4" />
+                      </span>
                       {CASE_CATEGORY_LABELS[c.category]}
                     </span>
                   </td>
-                  <td className="max-w-xs px-4 py-3">
+                  <td className="max-w-xs px-4 py-4">
                     <Link
                       href={`/pratiche/${c.id}`}
-                      className="rounded font-medium text-[var(--color-ink)] underline-offset-2 hover:text-[var(--color-brand-dark)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)]"
+                      className="rounded text-[15px] font-semibold text-[var(--color-ink)] underline-offset-2 hover:text-[var(--color-brand-dark)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)]"
                     >
                       {c.title}
                     </Link>
-                    <div className="mt-1 flex flex-wrap gap-1">
+                    <div className="mt-1.5 flex flex-wrap gap-1">
                       {c.isPec && <Badge tone="info">PEC</Badge>}
                       {showNeedsReviewBadge && <Badge tone="warning">Da verificare</Badge>}
                       {c.hasAttachments && <Badge tone="neutral">Allegati</Badge>}
                     </div>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[var(--color-ink)]">{c.customerOrSupplierName ?? "—"}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-[var(--color-ink)]">{formatDate(c.nextDeadline)}</td>
-                  <td className="whitespace-nowrap px-4 py-3">
+                  <td className="px-4 py-4 whitespace-nowrap text-[var(--color-ink)]">{c.customerOrSupplierName ?? "—"}</td>
+                  <td className="px-4 py-4 whitespace-nowrap text-[var(--color-ink)]">{formatDate(c.nextDeadline)}</td>
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <PriorityBadge priority={c.priority} />
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3">
+                  <td className="px-4 py-4 whitespace-nowrap">
                     <StatusBadge status={c.status} />
                   </td>
                   {showAmount && (
-                    <td className="whitespace-nowrap px-4 py-3 text-[var(--color-ink)]">{formatCurrency(c.amount)}</td>
+                    <td className="px-4 py-4 whitespace-nowrap text-[var(--color-ink)]">{formatCurrency(c.amount)}</td>
                   )}
                   {showResponsible && (
-                    <td className="whitespace-nowrap px-4 py-3 text-[var(--color-ink)]">
+                    <td className="px-4 py-4 whitespace-nowrap text-[var(--color-ink)]">
                       {c.responsibleName ?? "Non assegnato"}
                     </td>
                   )}
                   {showUpdatedAt && (
-                    <td className="whitespace-nowrap px-4 py-3 text-[var(--color-ink-muted)]">
+                    <td className="px-4 py-4 whitespace-nowrap text-[var(--color-ink-muted)]">
                       {formatDateTime(c.updatedAt)}
                     </td>
                   )}
-                  <td className="px-2 py-3 text-[var(--color-ink-muted)]">
+                  <td className="px-2 py-4 text-[var(--color-ink-muted)]">
                     <ChevronRight
                       className="h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100"
                       aria-hidden="true"

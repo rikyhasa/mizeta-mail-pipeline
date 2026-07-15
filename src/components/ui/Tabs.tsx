@@ -39,7 +39,7 @@ export function Tabs({
       <div
         role="tablist"
         aria-label="Sezioni"
-        className="flex min-w-0 gap-1 overflow-x-auto border-b border-[var(--color-border)]"
+        className="sticky top-14 z-10 -mx-1 flex min-w-0 gap-1 overflow-x-auto bg-[var(--color-surface-muted)] px-1 pt-1 pb-0 [box-shadow:inset_0_-1px_var(--color-border)]"
       >
         {tabs.map((tab, index) => {
           const selected = tab.value === active;
@@ -54,10 +54,10 @@ export function Tabs({
               tabIndex={selected ? 0 : -1}
               onClick={() => setActive(tab.value)}
               onKeyDown={(event) => handleKeyDown(event, index)}
-              className={`inline-flex min-h-[44px] shrink-0 items-center gap-1.5 border-b-2 px-4 text-sm font-medium whitespace-nowrap transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)] ${
+              className={`inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-t-lg border-b-[3px] px-4 text-[15px] font-semibold whitespace-nowrap transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)] ${
                 selected
-                  ? "border-[var(--color-brand)] text-[var(--color-brand-dark)]"
-                  : "border-transparent text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
+                  ? "border-[var(--color-brand)] bg-[color-mix(in_srgb,var(--color-brand)_8%,white)] text-[var(--color-brand-dark)]"
+                  : "border-transparent text-[var(--color-ink-muted)] hover:bg-white hover:text-[var(--color-ink)]"
               }`}
             >
               {tab.icon}

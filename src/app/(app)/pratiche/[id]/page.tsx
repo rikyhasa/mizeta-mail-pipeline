@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { Info, FileSearch, Mail, ListChecks, Files, History, AlertTriangle, Check, Paperclip } from "lucide-react";
+import { ArrowLeft, Info, FileSearch, Mail, ListChecks, Files, History, AlertTriangle, Check, Paperclip } from "lucide-react";
 import { prisma } from "@/lib/db/prisma";
 import { requireUserOrRedirect } from "@/lib/auth/guard";
 import {
@@ -20,7 +21,7 @@ import type { CaseCategory, CaseStatus, GeneratedDocumentType } from "@/generate
 import { ActionButton } from "@/components/ActionButton";
 import { InlineSelect } from "@/components/InlineSelect";
 import { Card, CardHeader } from "@/components/ui/Card";
-import { Badge, PriorityBadge, StatusBadge } from "@/components/ui/Badge";
+import { Badge, PriorityBadge } from "@/components/ui/Badge";
 import { Tabs } from "@/components/ui/Tabs";
 import { FieldEditForm } from "./_components/FieldEditForm";
 import { FieldSourceInfo } from "./_components/FieldSourceInfo";
@@ -28,6 +29,7 @@ import { CommentForm } from "./_components/CommentForm";
 import { TaskForm } from "./_components/TaskForm";
 import { DraftCard } from "./_components/DraftCard";
 import { RelationForm } from "./_components/RelationForm";
+import { ActionsMenu } from "./_components/ActionsMenu";
 
 /** Documenti implementati in questa fase (SPEC.md §12), uno per categoria prioritaria. Le
  * altre categorie non mostrano alcun selettore: nulla è ancora implementato per loro. */
@@ -86,6 +88,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const assigneeOptions = [{ value: "", label: "Non assegnato" }, ...users.map((u) => ({ value: u.id, label: u.name }))];
   const nextDeadline = caseRecord.deadlines.find((d) => !d.resolvedAt) ?? null;
   const isOpenCase = caseRecord.status !== "COMPLETED" && caseRecord.status !== "ARCHIVED";
+  const canCompletePrimary = isOpenCase && !caseRecord.needsHumanReview && caseRecord.status !== "NEEDS_REVIEW";
+  const showCompleteInMenu = isOpenCase && !canCompletePrimary;
 
   const panoramicaContent: ReactNode = (
     <div className="flex flex-col gap-6">
@@ -115,19 +119,19 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           <ul className="flex flex-col gap-2 text-sm text-[var(--color-ink)]">
             {fieldsByKey.get("anomaly_reason")?.value && (
               <li className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-warning)]" aria-hidden="true" />
                 Fattura: {fieldsByKey.get("anomaly_reason")!.value}
               </li>
             )}
             {securityFlags.map((flag) => (
               <li key={flag} className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-warning)]" aria-hidden="true" />
                 Segnale di sicurezza rilevato nel contenuto email: <span className="font-mono text-xs">{flag}</span>
               </li>
             ))}
             {pendingRelations.map((r) => (
               <li key={r.id} className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-warning)]" aria-hidden="true" />
                 {CASE_RELATION_KIND_LABELS[r.kind]} con {r.relatedCase.reference} — {r.relatedCase.title} (confidenza{" "}
                 {r.confidence !== null ? `${Math.round(r.confidence * 100)}%` : "n/d"})
               </li>
@@ -401,63 +405,93 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-ink-muted)]">
-              <span className="font-mono">{caseRecord.reference}</span>
-              <span className="inline-flex items-center gap-1.5">
-                <CategoryIcon category={caseRecord.category} />
-                {CASE_CATEGORY_LABELS[caseRecord.category]}
-              </span>
-              {caseRecord.isPec && <Badge tone="info">PEC</Badge>}
-            </div>
-            <h1 className="text-2xl font-semibold text-[var(--color-ink)]">{caseRecord.title}</h1>
-            {caseRecord.summary && <p className="max-w-2xl text-sm text-[var(--color-ink-muted)]">{caseRecord.summary}</p>}
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <StatusBadge status={caseRecord.status} />
-              <PriorityBadge priority={caseRecord.priority} />
-              {nextDeadline && (
-                <span className="text-sm text-[var(--color-ink-muted)]">
-                  Scadenza: <span className="font-medium text-[var(--color-ink)]">{formatDate(nextDeadline.dueAt)}</span>
-                </span>
-              )}
-              {caseRecord.confidence !== null && (
-                <span className="text-sm text-[var(--color-ink-muted)]">
-                  Confidenza classificazione: {Math.round(caseRecord.confidence * 100)}%
-                </span>
-              )}
-            </div>
-          </div>
+      <div className="flex flex-col gap-4 border-b border-[var(--color-border)] pb-6">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--color-ink-muted)]">
+          <Link
+            href="/pratiche"
+            className="inline-flex items-center gap-1 rounded hover:text-[var(--color-ink)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)]"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            Pratiche
+          </Link>
+          <span aria-hidden="true">·</span>
+          <span className="font-mono">{caseRecord.reference}</span>
+          <span aria-hidden="true">·</span>
+          <span className="inline-flex items-center gap-1.5">
+            <CategoryIcon category={caseRecord.category} />
+            {CASE_CATEGORY_LABELS[caseRecord.category]}
+          </span>
+          {caseRecord.isPec && <Badge tone="info">PEC</Badge>}
+        </div>
 
-          <div className="flex flex-col gap-3 rounded-lg bg-[var(--color-surface-muted)] p-4 lg:w-72 lg:shrink-0">
-            <InlineSelect
-              url={`/api/cases/${caseRecord.id}/assign`}
-              fieldName="assignedToId"
-              value={caseRecord.assignedToId ?? ""}
-              options={assigneeOptions}
-              label="Responsabile"
-            />
-            <InlineSelect
-              url={`/api/cases/${caseRecord.id}/status`}
-              fieldName="status"
-              value={caseRecord.status}
-              options={statusOptions}
-              label="Stato"
-            />
-            <div className="flex flex-col gap-2 pt-1">
-              <ActionButton method="POST" url={`/api/cases/${caseRecord.id}/drafts`} variant="secondary" size="md">
-                Crea risposta
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <h1 className="max-w-3xl text-page-title font-semibold text-[var(--color-ink)]">{caseRecord.title}</h1>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <ActionButton method="POST" url={`/api/cases/${caseRecord.id}/drafts`} variant="secondary" size="md">
+              Crea risposta
+            </ActionButton>
+            {canCompletePrimary && (
+              <ActionButton method="PATCH" url={`/api/cases/${caseRecord.id}/status`} body={{ status: "COMPLETED" }} variant="primary" size="md">
+                Completa pratica
               </ActionButton>
-              {isOpenCase && (
-                <ActionButton method="PATCH" url={`/api/cases/${caseRecord.id}/status`} body={{ status: "COMPLETED" }} variant="primary" size="md">
+            )}
+            <ActionsMenu>
+              {showCompleteInMenu && (
+                <ActionButton
+                  method="PATCH"
+                  url={`/api/cases/${caseRecord.id}/status`}
+                  body={{ status: "COMPLETED" }}
+                  variant="tertiary"
+                  size="sm"
+                  className="w-full justify-start"
+                >
                   Completa pratica
                 </ActionButton>
               )}
-            </div>
+            </ActionsMenu>
           </div>
         </div>
-      </Card>
+
+        <div className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl border border-[var(--color-border)] bg-white p-4 sm:grid-cols-4">
+          <InlineSelect
+            url={`/api/cases/${caseRecord.id}/status`}
+            fieldName="status"
+            value={caseRecord.status}
+            options={statusOptions}
+            label="Stato"
+          />
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-[var(--color-ink)]">Priorità</span>
+            <div className="flex min-h-[44px] items-center">
+              <PriorityBadge priority={caseRecord.priority} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-[var(--color-ink)]">Scadenza</span>
+            <div className="flex min-h-[44px] items-center text-sm font-medium text-[var(--color-ink)]">
+              {nextDeadline ? formatDate(nextDeadline.dueAt) : "Nessuna scadenza"}
+            </div>
+          </div>
+          <InlineSelect
+            url={`/api/cases/${caseRecord.id}/assign`}
+            fieldName="assignedToId"
+            value={caseRecord.assignedToId ?? ""}
+            options={assigneeOptions}
+            label="Responsabile"
+          />
+        </div>
+
+        {(caseRecord.summary || caseRecord.confidence !== null) && (
+          <div className="max-w-[960px]">
+            {caseRecord.summary && <p className="text-sm text-[var(--color-ink-muted)]">{caseRecord.summary}</p>}
+            {caseRecord.confidence !== null && (
+              <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
+                Confidenza classificazione: {Math.round(caseRecord.confidence * 100)}%
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       <Tabs
         tabs={[
