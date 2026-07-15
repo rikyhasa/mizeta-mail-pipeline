@@ -1,6 +1,7 @@
 import { EMAIL_DRAFT_STATUS_LABELS } from "@/lib/i18n/labels";
 import { formatDateTime } from "@/lib/format";
 import { ActionButton } from "@/components/ActionButton";
+import { Badge, type BadgeTone } from "@/components/ui/Badge";
 
 const PLACEHOLDER_PATTERN = /(\[\[DA COMPLETARE:[^\]]+\]\])/g;
 
@@ -32,26 +33,26 @@ interface DraftData {
   approvedAt: string | Date | null;
 }
 
-const STATUS_BADGE_CLASSES: Record<DraftData["status"], string> = {
-  PENDING_APPROVAL: "bg-amber-100 text-amber-800",
-  APPROVED: "bg-emerald-100 text-emerald-800",
-  DISCARDED: "bg-slate-100 text-slate-500",
+const STATUS_BADGE_TONE: Record<DraftData["status"], BadgeTone> = {
+  PENDING_APPROVAL: "warning",
+  APPROVED: "success",
+  DISCARDED: "muted",
 };
 
 export function DraftCard({ caseId, draft }: { caseId: string; draft: DraftData }) {
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-slate-200 p-3">
+    <div className="flex flex-col gap-2 rounded-lg border border-[var(--color-border)] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className={`inline-flex w-fit items-center rounded px-2 py-0.5 text-xs font-medium ${STATUS_BADGE_CLASSES[draft.status]}`}>
-          {EMAIL_DRAFT_STATUS_LABELS[draft.status]}
-        </span>
-        <span className="text-xs text-slate-400">Generata il {formatDateTime(draft.createdAt)}</span>
+        <Badge tone={STATUS_BADGE_TONE[draft.status]}>{EMAIL_DRAFT_STATUS_LABELS[draft.status]}</Badge>
+        <span className="text-xs text-[var(--color-ink-muted)]">Generata il {formatDateTime(draft.createdAt)}</span>
       </div>
-      <div className="text-xs text-slate-500">A: {draft.toAddresses.length > 0 ? draft.toAddresses.join(", ") : "(destinatario da definire)"}</div>
-      <div className="text-sm font-medium text-slate-900">
+      <div className="text-xs text-[var(--color-ink-muted)]">
+        A: {draft.toAddresses.length > 0 ? draft.toAddresses.join(", ") : "(destinatario da definire)"}
+      </div>
+      <div className="text-sm font-medium text-[var(--color-ink)]">
         <HighlightedText text={draft.subject} />
       </div>
-      <div className="whitespace-pre-wrap text-sm text-slate-700">
+      <div className="text-sm whitespace-pre-wrap text-[var(--color-ink)]">
         <HighlightedText text={draft.bodyText} />
       </div>
       {draft.placeholders.length > 0 && (
@@ -64,7 +65,8 @@ export function DraftCard({ caseId, draft }: { caseId: string; draft: DraftData 
             url={`/api/cases/${caseId}/drafts/${draft.id}`}
             body={{ action: "approve" }}
             confirmMessage="Confermi l'approvazione di questa bozza? La bozza resta comunque non inviata: nell'MVP l'invio non è previsto."
-            className="rounded bg-slate-900 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700"
+            variant="primary"
+            size="sm"
           >
             Approva
           </ActionButton>
@@ -73,7 +75,8 @@ export function DraftCard({ caseId, draft }: { caseId: string; draft: DraftData 
             url={`/api/cases/${caseId}/drafts/${draft.id}`}
             body={{ action: "discard" }}
             confirmMessage="Scartare questa bozza?"
-            className="rounded border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+            variant="secondary"
+            size="sm"
           >
             Scarta
           </ActionButton>

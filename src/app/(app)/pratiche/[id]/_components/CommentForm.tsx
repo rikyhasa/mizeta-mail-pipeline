@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FormField, fieldControlClassName } from "@/components/ui/Field";
+import { buttonClassName } from "@/components/ui/Button";
 
 export function CommentForm({ caseId }: { caseId: string }) {
   const router = useRouter();
@@ -33,22 +35,21 @@ export function CommentForm({ caseId }: { caseId: string }) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-      <label className="text-xs font-medium text-slate-600" htmlFor="new-comment">
-        Aggiungi un commento interno
-      </label>
-      <textarea
-        id="new-comment"
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        required
-        rows={2}
-        className="rounded border border-slate-300 px-2 py-1.5 text-sm"
-      />
+      <FormField label="Aggiungi un commento interno" htmlFor="new-comment">
+        <textarea
+          id="new-comment"
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          required
+          rows={2}
+          className={fieldControlClassName}
+        />
+      </FormField>
       <div>
         <button
           type="submit"
           disabled={pending || body.trim().length === 0}
-          className="rounded border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50"
+          className={buttonClassName({ variant: "secondary", size: "sm" })}
         >
           {pending ? "..." : "Aggiungi commento"}
         </button>

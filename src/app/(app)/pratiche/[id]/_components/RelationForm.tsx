@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FormField, fieldControlClassName } from "@/components/ui/Field";
+import { buttonClassName } from "@/components/ui/Button";
 
 export function RelationForm({ caseId }: { caseId: string }) {
   const router = useRouter();
@@ -33,28 +35,27 @@ export function RelationForm({ caseId }: { caseId: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2">
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
-        Riferimento pratica da collegare
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
+      <FormField label="Riferimento pratica da collegare" htmlFor="relation-target">
         <input
+          id="relation-target"
           value={targetReference}
           onChange={(e) => setTargetReference(e.target.value)}
           required
           placeholder="es. PRT-2026-0009"
-          className="rounded border border-slate-300 px-2 py-1.5 text-sm"
+          className={fieldControlClassName}
         />
-      </label>
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
-        Tipo
-        <select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)} className="rounded border border-slate-300 px-2 py-1.5 text-sm">
+      </FormField>
+      <FormField label="Tipo" htmlFor="relation-kind">
+        <select id="relation-kind" value={kind} onChange={(e) => setKind(e.target.value as typeof kind)} className={fieldControlClassName}>
           <option value="RELATED">Pratica collegata</option>
           <option value="DUPLICATE_CANDIDATE">Possibile duplicato</option>
         </select>
-      </label>
+      </FormField>
       <button
         type="submit"
         disabled={pending || targetReference.trim().length === 0}
-        className="rounded border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50"
+        className={buttonClassName({ variant: "secondary", size: "md" })}
       >
         {pending ? "..." : "Collega pratica"}
       </button>

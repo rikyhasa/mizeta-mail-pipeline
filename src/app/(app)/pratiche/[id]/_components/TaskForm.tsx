@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FormField, fieldControlClassName } from "@/components/ui/Field";
+import { buttonClassName } from "@/components/ui/Button";
 
 export function TaskForm({ caseId, users }: { caseId: string; users: { id: string; name: string }[] }) {
   const router = useRouter();
@@ -36,20 +38,21 @@ export function TaskForm({ caseId, users }: { caseId: string; users: { id: strin
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
-      <label className="flex flex-1 flex-col gap-1 text-xs text-slate-600">
-        Nuova attività
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          required
-          placeholder="Titolo attività"
-          className="rounded border border-slate-300 px-2 py-1.5 text-sm"
-        />
-      </label>
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
-        Assegnata a
-        <select value={assignedToId} onChange={(e) => setAssignedToId(e.target.value)} className="rounded border border-slate-300 px-2 py-1.5 text-sm">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <div className="flex-1">
+        <FormField label="Nuova attività" htmlFor="new-task-title">
+          <input
+            id="new-task-title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            placeholder="Titolo attività"
+            className={fieldControlClassName}
+          />
+        </FormField>
+      </div>
+      <FormField label="Assegnata a" htmlFor="new-task-assignee">
+        <select id="new-task-assignee" value={assignedToId} onChange={(e) => setAssignedToId(e.target.value)} className={fieldControlClassName}>
           <option value="">Non assegnata</option>
           {users.map((u) => (
             <option key={u.id} value={u.id}>
@@ -57,15 +60,14 @@ export function TaskForm({ caseId, users }: { caseId: string; users: { id: strin
             </option>
           ))}
         </select>
-      </label>
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
-        Scadenza
-        <input type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} className="rounded border border-slate-300 px-2 py-1.5 text-sm" />
-      </label>
+      </FormField>
+      <FormField label="Scadenza" htmlFor="new-task-due">
+        <input id="new-task-due" type="date" value={dueAt} onChange={(e) => setDueAt(e.target.value)} className={fieldControlClassName} />
+      </FormField>
       <button
         type="submit"
         disabled={pending || title.trim().length === 0}
-        className="rounded border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50"
+        className={buttonClassName({ variant: "secondary", size: "md" })}
       >
         {pending ? "..." : "Aggiungi attività"}
       </button>
