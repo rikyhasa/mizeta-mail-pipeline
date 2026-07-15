@@ -2,9 +2,13 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Pencil } from "lucide-react";
+import { buttonClassName } from "@/components/ui/Button";
+import { fieldControlClassName } from "@/components/ui/Field";
 
 export function FieldEditForm({ caseId, fieldKey, initialValue }: { caseId: string; fieldKey: string; initialValue: string }) {
   const router = useRouter();
+  const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initialValue);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,10 +28,24 @@ export function FieldEditForm({ caseId, fieldKey, initialValue }: { caseId: stri
         setError(data.error ?? "Si è verificato un errore");
         return;
       }
+      setEditing(false);
       router.refresh();
     } finally {
       setPending(false);
     }
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        className={buttonClassName({ variant: "tertiary", size: "sm" })}
+      >
+        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+        Modifica
+      </button>
+    );
   }
 
   return (
@@ -39,10 +57,22 @@ export function FieldEditForm({ caseId, fieldKey, initialValue }: { caseId: stri
         id={`field-${fieldKey}`}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="rounded border border-slate-300 px-2 py-1 text-xs"
+        className={fieldControlClassName}
+        autoFocus
       />
-      <button type="submit" disabled={pending} className="rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50 disabled:opacity-50">
+      <button type="submit" disabled={pending} className={buttonClassName({ variant: "primary", size: "sm" })}>
         {pending ? "..." : "Salva correzione"}
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          setEditing(false);
+          setValue(initialValue);
+          setError(null);
+        }}
+        className={buttonClassName({ variant: "tertiary", size: "sm" })}
+      >
+        Annulla
       </button>
       {error && (
         <span role="alert" className="text-xs text-red-600">

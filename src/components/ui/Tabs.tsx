@@ -1,11 +1,13 @@
 "use client";
 
-import { useId, useState, type ComponentType, type KeyboardEvent, type ReactNode } from "react";
+import { useId, useState, type KeyboardEvent, type ReactNode } from "react";
 
 export type TabItem = {
   value: string;
   label: string;
-  icon?: ComponentType<{ className?: string }>;
+  /** Elemento icona già renderizzato (es. `<Info className="h-4 w-4" />`), non un riferimento al
+   * componente: i riferimenti a funzioni non attraversano il confine server/client component. */
+  icon?: ReactNode;
   content: ReactNode;
 };
 
@@ -41,7 +43,6 @@ export function Tabs({
       >
         {tabs.map((tab, index) => {
           const selected = tab.value === active;
-          const Icon = tab.icon;
           return (
             <button
               key={tab.value}
@@ -59,7 +60,7 @@ export function Tabs({
                   : "border-transparent text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
               }`}
             >
-              {Icon && <Icon className="h-4 w-4" />}
+              {tab.icon}
               {tab.label}
             </button>
           );

@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { getRuleSettings } from "@/lib/rules/settings-repository";
 import { AMOUNT_FIELD_BY_CATEGORY, parseFieldNumber } from "./field-keys";
+import { PAGE_SIZE } from "./constants";
 import type { Prisma } from "@/generated/prisma/client";
 import type { CaseCategory, CasePriority, CaseStatus } from "@/generated/prisma/enums";
 
@@ -152,7 +153,6 @@ export interface CaseListItem {
 }
 
 const PRIORITY_RANK: Record<CasePriority, number> = { CRITICAL: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
-const PAGE_SIZE = 50;
 
 function applyQuickFilter(where: Prisma.CaseWhereInput, quick: DashboardQuickFilter | undefined, now: Date): Prisma.CaseWhereInput {
   if (!quick) return where;
@@ -254,5 +254,3 @@ export async function getFilteredCases(filters: DashboardFilters, now: Date = ne
 
   return { items: paged, total };
 }
-
-export { PAGE_SIZE };

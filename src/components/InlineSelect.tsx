@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fieldControlClassName } from "@/components/ui/Field";
 
 export function InlineSelect({
   url,
@@ -41,8 +42,8 @@ export function InlineSelect({
   }
 
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs text-slate-500" htmlFor={`inline-select-${fieldName}`}>
+    <div className="flex flex-col gap-1.5">
+      <label className="text-sm font-medium text-[var(--color-ink)]" htmlFor={`inline-select-${fieldName}`}>
         {label}
       </label>
       <select
@@ -50,7 +51,7 @@ export function InlineSelect({
         defaultValue={value}
         onChange={handleChange}
         disabled={pending}
-        className="rounded border border-slate-300 px-2 py-1.5 text-sm disabled:opacity-50"
+        className={`${fieldControlClassName} disabled:opacity-50`}
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
