@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { ArrowLeft, Info, FileSearch, Mail, ListChecks, Files, History, AlertTriangle, Check, Paperclip } from "lucide-react";
+import { ArrowLeft, Info, FileSearch, Mail, ListChecks, Files, History, AlertTriangle, Paperclip } from "lucide-react";
 import { prisma } from "@/lib/db/prisma";
 import { requireUserOrRedirect } from "@/lib/auth/guard";
 import {
@@ -23,13 +23,14 @@ import { InlineSelect } from "@/components/InlineSelect";
 import { Card, CardHeader } from "@/components/ui/Card";
 import { Badge, PriorityBadge } from "@/components/ui/Badge";
 import { Tabs } from "@/components/ui/Tabs";
-import { FieldEditForm } from "./_components/FieldEditForm";
-import { FieldSourceInfo } from "./_components/FieldSourceInfo";
 import { CommentForm } from "./_components/CommentForm";
 import { TaskForm } from "./_components/TaskForm";
 import { DraftCard } from "./_components/DraftCard";
+import { DraftHistoryRow } from "./_components/DraftHistoryRow";
 import { RelationForm } from "./_components/RelationForm";
 import { ActionsMenu } from "./_components/ActionsMenu";
+import { ExtractedFieldCell } from "./_components/ExtractedFieldCell";
+import { classifyFieldTier } from "./_components/field-tiers";
 
 /** Documenti implementati in questa fase (SPEC.md §12), uno per categoria prioritaria. Le
  * altre categorie non mostrano alcun selettore: nulla è ancora implementato per loro. */
@@ -83,6 +84,11 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     ...caseRecord.relationsAsSource.filter((r) => r.status !== "PENDING"),
     ...caseRecord.relationsAsTarget,
   ];
+
+  const draftsChronological = [...caseRecord.emailDrafts].reverse();
+  const draftNumberById = new Map(draftsChronological.map((d, i) => [d.id, i + 1]));
+  const activeDraft = caseRecord.emailDrafts.find((d) => d.status === "PENDING_APPROVAL") ?? caseRecord.emailDrafts[0] ?? null;
+  const historyDrafts = caseRecord.emailDrafts.filter((d) => d.id !== activeDraft?.id);
 
   const statusOptions = (Object.keys(CASE_STATUS_LABELS) as CaseStatus[]).map((s) => ({ value: s, label: CASE_STATUS_LABELS[s] }));
   const assigneeOptions = [{ value: "", label: "Non assegnato" }, ...users.map((u) => ({ value: u.id, label: u.name }))];
@@ -142,8 +148,17 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     </div>
   );
 
+  const fieldsWithTier = orderedFieldKeys
+    .map((key) => {
+      const field = fieldsByKey.get(key);
+      return field ? { key, field, tier: classifyFieldTier(field) } : null;
+    })
+    .filter((f): f is { key: string; field: (typeof caseRecord.fields)[number]; tier: ReturnType<typeof classifyFieldTier> } => f !== null);
+  const problematicFields = fieldsWithTier.filter((f) => f.tier === "problematic");
+  const otherFields = fieldsWithTier.filter((f) => f.tier !== "problematic");
+
   const datiEstrattiContent: ReactNode = (
-    <Card padding="compact">
+    <div className="flex max-w-[960px] flex-col gap-6">
       {!isExtractableCategory(caseRecord.category) ? (
         <p className="text-sm text-[var(--color-ink-muted)]">
           Questa categoria riceve solo classificazione e sintesi, senza estrazione campi dedicata.
@@ -151,55 +166,41 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
       ) : orderedFieldKeys.length === 0 ? (
         <p className="text-sm text-[var(--color-ink-muted)]">Nessun campo ancora estratto.</p>
       ) : (
-        <div className="flex flex-col divide-y divide-[var(--color-border)]">
-          {orderedFieldKeys.map((key) => {
-            const field = fieldsByKey.get(key);
-            if (!field) return null;
-            const pct = field.confidence !== null ? Math.round(field.confidence * 100) : null;
-            const showLowConfidence = !field.needsHumanReview && pct !== null && pct < 70;
-            return (
-              <div key={key} className="flex flex-col gap-1.5 py-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="sm:w-1/3">
-                  <span className="text-sm font-medium text-[var(--color-ink)]">{fieldLabel(key)}</span>
-                </div>
-                <div className="flex flex-1 flex-col gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {field.value ? (
-                      <span className="text-sm text-[var(--color-ink)]">{formatFieldValue(key, field.value)}</span>
-                    ) : (
-                      <Badge tone="warning" icon={AlertTriangle}>Dato mancante</Badge>
-                    )}
-                    {field.needsHumanReview && (
-                      <Badge tone="warning">Da verificare{pct !== null ? ` · confidenza ${pct}%` : ""}</Badge>
-                    )}
-                    {showLowConfidence && <span className="text-xs text-[var(--color-ink-muted)]">Confidenza {pct}%</span>}
-                    {field.confirmedBy && (
-                      <span className="inline-flex items-center gap-1 text-xs text-[var(--color-forest)]">
-                        <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                        Confermato da {field.confirmedBy.name}
-                      </span>
-                    )}
-                    <FieldSourceInfo
-                      sourceType={field.sourceType}
-                      sourceMessageId={field.sourceMessageId}
-                      sourceAttachmentId={field.sourceAttachmentId}
-                    />
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {!field.confirmedBy && (
-                      <ActionButton method="PATCH" url={`/api/cases/${caseRecord.id}/fields/${key}`} body={{}} size="sm">
-                        Conferma
-                      </ActionButton>
-                    )}
-                    <FieldEditForm caseId={caseRecord.id} fieldKey={key} initialValue={field.value ?? ""} />
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <>
+          {problematicFields.length > 0 && (
+            <div className="flex flex-col gap-3">
+              {problematicFields.map(({ key, field, tier }) => (
+                <ExtractedFieldCell
+                  key={key}
+                  caseId={caseRecord.id}
+                  fieldKey={key}
+                  label={fieldLabel(key)}
+                  formattedValue={field.value ? formatFieldValue(key, field.value) : null}
+                  field={field}
+                  tier={tier}
+                />
+              ))}
+            </div>
+          )}
+          {otherFields.length > 0 && (
+            <div className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-border)] sm:grid-cols-2">
+              {otherFields.map(({ key, field, tier }, index) => (
+                <ExtractedFieldCell
+                  key={key}
+                  caseId={caseRecord.id}
+                  fieldKey={key}
+                  label={fieldLabel(key)}
+                  formattedValue={field.value ? formatFieldValue(key, field.value) : null}
+                  field={field}
+                  tier={tier}
+                  spanFull={otherFields.length % 2 !== 0 && index === otherFields.length - 1}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
-    </Card>
+    </div>
   );
 
   const emailContent: ReactNode = (
@@ -306,12 +307,16 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           title="Bozze di risposta"
           description="Le bozze non vengono mai inviate: richiedono sempre approvazione umana esplicita."
         />
-        {caseRecord.emailDrafts.length === 0 && <p className="mb-3 text-sm text-[var(--color-ink-muted)]">Nessuna bozza generata.</p>}
-        <div className="flex flex-col gap-3">
-          {caseRecord.emailDrafts.map((d) => (
-            <DraftCard key={d.id} caseId={caseRecord.id} draft={d} />
-          ))}
-        </div>
+        {!activeDraft && <p className="mb-3 text-sm text-[var(--color-ink-muted)]">Nessuna bozza generata.</p>}
+        {activeDraft && <DraftCard caseId={caseRecord.id} draft={activeDraft} />}
+        {historyDrafts.length > 0 && (
+          <div className="mt-4 flex flex-col gap-2">
+            <h3 className="text-xs font-semibold tracking-wide text-[var(--color-ink-muted)] uppercase">Bozze precedenti</h3>
+            {historyDrafts.map((d) => (
+              <DraftHistoryRow key={d.id} index={draftNumberById.get(d.id) ?? 0} draft={d} />
+            ))}
+          </div>
+        )}
       </Card>
 
       <Card padding="compact">
@@ -360,7 +365,10 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           <div className="mb-3 flex flex-col gap-2">
             <h3 className="text-xs font-semibold tracking-wide text-[var(--color-ink-muted)] uppercase">Candidati da verificare</h3>
             {pendingRelations.map((r) => (
-              <div key={r.id} className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+              <div
+                key={r.id}
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-[color-mix(in_srgb,var(--color-warning)_35%,white)] bg-[var(--color-warning-soft)] p-3 text-sm"
+              >
                 <span className="text-[var(--color-ink)]">
                   {CASE_RELATION_KIND_LABELS[r.kind]}: {r.relatedCase.reference} — {r.relatedCase.title}
                 </span>
