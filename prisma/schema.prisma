@@ -1,0 +1,780 @@
+// Prisma schema — Mizeta Mail Pipeline
+// See docs/SPEC.md §5 for the domain model this implements.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------- Enums ----------
+
+enum Role {
+  ADMIN
+  OPERATIONS
+  ACCOUNTING
+  COMMERCIAL
+  READ_ONLY
+}
+
+enum MailProviderType {
+  MICROSOFT365
+  PEC_IMAP
+  MOCK
+}
+
+enum ConnectionStatus {
+  PENDING
+  CONNECTED
+  DISCONNECTED
+  ERROR
+}
+
+enum EmailDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum PecMessageType {
+  MESSAGE
+  ACCEPTANCE_RECEIPT
+  DELIVERY_RECEIPT
+  NON_DELIVERY_RECEIPT
+}
+
+enum CaseCategory {
+  QUOTE_REQUEST
+  TRANSPORT_ORDER
+  SUPPLIER_INVOICE
+  CUSTOMER_RECEIVABLE
+  PAYMENT_NOTICE
+  FINE_OR_PENALTY
+  CLAIM_OR_DAMAGE
+  TRANSPORT_DOCUMENT
+  CUSTOMER_COMMUNICATION
+  ADMINISTRATIVE
+  OTHER
+  UNCERTAIN
+}
+
+enum CaseStatus {
+  NEW
+  NEEDS_REVIEW
+  ASSIGNED
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  WAITING_INTERNAL
+  COMPLETED
+  ARCHIVED
+}
+
+enum CasePriority {
+  CRITICAL
+  HIGH
+  NORMAL
+  LOW
+}
+
+enum Department {
+  OPERATIONS
+  ACCOUNTING
+  COMMERCIAL
+  MANAGEMENT
+}
+
+enum FieldSourceType {
+  EMAIL_BODY
+  EMAIL_SUBJECT
+  ATTACHMENT
+  MANUAL
+  SYSTEM
+}
+
+enum DeadlineKind {
+  RESPONSE_DUE
+  PAYMENT_DUE
+  PAYMENT_REDUCED_DUE
+  APPEAL_DUE
+  PICKUP_DUE
+  DELIVERY_DUE
+  OTHER
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum InvoiceDirection {
+  SUPPLIER
+  CUSTOMER
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum NotificationType {
+  CASE_ASSIGNED
+  DEADLINE_APPROACHING
+  NEEDS_REVIEW
+  MENTION
+  SYSTEM
+}
+
+enum GeneratedDocumentType {
+  QUOTE_SHEET
+  TRANSPORT_ORDER_SHEET
+  CLAIM_DOSSIER
+  FINE_SHEET
+  DEADLINES_REPORT
+  DAILY_BRIEFING
+  OVERDUE_RECEIVABLES_REPORT
+  SUPPLIER_INVOICES_REPORT
+}
+
+enum GeneratedDocumentFormat {
+  HTML
+  PDF
+}
+
+enum AuditAction {
+  USER_LOGIN
+  USER_LOGOUT
+  CASE_VIEWED
+  FIELD_UPDATED
+  FIELD_CONFIRMED
+  STATUS_CHANGED
+  ASSIGNEE_CHANGED
+  DRAFT_GENERATED
+  DOCUMENT_GENERATED
+  CASE_LINKED
+  CASE_SPLIT
+  EMAIL_SYNCED
+  CLASSIFICATION_ERROR
+  ADMIN_ACTION
+  CASE_CREATED
+  EXTRACTION_ERROR
+  POSSIBLE_DUPLICATE_FLAGGED
+  SECURITY_FLAG_DETECTED
+  RULE_SETTINGS_UPDATED
+  DRAFT_APPROVED
+  DRAFT_DISCARDED
+  JOB_DEAD_LETTERED
+}
+
+enum CaseRelationKind {
+  DUPLICATE_CANDIDATE
+  RELATED
+}
+
+enum CaseRelationStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
+enum EmailDraftStatus {
+  PENDING_APPROVAL
+  APPROVED
+  DISCARDED
+}
+
+enum JobType {
+  INGEST_MAILBOX_CHANGES
+  PROCESS_INCOMING_MESSAGE
+  RENEW_SUBSCRIPTION
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  DEAD_LETTER
+}
+
+// ---------- Auth ----------
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         Role
+  active       Boolean   @default(true)
+  invitedById  String?
+  invitedBy    User?     @relation("UserInvites", fields: [invitedById], references: [id])
+  invitedUsers User[]    @relation("UserInvites")
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions                  Session[]
+  assignedCases             Case[]              @relation("CaseAssignee")
+  assignedTasks             Task[]              @relation("TaskAssignee")
+  createdTasks              Task[]              @relation("TaskCreator")
+  comments                  Comment[]
+  auditLogs                 AuditLog[]
+  notifications             Notification[]
+  confirmedFields           CaseField[]         @relation("FieldConfirmedBy")
+  generatedDocuments        GeneratedDocument[]
+  createdMailboxConnections MailboxConnection[]
+  reviewedCaseRelations     CaseRelation[]      @relation("CaseRelationReviewedBy")
+  updatedRuleSettings       RuleSettings[]
+  generatedEmailDrafts      EmailDraft[]        @relation("EmailDraftGeneratedBy")
+  approvedEmailDrafts       EmailDraft[]        @relation("EmailDraftApprovedBy")
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  userAgent  String?
+  ipAddress  String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ---------- Mailbox / email ----------
+
+model MailboxConnection {
+  id                    String           @id @default(cuid())
+  provider              MailProviderType
+  displayName           String
+  emailAddress          String
+  status                ConnectionStatus @default(PENDING)
+  isPec                 Boolean          @default(false)
+  externalAccountId     String?
+  config                Json?
+  lastSyncAt            DateTime?
+  lastSyncCursor        String?
+  lastHealthCheckAt     DateTime?
+  lastHealthStatus      String?
+  subscriptionId        String?
+  subscriptionExpiresAt DateTime?
+  webhookClientState    String?
+  createdById           String?
+  createdBy             User?            @relation(fields: [createdById], references: [id])
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  threads  EmailThread[]
+  messages EmailMessage[]
+
+  @@unique([provider, emailAddress])
+}
+
+model EmailThread {
+  id                  String            @id @default(cuid())
+  mailboxConnectionId String
+  mailboxConnection   MailboxConnection @relation(fields: [mailboxConnectionId], references: [id])
+  providerThreadId    String?
+  subject             String
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  messages EmailMessage[]
+
+  @@unique([mailboxConnectionId, providerThreadId])
+}
+
+model EmailMessage {
+  id                  String            @id @default(cuid())
+  mailboxConnectionId String
+  mailboxConnection   MailboxConnection @relation(fields: [mailboxConnectionId], references: [id])
+  threadId            String
+  thread              EmailThread       @relation(fields: [threadId], references: [id])
+  caseId              String?
+  case                Case?             @relation(fields: [caseId], references: [id])
+
+  providerMessageId String
+  internetMessageId String?
+  inReplyTo         String?
+  references        String[]
+
+  direction   EmailDirection @default(INBOUND)
+  fromAddress String
+  fromName    String?
+  toAddresses String[]
+  ccAddresses String[]
+  subject     String
+  bodyText    String
+  bodyHtml    String?
+  receivedAt  DateTime
+  sentAt      DateTime?
+
+  isPec          Boolean         @default(false)
+  pecMessageType PecMessageType?
+  language       String?
+  hasAttachments Boolean         @default(false)
+  securityFlags  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  attachments        Attachment[]
+  classificationRuns ClassificationRun[]
+  sourcedFields      CaseField[]         @relation("FieldSourceMessage")
+
+  @@unique([mailboxConnectionId, providerMessageId])
+  @@index([caseId])
+  @@index([internetMessageId])
+}
+
+model Attachment {
+  id             String       @id @default(cuid())
+  emailMessageId String
+  emailMessage   EmailMessage @relation(fields: [emailMessageId], references: [id], onDelete: Cascade)
+  fileName       String
+  mimeType       String
+  sizeBytes      Int
+  storageKey     String
+  contentHash    String?
+  isReadable     Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+
+  sourcedFields CaseField[] @relation("FieldSourceAttachment")
+
+  @@index([emailMessageId])
+}
+
+// ---------- Case (pratica) ----------
+
+model Case {
+  id                  String         @id @default(cuid())
+  reference           String         @unique
+  title               String
+  category            CaseCategory
+  secondaryCategories CaseCategory[]
+  status              CaseStatus     @default(NEW)
+  priority            CasePriority   @default(NORMAL)
+  summary             String?
+  department          Department?
+
+  customerId   String?
+  customer     Customer? @relation(fields: [customerId], references: [id])
+  supplierId   String?
+  supplier     Supplier? @relation(fields: [supplierId], references: [id])
+  assignedToId String?
+  assignedTo   User?     @relation("CaseAssignee", fields: [assignedToId], references: [id])
+
+  isPec            Boolean   @default(false)
+  needsHumanReview Boolean   @default(false)
+  confidence       Float?
+  dueAt            DateTime?
+  completedAt      DateTime?
+  archivedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  messages           EmailMessage[]
+  fields             CaseField[]
+  deadlines          CaseDeadline[]
+  tasks              Task[]
+  comments           Comment[]
+  shipmentReferences ShipmentReference[]
+  invoiceReferences  InvoiceReference[]
+  classificationRuns ClassificationRun[]
+  extractionRuns     ExtractionRun[]
+  actionProposalRuns ActionProposalRun[]
+  notifications      Notification[]
+  generatedDocuments GeneratedDocument[]
+  auditLogs          AuditLog[]
+  relationsAsSource  CaseRelation[]      @relation("CaseRelationSource")
+  relationsAsTarget  CaseRelation[]      @relation("CaseRelationTarget")
+  emailDrafts        EmailDraft[]
+
+  @@index([status, priority])
+  @@index([category])
+  @@index([assignedToId])
+}
+
+model CaseField {
+  id                 String           @id @default(cuid())
+  caseId             String
+  case               Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  fieldKey           String
+  value              String?
+  normalizedValue    String?
+  confidence         Float?
+  sourceType         FieldSourceType?
+  sourceMessageId    String?
+  sourceMessage      EmailMessage?    @relation("FieldSourceMessage", fields: [sourceMessageId], references: [id])
+  sourceAttachmentId String?
+  sourceAttachment   Attachment?      @relation("FieldSourceAttachment", fields: [sourceAttachmentId], references: [id])
+  sourcePage         Int?
+  sourceExcerpt      String?
+  needsHumanReview   Boolean          @default(false)
+  confirmedById      String?
+  confirmedBy        User?            @relation("FieldConfirmedBy", fields: [confirmedById], references: [id])
+  confirmedAt        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([caseId, fieldKey])
+}
+
+model CaseDeadline {
+  id         String       @id @default(cuid())
+  caseId     String
+  case       Case         @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  kind       DeadlineKind
+  label      String
+  dueAt      DateTime
+  isCritical Boolean      @default(false)
+  resolvedAt DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([caseId])
+  @@index([dueAt])
+}
+
+model Task {
+  id           String     @id @default(cuid())
+  caseId       String
+  case         Case       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  status       TaskStatus @default(TODO)
+  assignedToId String?
+  assignedTo   User?      @relation("TaskAssignee", fields: [assignedToId], references: [id])
+  createdById  String
+  createdBy    User       @relation("TaskCreator", fields: [createdById], references: [id])
+  dueAt        DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  caseId    String
+  case      Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------- Business entities ----------
+
+model Customer {
+  id            String   @id @default(cuid())
+  name          String
+  vatNumber     String?
+  fiscalCode    String?
+  email         String?
+  phone         String?
+  address       String?
+  externalErpId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cases             Case[]
+  invoiceReferences InvoiceReference[]
+}
+
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  vatNumber     String?
+  iban          String?
+  email         String?
+  phone         String?
+  address       String?
+  externalErpId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  cases             Case[]
+  invoiceReferences InvoiceReference[]
+}
+
+model Vehicle {
+  id        String   @id @default(cuid())
+  plate     String   @unique
+  type      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shipmentReferences ShipmentReference[]
+}
+
+model Driver {
+  id            String   @id @default(cuid())
+  name          String
+  licenseNumber String?
+  phone         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  shipmentReferences ShipmentReference[]
+}
+
+model ShipmentReference {
+  id          String    @id @default(cuid())
+  caseId      String?
+  case        Case?     @relation(fields: [caseId], references: [id])
+  reference   String
+  origin      String?
+  destination String?
+  pickupAt    DateTime?
+  deliveryAt  DateTime?
+  vehicleId   String?
+  vehicle     Vehicle?  @relation(fields: [vehicleId], references: [id])
+  driverId    String?
+  driver      Driver?   @relation(fields: [driverId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model InvoiceReference {
+  id                    String             @id @default(cuid())
+  caseId                String?
+  case                  Case?              @relation(fields: [caseId], references: [id])
+  direction             InvoiceDirection
+  invoiceNumber         String
+  issuedAt              DateTime?
+  dueAt                 DateTime?
+  amountNet             Decimal?           @db.Decimal(12, 2)
+  vatAmount             Decimal?           @db.Decimal(12, 2)
+  amountTotal           Decimal?           @db.Decimal(12, 2)
+  currency              String             @default("EUR")
+  iban                  String?
+  supplierId            String?
+  supplier              Supplier?          @relation(fields: [supplierId], references: [id])
+  customerId            String?
+  customer              Customer?          @relation(fields: [customerId], references: [id])
+  possibleDuplicateOfId String?
+  possibleDuplicateOf   InvoiceReference?  @relation("InvoiceDuplicate", fields: [possibleDuplicateOfId], references: [id])
+  duplicateCandidates   InvoiceReference[] @relation("InvoiceDuplicate")
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+}
+
+// ---------- Pipeline / audit / docs ----------
+
+model ClassificationRun {
+  id             String       @id @default(cuid())
+  emailMessageId String
+  emailMessage   EmailMessage @relation(fields: [emailMessageId], references: [id])
+  caseId         String?
+  case           Case?        @relation(fields: [caseId], references: [id])
+  llmProvider    String
+  model          String?
+  status         RunStatus    @default(PENDING)
+  resultJson     Json?
+  errorMessage   String?
+  inputTokens    Int?
+  outputTokens   Int?
+  costUsd        Decimal?     @db.Decimal(10, 4)
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  createdAt      DateTime     @default(now())
+}
+
+model ExtractionRun {
+  id           String    @id @default(cuid())
+  caseId       String?
+  case         Case?     @relation(fields: [caseId], references: [id])
+  llmProvider  String
+  model        String?
+  status       RunStatus @default(PENDING)
+  resultJson   Json?
+  errorMessage String?
+  inputTokens  Int?
+  outputTokens Int?
+  costUsd      Decimal?  @db.Decimal(10, 4)
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+model ActionProposalRun {
+  id           String    @id @default(cuid())
+  caseId       String
+  case         Case      @relation(fields: [caseId], references: [id])
+  llmProvider  String
+  model        String?
+  status       RunStatus @default(PENDING)
+  resultJson   Json?
+  errorMessage String?
+  inputTokens  Int?
+  outputTokens Int?
+  costUsd      Decimal?  @db.Decimal(10, 4)
+  startedAt    DateTime?
+  finishedAt   DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+model CaseRelation {
+  id            String             @id @default(cuid())
+  caseId        String
+  case          Case               @relation("CaseRelationSource", fields: [caseId], references: [id], onDelete: Cascade)
+  relatedCaseId String
+  relatedCase   Case               @relation("CaseRelationTarget", fields: [relatedCaseId], references: [id], onDelete: Cascade)
+  kind          CaseRelationKind
+  status        CaseRelationStatus @default(PENDING)
+  confidence    Float?
+  reason        String?
+  matchLevel    String?
+  reviewedById  String?
+  reviewedBy    User?              @relation("CaseRelationReviewedBy", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@unique([caseId, relatedCaseId, kind])
+  @@index([status])
+}
+
+model RuleSettings {
+  id                                           String         @id @default(cuid())
+  key                                          String         @unique @default("default")
+  classificationConfidenceThreshold            Float          @default(0.55)
+  matchingAutoLinkConfidenceThreshold          Float          @default(0.85)
+  matchingPossibleDuplicateConfidenceThreshold Float          @default(0.5)
+  deadlineCriticalWithinHours                  Int            @default(24)
+  fineReducedDeadlineCriticalWithinHours       Int            @default(48)
+  claimAmountHighThreshold                     Decimal        @default(2000) @db.Decimal(12, 2)
+  quoteSameDayResponseWithinHours              Int            @default(4)
+  amountMismatchTolerancePercent               Float          @default(5)
+  enabledCategories                            CaseCategory[]
+  defaultDepartmentByCategory                  Json?
+  emailRetentionDays                           Int?
+  attachmentRetentionDays                      Int?
+  auditLogRetentionDays                        Int?
+  excludedSenderPatterns                       String[]
+  updatedById                                  String?
+  updatedBy                                    User?          @relation(fields: [updatedById], references: [id])
+  updatedAt                                    DateTime       @updatedAt
+  createdAt                                    DateTime       @default(now())
+}
+
+model EmailDraft {
+  id            String           @id @default(cuid())
+  caseId        String
+  case          Case             @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  toAddresses   String[]
+  subject       String
+  bodyText      String
+  placeholders  String[]
+  status        EmailDraftStatus @default(PENDING_APPROVAL)
+  generatedById String?
+  generatedBy   User?            @relation("EmailDraftGeneratedBy", fields: [generatedById], references: [id])
+  approvedById  String?
+  approvedBy    User?            @relation("EmailDraftApprovedBy", fields: [approvedById], references: [id])
+  approvedAt    DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([caseId])
+}
+
+model ReplyTemplate {
+  id        String        @id @default(cuid())
+  category  CaseCategory?
+  name      String
+  subject   String
+  bodyText  String
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([category])
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  actorId    String?
+  actor      User?       @relation(fields: [actorId], references: [id])
+  action     AuditAction
+  entityType String
+  entityId   String?
+  caseId     String?
+  case       Case?       @relation(fields: [caseId], references: [id])
+  metadata   Json?
+  createdAt  DateTime    @default(now())
+
+  @@index([entityType, entityId])
+  @@index([caseId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  body      String?
+  caseId    String?
+  case      Case?            @relation(fields: [caseId], references: [id])
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+}
+
+// ---------- Job queue (Postgres-backed, SPEC.md §3/§17: retry, backoff, dead-letter) ----------
+
+model Job {
+  id             String    @id @default(cuid())
+  type           JobType
+  payload        Json
+  idempotencyKey String    @unique
+  status         JobStatus @default(PENDING)
+  attempts       Int       @default(0)
+  maxAttempts    Int       @default(6)
+  nextRunAt      DateTime  @default(now())
+  lockedAt       DateTime?
+  lockedBy       String?
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  attemptLogs JobAttempt[]
+
+  @@index([status, nextRunAt])
+}
+
+model JobAttempt {
+  id            String    @id @default(cuid())
+  jobId         String
+  job           Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  attemptNumber Int
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+  status        JobStatus
+  error         String?
+
+  @@index([jobId])
+}
+
+model GeneratedDocument {
+  id            String                  @id @default(cuid())
+  caseId        String
+  case          Case                    @relation(fields: [caseId], references: [id])
+  type          GeneratedDocumentType
+  format        GeneratedDocumentFormat @default(PDF)
+  storageKey    String?
+  generatedById String?
+  generatedBy   User?                   @relation(fields: [generatedById], references: [id])
+  generatedAt   DateTime?
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+}
