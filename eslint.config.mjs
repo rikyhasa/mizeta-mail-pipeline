@@ -20,6 +20,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Componenti di riferimento visivo, non compilati nell'app — vedi FASE-7C-REDESIGN-STRUTTURALE.md.
+    "docs/design-reference/**",
   ]),
 ]);
 

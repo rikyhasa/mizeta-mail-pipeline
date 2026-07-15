@@ -17,6 +17,10 @@
   --color-brand: #f28a1d;
   --color-brand-dark: #c8680d;
   --color-anthracite: #202326;
+  --color-anthracite-light: #2c3236;
+  --color-anthracite-border: #34393e;
+  --color-sidebar-ink: #eef1f3;
+  --color-sidebar-ink-muted: #9aa5b0;
   --color-ink: #161719;
   --color-ink-muted: #5f6873;
   --color-surface: #ffffff;
@@ -24,6 +28,23 @@
   --color-border: #dce2e8;
   --color-teal: #1f6672;
   --color-forest: #4d6b5a;
+
+  /* Colori semantici di priorità/anomalia, centralizzati per non ripetere
+     tinte Tailwind sciolte nelle pagine — coerenti con i toni di Badge.tsx. */
+  --color-critical: #b91c1c;
+  --color-critical-soft: #fef2f2;
+  --color-warning: #92400e;
+  --color-warning-soft: #fffbeb;
+
+  /* Scala tipografica — tre ruoli espliciti (Fase 7C), oltre alla scala
+     Tailwind di default già usata per corpo/metadati/microtesti. */
+  --text-page-title: 1.875rem;
+  --text-page-title--line-height: 1.2;
+  --text-page-title--letter-spacing: -0.02em;
+  --text-section-title: 1.3125rem;
+  --text-section-title--line-height: 1.3;
+  --text-card-title: 1.125rem;
+  --text-card-title--line-height: 1.4;
 }
 
 body {

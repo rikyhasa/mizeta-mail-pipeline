@@ -1,21 +1,31 @@
 import type { ReactNode } from "react";
 
-/** Blocco visivo condiviso: sfondo bianco, bordo sottile, ombra morbida, angoli arrotondati. */
+/**
+ * Blocco visivo condiviso. `variant="surface"` (default) è la card piena
+ * usata per unità autonome (bordo + sfondo + ombra morbida). `variant="flat"`
+ * è un blocco con sfondo distinto ma senza bordo/ombra, per raggruppare
+ * contenuto senza aggiungere un'altra card — vedi anche `Section` per
+ * raggruppamenti senza sfondo.
+ */
 export function Card({
   children,
   className = "",
   padding = "normal",
+  variant = "surface",
 }: {
   children: ReactNode;
   className?: string;
   padding?: "normal" | "compact" | "none";
+  variant?: "surface" | "flat";
 }) {
   const paddingClass =
     padding === "none" ? "" : padding === "compact" ? "p-4" : "p-6";
+  const variantClass =
+    variant === "flat"
+      ? "rounded-xl bg-[var(--color-surface-muted)]"
+      : "rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm";
   return (
-    <div
-      className={`rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm ${paddingClass} ${className}`}
-    >
+    <div className={`${variantClass} ${paddingClass} ${className}`}>
       {children}
     </div>
   );
