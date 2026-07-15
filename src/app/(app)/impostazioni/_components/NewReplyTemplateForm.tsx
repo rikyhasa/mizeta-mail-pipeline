@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CASE_CATEGORY_LABELS } from "@/lib/i18n/labels";
 import type { CaseCategory } from "@/generated/prisma/enums";
+import { FormField, fieldControlClassName } from "@/components/ui/Field";
+import { buttonClassName } from "@/components/ui/Button";
 
 const CATEGORIES = Object.keys(CASE_CATEGORY_LABELS) as CaseCategory[];
 
@@ -41,15 +43,13 @@ export function NewReplyTemplateForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-      <div className="flex flex-wrap gap-2">
-        <label className="flex flex-col gap-1 text-xs text-slate-600">
-          Nome modello
-          <input value={name} onChange={(e) => setName(e.target.value)} required className="rounded border border-slate-300 px-2 py-1.5 text-sm" />
-        </label>
-        <label className="flex flex-col gap-1 text-xs text-slate-600">
-          Categoria
-          <select value={category} onChange={(e) => setCategory(e.target.value)} className="rounded border border-slate-300 px-2 py-1.5 text-sm">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 border-t border-[var(--color-border)] pt-4">
+      <div className="flex flex-wrap gap-3">
+        <FormField label="Nome modello" htmlFor="new-template-name">
+          <input id="new-template-name" value={name} onChange={(e) => setName(e.target.value)} required className={fieldControlClassName} />
+        </FormField>
+        <FormField label="Categoria" htmlFor="new-template-category">
+          <select id="new-template-category" value={category} onChange={(e) => setCategory(e.target.value)} className={fieldControlClassName}>
             <option value="">Generico (tutte le categorie)</option>
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -57,18 +57,23 @@ export function NewReplyTemplateForm() {
               </option>
             ))}
           </select>
-        </label>
+        </FormField>
       </div>
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
-        Oggetto (usa {"{{campo}}"} per i dati estratti)
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} required className="rounded border border-slate-300 px-2 py-1.5 text-sm" />
-      </label>
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
-        Corpo
-        <textarea value={bodyText} onChange={(e) => setBodyText(e.target.value)} required rows={5} className="rounded border border-slate-300 px-2 py-1.5 text-sm" />
-      </label>
+      <FormField label="Oggetto (usa {{campo}} per i dati estratti)" htmlFor="new-template-subject">
+        <input id="new-template-subject" value={subject} onChange={(e) => setSubject(e.target.value)} required className={fieldControlClassName} />
+      </FormField>
+      <FormField label="Corpo" htmlFor="new-template-body">
+        <textarea
+          id="new-template-body"
+          value={bodyText}
+          onChange={(e) => setBodyText(e.target.value)}
+          required
+          rows={5}
+          className={fieldControlClassName}
+        />
+      </FormField>
       <div>
-        <button type="submit" disabled={pending} className="rounded border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50">
+        <button type="submit" disabled={pending} className={buttonClassName({ variant: "secondary", size: "md" })}>
           {pending ? "..." : "Crea modello"}
         </button>
       </div>

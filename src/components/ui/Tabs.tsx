@@ -35,11 +35,11 @@ export function Tabs({
   }
 
   return (
-    <div className={className}>
+    <div className={`min-w-0 ${className}`}>
       <div
         role="tablist"
         aria-label="Sezioni"
-        className="flex gap-1 overflow-x-auto border-b border-[var(--color-border)]"
+        className="flex min-w-0 gap-1 overflow-x-auto border-b border-[var(--color-border)]"
       >
         {tabs.map((tab, index) => {
           const selected = tab.value === active;

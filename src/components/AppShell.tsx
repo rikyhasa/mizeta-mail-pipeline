@@ -99,7 +99,7 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="flex min-h-full flex-1 flex-col">
+      <div className="flex min-h-full min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-3 border-b border-[var(--color-border)] bg-white px-4 py-3 lg:hidden">
           <button
             type="button"
@@ -111,7 +111,7 @@ export function AppShell({
           </button>
           <span className="text-sm font-semibold text-[var(--color-anthracite)]">Mizeta Mail Pipeline</span>
         </header>
-        <main className="flex-1 bg-[var(--color-surface-muted)] px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+        <main className="min-w-0 flex-1 bg-[var(--color-surface-muted)] px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>
   );

@@ -1,10 +1,14 @@
+import { Mail, SlidersHorizontal, Tags, Users, FileText, Activity, Terminal } from "lucide-react";
 import { prisma } from "@/lib/db/prisma";
 import { requireRoleOrRedirect } from "@/lib/auth/guard";
 import { getRuleSettings } from "@/lib/rules/settings-repository";
 import { getObservabilitySnapshot } from "@/lib/observability/metrics";
 import { env } from "@/lib/config/env";
+import { Card, CardHeader } from "@/components/ui/Card";
+import { Tabs } from "@/components/ui/Tabs";
 import { MailboxesSection } from "./_components/MailboxesSection";
-import { RuleSettingsForm } from "./_components/RuleSettingsForm";
+import { AutomationSettingsForm } from "./_components/AutomationSettingsForm";
+import { CategorySettingsForm } from "./_components/CategorySettingsForm";
 import { UsersSection } from "./_components/UsersSection";
 import { ReplyTemplatesSection } from "./_components/ReplyTemplatesSection";
 import { ObservabilitySection } from "./_components/ObservabilitySection";
@@ -23,32 +27,67 @@ export default async function SettingsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Impostazioni</h1>
-        <p className="text-sm text-slate-500">Configurazione riservata agli amministratori.</p>
+        <h1 className="text-xl font-semibold text-[var(--color-ink)]">Impostazioni</h1>
+        <p className="text-sm text-[var(--color-ink-muted)]">Configurazione riservata agli amministratori.</p>
       </div>
 
-      <section aria-label="Modalità" className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-700">
-        <h2 className="mb-1 text-sm font-semibold text-slate-900">Modalità</h2>
-        <p>
-          Provider email: <span className="font-mono">{env.EMAIL_PROVIDER}</span> · Provider AI: <span className="font-mono">{env.LLM_PROVIDER}</span>
-        </p>
-        <p className="mt-1 text-xs text-slate-400">
-          Impostati da variabili d&apos;ambiente: per cambiarli occorre modificare la configurazione e riavviare l&apos;applicazione.
-        </p>
-      </section>
-
-      <MailboxesSection mailboxes={mailboxes} emailProvider={env.EMAIL_PROVIDER} />
-
-      <ObservabilitySection snapshot={observability} />
-
-      <section aria-label="Soglie e regole" className="rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Soglie, retention e categorie</h2>
-        <RuleSettingsForm settings={settings} />
-      </section>
-
-      <UsersSection users={users} />
-
-      <ReplyTemplatesSection templates={templates} />
+      <Tabs
+        tabs={[
+          {
+            value: "connessioni",
+            label: "Connessioni email",
+            icon: <Mail className="h-4 w-4" />,
+            content: <MailboxesSection mailboxes={mailboxes} emailProvider={env.EMAIL_PROVIDER} />,
+          },
+          {
+            value: "automazione",
+            label: "Automazione e soglie",
+            icon: <SlidersHorizontal className="h-4 w-4" />,
+            content: <AutomationSettingsForm settings={settings} />,
+          },
+          {
+            value: "categorie",
+            label: "Categorie e assegnazioni",
+            icon: <Tags className="h-4 w-4" />,
+            content: <CategorySettingsForm settings={settings} />,
+          },
+          {
+            value: "utenti",
+            label: "Utenti e ruoli",
+            icon: <Users className="h-4 w-4" />,
+            content: <UsersSection users={users} />,
+          },
+          {
+            value: "modelli",
+            label: "Modelli di risposta",
+            icon: <FileText className="h-4 w-4" />,
+            content: <ReplyTemplatesSection templates={templates} />,
+          },
+          {
+            value: "monitoraggio",
+            label: "Monitoraggio",
+            icon: <Activity className="h-4 w-4" />,
+            content: <ObservabilitySection snapshot={observability} />,
+          },
+          {
+            value: "tecniche",
+            label: "Informazioni tecniche",
+            icon: <Terminal className="h-4 w-4" />,
+            content: (
+              <Card padding="compact">
+                <CardHeader title="Modalità" />
+                <p className="text-sm text-[var(--color-ink)]">
+                  Provider email: <span className="font-mono">{env.EMAIL_PROVIDER}</span> · Provider AI:{" "}
+                  <span className="font-mono">{env.LLM_PROVIDER}</span>
+                </p>
+                <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
+                  Impostati da variabili d&apos;ambiente: per cambiarli occorre modificare la configurazione e riavviare l&apos;applicazione.
+                </p>
+              </Card>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

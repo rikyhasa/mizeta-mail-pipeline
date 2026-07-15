@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ROLE_LABELS } from "@/lib/i18n/labels";
 import type { Role } from "@/generated/prisma/enums";
+import { FormField, fieldControlClassName } from "@/components/ui/Field";
+import { buttonClassName } from "@/components/ui/Button";
 
 const ROLES = Object.keys(ROLE_LABELS) as Role[];
 
@@ -41,47 +43,41 @@ export function NewUserForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2">
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
-        Nome
-        <input value={name} onChange={(e) => setName(e.target.value)} required className="rounded border border-slate-300 px-2 py-1.5 text-sm" />
-      </label>
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
-        Email
+    <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3 border-t border-[var(--color-border)] pt-4">
+      <FormField label="Nome" htmlFor="new-user-name">
+        <input id="new-user-name" value={name} onChange={(e) => setName(e.target.value)} required className={fieldControlClassName} />
+      </FormField>
+      <FormField label="Email" htmlFor="new-user-email">
         <input
+          id="new-user-email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="rounded border border-slate-300 px-2 py-1.5 text-sm"
+          className={fieldControlClassName}
         />
-      </label>
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
-        Ruolo
-        <select value={role} onChange={(e) => setRole(e.target.value as Role)} className="rounded border border-slate-300 px-2 py-1.5 text-sm">
+      </FormField>
+      <FormField label="Ruolo" htmlFor="new-user-role">
+        <select id="new-user-role" value={role} onChange={(e) => setRole(e.target.value as Role)} className={fieldControlClassName}>
           {ROLES.map((r) => (
             <option key={r} value={r}>
               {ROLE_LABELS[r]}
             </option>
           ))}
         </select>
-      </label>
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
-        Password iniziale
+      </FormField>
+      <FormField label="Password iniziale" htmlFor="new-user-password">
         <input
+          id="new-user-password"
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
           minLength={8}
-          className="rounded border border-slate-300 px-2 py-1.5 text-sm"
+          className={fieldControlClassName}
         />
-      </label>
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50"
-      >
+      </FormField>
+      <button type="submit" disabled={pending} className={buttonClassName({ variant: "secondary", size: "md" })}>
         {pending ? "..." : "Crea utente"}
       </button>
       {error && (

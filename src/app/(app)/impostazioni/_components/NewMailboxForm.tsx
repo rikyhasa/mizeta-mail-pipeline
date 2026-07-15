@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FormField, fieldControlClassName } from "@/components/ui/Field";
+import { buttonClassName } from "@/components/ui/Button";
 
 /** Collega una mailbox reale per il provider attivo (env.EMAIL_PROVIDER) — vedi
  * `/api/settings/mailboxes` per la logica di connessione. */
@@ -36,26 +38,27 @@ export function NewMailboxForm({ emailProviderLabel }: { emailProviderLabel: str
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-3 flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
-        Nome visualizzato
-        <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} required className="rounded border border-slate-300 px-2 py-1.5 text-sm" />
-      </label>
-      <label className="flex flex-col gap-1 text-xs text-slate-600">
-        Indirizzo email
+    <form onSubmit={handleSubmit} className="mt-3 flex flex-wrap items-end gap-3 border-t border-[var(--color-border)] pt-4">
+      <FormField label="Nome visualizzato" htmlFor="new-mailbox-name">
         <input
+          id="new-mailbox-name"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          required
+          className={fieldControlClassName}
+        />
+      </FormField>
+      <FormField label="Indirizzo email" htmlFor="new-mailbox-email">
+        <input
+          id="new-mailbox-email"
           type="email"
           value={emailAddress}
           onChange={(e) => setEmailAddress(e.target.value)}
           required
-          className="rounded border border-slate-300 px-2 py-1.5 text-sm"
+          className={fieldControlClassName}
         />
-      </label>
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded border border-slate-300 px-3 py-1.5 text-xs hover:bg-slate-50 disabled:opacity-50"
-      >
+      </FormField>
+      <button type="submit" disabled={pending} className={buttonClassName({ variant: "secondary", size: "md" })}>
         {pending ? "..." : `Collega mailbox (${emailProviderLabel})`}
       </button>
       {error && (

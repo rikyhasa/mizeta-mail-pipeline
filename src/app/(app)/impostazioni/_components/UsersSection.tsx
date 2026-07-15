@@ -1,6 +1,8 @@
 import { ROLE_LABELS } from "@/lib/i18n/labels";
 import { InlineSelect } from "@/components/InlineSelect";
 import { ActionButton } from "@/components/ActionButton";
+import { Card, CardHeader } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { NewUserForm } from "./NewUserForm";
 import type { Role } from "@/generated/prisma/enums";
 
@@ -16,16 +18,16 @@ interface UserRow {
 
 export function UsersSection({ users }: { users: UserRow[] }) {
   return (
-    <section aria-label="Utenti e ruoli" className="rounded-lg border border-slate-200 bg-white p-4">
-      <h2 className="mb-3 text-sm font-semibold text-slate-900">Utenti e ruoli</h2>
-      <div className="mb-4 flex flex-col divide-y divide-slate-100">
+    <Card padding="compact">
+      <CardHeader title="Utenti e ruoli" />
+      <div className="mb-4 flex flex-col divide-y divide-[var(--color-border)]">
         {users.map((u) => (
-          <div key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+          <div key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
             <div>
-              <div className="font-medium text-slate-900">
-                {u.name} {!u.active && <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-medium text-slate-500">Disattivo</span>}
+              <div className="font-medium text-[var(--color-ink)]">
+                {u.name} {!u.active && <Badge tone="muted">Disattivo</Badge>}
               </div>
-              <div className="text-xs text-slate-500">{u.email}</div>
+              <div className="text-xs text-[var(--color-ink-muted)]">{u.email}</div>
             </div>
             <div className="flex items-center gap-2">
               <InlineSelect url={`/api/settings/users/${u.id}`} fieldName="role" value={u.role} options={ROLE_OPTIONS} label="Ruolo" />
@@ -34,6 +36,7 @@ export function UsersSection({ users }: { users: UserRow[] }) {
                 url={`/api/settings/users/${u.id}`}
                 body={{ active: !u.active }}
                 confirmMessage={u.active ? "Disattivare questo utente?" : "Riattivare questo utente?"}
+                size="sm"
               >
                 {u.active ? "Disattiva" : "Attiva"}
               </ActionButton>
@@ -42,6 +45,6 @@ export function UsersSection({ users }: { users: UserRow[] }) {
         ))}
       </div>
       <NewUserForm />
-    </section>
+    </Card>
   );
 }
