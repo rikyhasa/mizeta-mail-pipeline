@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { requireUserOrRedirect } from "@/lib/auth/guard";
 import { getAlerts, getFilteredCases, getKpis, type DashboardFilters, type DashboardQuickFilter } from "@/lib/dashboard/queries";
-import { AlertsBand } from "./_components/AlertsBand";
-import { KpiBand } from "./_components/KpiBand";
+import { PrimaryAlerts } from "./_components/PrimaryAlerts";
+import { DashboardStatsStrip } from "./_components/DashboardStatsStrip";
 import { FiltersBar } from "./_components/FiltersBar";
 import { ActiveFiltersChips } from "./_components/ActiveFiltersChips";
 import { CasesTable } from "./_components/CasesTable";
@@ -12,6 +12,7 @@ type SearchParams = Record<string, string | undefined>;
 
 function parseFilters(sp: SearchParams): DashboardFilters {
   return {
+    q: sp.q || undefined,
     category: sp.category as CaseCategory | undefined,
     status: sp.status as CaseStatus | undefined,
     priority: sp.priority as CasePriority | undefined,
@@ -47,12 +48,12 @@ export default async function PraticheDashboardPage({ searchParams }: { searchPa
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-[var(--color-ink)]">Dashboard pratiche</h1>
-        <p className="text-sm text-[var(--color-ink-muted)]">Panoramica delle pratiche generate dalle email in arrivo.</p>
+        <h1 className="text-page-title font-semibold text-[var(--color-ink)]">Pratiche</h1>
+        <p className="mt-1 text-sm text-[var(--color-ink-muted)]">Le email in arrivo diventano pratiche operative da controllare e completare.</p>
       </div>
 
-      <AlertsBand alerts={alerts} activeQuick={filters.quick} searchParams={sp} quotesTotal={kpis.quotes.total} />
-      <KpiBand kpis={kpis} />
+      <PrimaryAlerts alerts={alerts} activeQuick={filters.quick} searchParams={sp} />
+      <DashboardStatsStrip alerts={alerts} kpis={kpis} searchParams={sp} />
       <FiltersBar filters={sp} users={users} customers={customers} suppliers={suppliers} />
       <ActiveFiltersChips filters={sp} alerts={alerts} users={users} customers={customers} suppliers={suppliers} />
       <CasesTable items={items} total={total} page={filters.page ?? 1} searchParams={sp} />

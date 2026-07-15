@@ -118,6 +118,7 @@ export async function getKpis(now: Date = new Date()): Promise<DashboardKpis> {
 export type DashboardQuickFilter = "overdue" | "dueToday" | "dueSoon" | "quotesToRespond" | "urgentClaims" | "urgentFines" | "needsReview";
 
 export interface DashboardFilters {
+  q?: string;
   category?: CaseCategory;
   status?: CaseStatus;
   priority?: CasePriority;
@@ -184,6 +185,19 @@ export async function getFilteredCases(filters: DashboardFilters, now: Date = ne
   const settings = await getRuleSettings();
 
   let where: Prisma.CaseWhereInput = {};
+  const q = filters.q?.trim();
+  if (q) {
+    where.AND = [
+      {
+        OR: [
+          { title: { contains: q, mode: "insensitive" } },
+          { reference: { contains: q, mode: "insensitive" } },
+          { customer: { name: { contains: q, mode: "insensitive" } } },
+          { supplier: { name: { contains: q, mode: "insensitive" } } },
+        ],
+      },
+    ];
+  }
   if (filters.category) where.category = filters.category;
   if (filters.status) where.status = filters.status;
   if (filters.priority) where.priority = filters.priority;

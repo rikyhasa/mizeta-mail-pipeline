@@ -36,6 +36,9 @@ export function ActiveFiltersChips({
 }) {
   const chips: Chip[] = [];
 
+  if (filters.q) {
+    chips.push({ key: "q", label: `Ricerca: "${filters.q}"`, removeKeys: ["q"] });
+  }
   if (filters.quick) {
     const alert = alerts.find((a) => a.key === filters.quick);
     chips.push({ key: "quick", label: alert?.label ?? filters.quick, removeKeys: ["quick"] });
