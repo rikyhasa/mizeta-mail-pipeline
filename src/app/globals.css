@@ -2,25 +2,36 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #161719;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Identità visiva Mizeta/Zeta Transport — vedi FASE-7-REDESIGN.md.
+     L'arancione è il colore del brand (azioni primarie, nav attiva, focus),
+     mai un colore semantico di priorità/urgenza. */
+  --color-brand: #f28a1d;
+  --color-brand-dark: #c8680d;
+  --color-anthracite: #202326;
+  --color-ink: #161719;
+  --color-ink-muted: #5f6873;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f4f6f8;
+  --color-border: #dce2e8;
+  --color-teal: #1f6672;
+  --color-forest: #4d6b5a;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-surface-muted);
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
 }

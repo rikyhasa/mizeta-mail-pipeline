@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { buttonClassName, type ButtonSize, type ButtonVariant } from "@/components/ui/Button";
 
 export function ActionButton({
   method,
@@ -10,6 +11,8 @@ export function ActionButton({
   children,
   confirmMessage,
   className,
+  variant = "secondary",
+  size = "sm",
   disabled,
   disabledReason,
 }: {
@@ -19,6 +22,8 @@ export function ActionButton({
   children: React.ReactNode;
   confirmMessage?: string;
   className?: string;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
   disabled?: boolean;
   disabledReason?: string;
 }) {
@@ -50,10 +55,15 @@ export function ActionButton({
   if (disabled) {
     return (
       <span className="inline-flex flex-col gap-1">
-        <button type="button" disabled className={className ?? "cursor-not-allowed rounded border border-slate-200 px-2 py-1 text-xs text-slate-400"} title={disabledReason}>
+        <button
+          type="button"
+          disabled
+          className={buttonClassName({ variant, size, className })}
+          title={disabledReason}
+        >
           {children}
         </button>
-        {disabledReason && <span className="text-xs text-slate-400">{disabledReason}</span>}
+        {disabledReason && <span className="text-xs text-[var(--color-ink-muted)]">{disabledReason}</span>}
       </span>
     );
   }
@@ -64,7 +74,7 @@ export function ActionButton({
         type="button"
         onClick={handleClick}
         disabled={pending}
-        className={className ?? "rounded border border-slate-300 px-2 py-1 text-xs hover:bg-slate-50 disabled:opacity-50"}
+        className={buttonClassName({ variant, size, className })}
       >
         {pending ? "..." : children}
       </button>
