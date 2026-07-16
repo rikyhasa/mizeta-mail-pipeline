@@ -12,11 +12,14 @@ export function Card({
   className = "",
   padding = "normal",
   variant = "surface",
+  id,
 }: {
   children: ReactNode;
   className?: string;
   padding?: "normal" | "compact" | "none";
   variant?: "surface" | "flat";
+  /** Bersaglio di scroll per link di ancoraggio (es. le scorciatoie della colonna azioni). */
+  id?: string;
 }) {
   const paddingClass =
     padding === "none" ? "" : padding === "compact" ? "p-4" : "p-6";
@@ -25,7 +28,7 @@ export function Card({
       ? "rounded-xl bg-[var(--color-surface-muted)]"
       : "rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm";
   return (
-    <div className={`${variantClass} ${paddingClass} ${className}`}>
+    <div id={id} className={`${variantClass} ${paddingClass} ${className}`}>
       {children}
     </div>
   );
