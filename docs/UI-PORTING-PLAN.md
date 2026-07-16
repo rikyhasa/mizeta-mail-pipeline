@@ -203,6 +203,18 @@ Impostazioni · Login · Responsive completo · Rifinitura finale.
 - **Testata pratica**: aggiungere Stampa/Genera PDF anche in `DetailHeader.tsx`,
   come nella reference (oggi assenti — erano fuori dal perimetro esplicito di
   FASE 8B, che partiva "dalla testata in poi" senza modificarla).
+- **Ricerca e filtri live** (richiesta dall'utente, 2026-07-16):
+  - Ricerca globale della topbar: risultati in dropdown, con debounce
+    ~300ms e minimo 2 caratteri prima di interrogare, navigabile da
+    tastiera (frecce + invio) — oggi è solo un form GET verso
+    `/pratiche?q=...` (`Topbar.tsx`), senza risultati inline.
+  - Filtri di "Pratiche" (`FiltersBar.tsx`) e "Posta acquisita"
+    (nessun filtro oggi implementato lì): applicati automaticamente al
+    cambio di valore, senza un bottone "Applica" esplicito — mantenendo
+    "Azzera filtri" e la sincronizzazione con l'URL (`searchParams`)
+    già presente.
+  - Nessun cambio alle API in nessuno dei due punti: solo comportamento
+    client-side sopra le query/rotte già esistenti.
 
 ## Differenze strutturali tra i modelli dati (riepilogo)
 
