@@ -1,4 +1,6 @@
+import { MessageSquarePlus } from "lucide-react";
 import { WorkPanel } from "./WorkPanel";
+import { Disclosure } from "@/components/ui/Disclosure";
 import { formatDateTime } from "@/lib/format";
 import { CommentForm } from "./CommentForm";
 
@@ -26,7 +28,16 @@ export function CommentsCard({ caseId, comments }: { caseId: string; comments: C
           ))}
         </ul>
       )}
-      <CommentForm caseId={caseId} />
+      <Disclosure
+        summary={
+          <span className="flex items-center gap-1.5">
+            <MessageSquarePlus className="h-4 w-4" aria-hidden="true" />
+            Aggiungi commento
+          </span>
+        }
+      >
+        <CommentForm caseId={caseId} />
+      </Disclosure>
     </WorkPanel>
   );
 }

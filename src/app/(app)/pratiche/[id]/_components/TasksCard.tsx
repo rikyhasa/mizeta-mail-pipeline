@@ -1,4 +1,6 @@
+import { Plus } from "lucide-react";
 import { WorkPanel } from "./WorkPanel";
+import { Disclosure } from "@/components/ui/Disclosure";
 import { Badge } from "@/components/ui/Badge";
 import { TASK_STATUS_LABELS } from "@/lib/i18n/labels";
 import { formatDate } from "@/lib/format";
@@ -40,7 +42,16 @@ export function TasksCard({
           ))}
         </ul>
       )}
-      <TaskForm caseId={caseId} users={users} />
+      <Disclosure
+        summary={
+          <span className="flex items-center gap-1.5">
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Aggiungi attività
+          </span>
+        }
+      >
+        <TaskForm caseId={caseId} users={users} />
+      </Disclosure>
     </WorkPanel>
   );
 }

@@ -267,6 +267,63 @@ del task doc sono soddisfatti (vedi checklist finale). Ciclo visivo concluso all
 terza iterazione (con una sotto-iterazione 3b per la precisione del breakpoint),
 entro il limite di 5.
 
+### Iterazione 4 — feedback utente, densità: altezza pagina ~2x la reference
+
+Osservato dall'utente: a parità di viewport la pagina del target restava ~2,6x più
+lunga della reference (misurato: screenshot full-page 1440×900, altezza target
+5011px contro 1919px della reference, iterazione 3b). Cinque cause individuate:
+
+1. `TaskForm`/`CommentForm` sempre aperti in "Attività"/"Commenti interni".
+2. "Registro attività" mostrava tutte le voci (incluse le ripetute "Accesso alla
+   pratica"), senza raggruppamento né limite.
+3. Le celle di "Dati estratti" avevano le azioni (Conferma/Modifica/Fonte) su una
+   terza riga sotto il valore, invece che allineate a destra come `.field-top`
+   nella reference.
+4. Nessuna sezione vuota era ancora stata verificata per densità dopo il punto 1.
+5. "Bozze precedenti" mostrava tutta la cronologia senza limite.
+
+Corretto:
+
+1. `TaskForm`/`CommentForm` avvolti in `Disclosure` (stesso componente già usato
+   per "Relazioni e altre operazioni") — un trigger compatto "+ Aggiungi
+   attività"/"+ Aggiungi commento", il form si apre solo su richiesta.
+2. `AuditLogCard.tsx` riscritta: gli eventi `CASE_VIEWED` (label "Accesso alla
+   pratica") si raggruppano in un'unica riga ("N accessi alla pratica · Ultimo
+   alle HH:MM", `formatTime` nuovo import), il resto degli eventi non cambia.
+   Righe visibili di default: 5 (contando la riga raggruppata come una); oltre,
+   dietro `Disclosure` "Mostra tutto (N)". Nessuna nuova query — sempre entro le
+   30 voci già caricate da `page.tsx`.
+3. `ExtractedFieldCell.tsx` ridisegnata: riga principale con label+valore a
+   sinistra e badge/icona-conferma/bottone "Conferma" allineati a destra sulla
+   STESSA riga (non più una riga separata sotto), riga sottile sotto solo per
+   Modifica/Fonte. Altezza cella passata da ~118px a ~90-95px.
+4. Verificato dopo il punto 1: "Attività"/"Commenti interni" vuote sono ora un
+   paragrafo + un trigger `Disclosure` da 44px, non più un form multi-campo
+   sempre aperto.
+5. `DraftsCard.tsx`: `historyDrafts.slice(0, 2)` sempre visibili, il resto dietro
+   `Disclosure` "Mostra tutte (N)" (N = totale bozze precedenti, non solo quelle
+   nascoste).
+
+Rivalidato con `npm run ui:compare` (screenshot full-page 1440×900, stessa
+pratica MULTA):
+
+| Iterazione | Altezza target | Altezza reference | Rapporto |
+|---|---|---|---|
+| 0 (baseline) | 4643px | 1919px | 2,41x |
+| 2 | 4958px | 1919px | 2,58x |
+| 3b | 5011px | 1919px | 2,61x |
+| **4** | **3313px** | **1919px** | **1,72x** |
+
+Riduzione del 34% rispetto a 3b. Non ancora sotto la soglia di 1,5x indicata come
+pienamente accettabile, ma nettamente sotto la soglia di 2x indicata come non
+accettabile. Il residuo (1,72x invece di ≤1,5x) è spiegabile con volume di dati
+reale, non con overhead strutturale: la pratica scelta per il confronto ha 15
+campi estratti (7 mancanti, quindi con badge/azione) contro i 4 della reference,
+e i corpi email reali del seed sono paragrafi completi mentre i `preview` mock
+della reference sono una riga sintetica — entrambe differenze di contenuto, non
+di porting. Non sono state introdotte troncature aggiuntive del testo email non
+richieste esplicitamente da questo giro di feedback, per non eccedere lo scope.
+
 ### Confronto finale (screenshot in `docs/screenshots/final/`, versionati)
 
 1440×900, sopra la piega:
@@ -289,10 +346,12 @@ capacità del target senza equivalente nella reference):
 
 ### Differenze residue e perché sono inevitabili
 
-- **Lunghezza pagina**: il target ha più dati reali per questa pratica (15 campi
-  estratti contro i 4 della reference) e sezioni senza equivalente nella reference
-  (Attività, Commenti interni, Documenti generati) — capacità più avanzate del
-  target, conservate per decisione di FASE 8 (non regredire funzionalità reali).
+- **Lunghezza pagina**: dopo l'iterazione 4, 1,72x l'altezza della reference
+  (era 2,61x) — il target ha più dati reali per questa pratica (15 campi
+  estratti contro i 4 della reference, corpi email reali contro preview mock a
+  una riga) e sezioni senza equivalente nella reference (Attività, Commenti
+  interni, Documenti generati) — capacità più avanzate del target, conservate
+  per decisione di FASE 8 (non regredire funzionalità reali).
 - **Intestazione**: la reference ha Stampa/Genera PDF nell'header; `DetailHeader`
   non fa parte del perimetro di FASE 8B (composizione vincolante del task doc parte
   dalla testata in poi, non la modifica) — nessuna azione presa.
@@ -316,5 +375,6 @@ capacità del target senza equivalente nella reference):
 | `npm run lint` | pulito (dopo aver escluso `.reference/**` da `eslint.config.mjs`) |
 | `npm run test` (228 test, 43 file) | tutti passano |
 | `npm run build` | completata |
-| Ciclo visivo | 3 iterazioni + 1 rifinitura (baseline inclusa: iter-0, iter-1, iter-2, iter-3, iter-3b), entro il limite di 5 |
+| Ciclo visivo | 4 iterazioni + 1 rifinitura (baseline inclusa: iter-0, iter-1, iter-2, iter-3, iter-3b, iter-4), entro il limite di 5 |
+| Altezza pagina target/reference (1440×900, full-page) | 1,72x (era 2,61x prima dell'iterazione 4) |
 | Screenshot finale nel report | presente (sezione sopra) |

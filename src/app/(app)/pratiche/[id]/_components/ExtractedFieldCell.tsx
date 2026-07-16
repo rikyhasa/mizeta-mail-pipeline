@@ -17,12 +17,10 @@ interface FieldData {
 }
 
 /**
- * Una sola cella per ogni campo, sempre nella stessa griglia compatta (FASE 8B, iterazione
- * 3 — come `.field-list` nella reference: nessun campo renderizzato come riga a tutta
- * larghezza). Il tier calcolato da `classifyFieldTier` cambia solo cosa compare DENTRO la
- * cella — un badge piccolo per i problematici, un'icona per i confermati — non il
- * contenitore. Una sola azione inline primaria (Conferma, quando il campo non è ancora
- * confermato); Modifica e Fonte restano affordance a icona, non bottoni di testo.
+ * Una sola cella per ogni campo, sempre nella stessa griglia compatta (FASE 8B): come
+ * `.field` nella reference — riga principale con label+valore a sinistra e stato/azione
+ * allineati a destra (`.field-top`), una riga sottile sotto per le affordance secondarie
+ * (Modifica/Fonte), altezza complessiva ~90px indipendentemente dal tier.
  */
 export function ExtractedFieldCell({
   caseId,
@@ -47,37 +45,41 @@ export function ExtractedFieldCell({
   const showLowConfidence = tier === "middle" && !field.needsHumanReview && pct !== null && pct < 70;
 
   return (
-    <div className={`flex flex-col gap-1 bg-white p-3.5 ${spanFull ? "min-[800px]:col-span-2" : ""}`}>
-      <div className="flex items-center justify-between gap-2">
-        <span className="detail-label">{label}</span>
-        {tier === "problematic" && (
-          <Badge tone="warning" icon={AlertTriangle}>
-            {!field.value ? "Mancante" : `Da verificare${pct !== null ? ` · ${pct}%` : ""}`}
-          </Badge>
-        )}
-        {tier === "confirmed" && (
-          <span title={field.confirmedBy ? `Confermato da ${field.confirmedBy.name}` : undefined}>
-            <Check className="h-3.5 w-3.5 text-[var(--color-forest)]" aria-hidden="true" />
-            <span className="sr-only">{field.confirmedBy ? `Confermato da ${field.confirmedBy.name}` : "Confermato"}</span>
-          </span>
-        )}
+    <div className={`flex flex-col gap-1.5 bg-white p-3.5 ${spanFull ? "min-[800px]:col-span-2" : ""}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <span className="detail-label">{label}</span>
+          <div className={tier === "confirmed" ? "detail-value truncate" : "detail-value truncate font-normal"}>
+            {formattedValue ?? "—"}
+          </div>
+          {showLowConfidence && <span className="text-xs text-[var(--color-ink-muted)]">Confidenza {pct}%</span>}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {tier === "problematic" && (
+            <Badge tone="warning" icon={AlertTriangle}>
+              {!field.value ? "Mancante" : `Da verificare${pct !== null ? ` · ${pct}%` : ""}`}
+            </Badge>
+          )}
+          {tier === "confirmed" && (
+            <span title={field.confirmedBy ? `Confermato da ${field.confirmedBy.name}` : undefined}>
+              <Check className="h-3.5 w-3.5 text-[var(--color-forest)]" aria-hidden="true" />
+              <span className="sr-only">{field.confirmedBy ? `Confermato da ${field.confirmedBy.name}` : "Confermato"}</span>
+            </span>
+          )}
+          {!field.confirmedBy && (
+            <ActionButton
+              method="PATCH"
+              url={`/api/cases/${caseId}/fields/${fieldKey}`}
+              body={{}}
+              variant={tier === "problematic" ? "secondary" : "tertiary"}
+              size="sm"
+            >
+              Conferma
+            </ActionButton>
+          )}
+        </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className={tier === "confirmed" ? "detail-value" : "detail-value font-normal"}>{formattedValue ?? "—"}</span>
-        {showLowConfidence && <span className="text-xs text-[var(--color-ink-muted)]">Confidenza {pct}%</span>}
-      </div>
-      <div className="mt-0.5 flex items-center gap-1">
-        {!field.confirmedBy && (
-          <ActionButton
-            method="PATCH"
-            url={`/api/cases/${caseId}/fields/${fieldKey}`}
-            body={{}}
-            variant={tier === "problematic" ? "secondary" : "tertiary"}
-            size="sm"
-          >
-            Conferma
-          </ActionButton>
-        )}
+      <div className="flex items-center gap-1">
         <FieldEditForm caseId={caseId} fieldKey={fieldKey} initialValue={field.value ?? ""} />
         <FieldSourceInfo
           sourceType={field.sourceType}
