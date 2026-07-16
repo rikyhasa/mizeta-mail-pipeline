@@ -22,6 +22,11 @@ const FORBIDDEN_PORT = 3000;
 const TARGET_PORT = Number(process.env.UI_COMPARE_TARGET_PORT ?? 4100);
 const REFERENCE_PORT = Number(process.env.UI_COMPARE_REFERENCE_PORT ?? 4200);
 
+/** Se un dev server del target è già in esecuzione altrove (Next.js impedisce due `next dev`
+ * sulla stessa cartella progetto, anche su porte diverse), passa la sua URL qui invece di farne
+ * avviare uno nuovo dallo script — non viene mai avviato né terminato nulla in quel caso. */
+const TARGET_URL_OVERRIDE = process.env.UI_COMPARE_TARGET_URL ?? null;
+
 const VIEWPORTS = [
   { name: "1440x900", width: 1440, height: 900 },
   { name: "1920x1080", width: 1920, height: 1080 },
@@ -144,7 +149,9 @@ async function capture(
 }
 
 /** Stesso tipo di pratica su entrambe le app: categoria FINE_OR_PENALTY. Sulla reference è
- * l'elemento a indice 6 (0-based) di seeds in mock-data.ts -> id deterministico "case-007". */
+ * l'elemento a indice 7 (0-based, "Verbale ZTL targa demo AB123CD") di seeds in
+ * mock-data.ts -> id deterministico "case-008" (id = case-${String(no).padStart(3,"0")},
+ * no = posizione 1-based). */
 async function findTargetFineCaseId(): Promise<string> {
   const found = await prisma.case.findFirst({
     where: { category: "FINE_OR_PENALTY" },
@@ -160,7 +167,7 @@ async function main(): Promise<void> {
   const outDir = path.join(REPO_ROOT, "docs/screenshots", `iter-${iter}`);
   fs.mkdirSync(outDir, { recursive: true });
 
-  await assertPortFree(TARGET_PORT);
+  if (!TARGET_URL_OVERRIDE) await assertPortFree(TARGET_PORT);
   await assertPortFree(REFERENCE_PORT);
   await ensureReferenceDeps();
 
@@ -171,9 +178,15 @@ async function main(): Promise<void> {
   try {
     const targetCaseId = await findTargetFineCaseId();
 
-    console.log(`[ui-compare] Avvio target su :${TARGET_PORT}...`);
-    targetServer = spawnDevServer(REPO_ROOT, TARGET_PORT);
-    await waitForServer(`http://localhost:${TARGET_PORT}/login`);
+    const targetUrl = TARGET_URL_OVERRIDE ?? `http://localhost:${TARGET_PORT}`;
+    if (TARGET_URL_OVERRIDE) {
+      console.log(`[ui-compare] Riuso il dev server target già in esecuzione su ${targetUrl}...`);
+      await waitForServer(`${targetUrl}/login`);
+    } else {
+      console.log(`[ui-compare] Avvio target su :${TARGET_PORT}...`);
+      targetServer = spawnDevServer(REPO_ROOT, TARGET_PORT);
+      await waitForServer(`${targetUrl}/login`);
+    }
 
     console.log(`[ui-compare] Avvio reference su :${REFERENCE_PORT}...`);
     referenceServer = spawnDevServer(REFERENCE_ROOT, REFERENCE_PORT);
@@ -184,14 +197,14 @@ async function main(): Promise<void> {
     const referenceContext = await browser.newContext();
 
     console.log("[ui-compare] Login target...");
-    await login(targetContext, `http://localhost:${TARGET_PORT}`, TARGET_LOGIN);
+    await login(targetContext, targetUrl, TARGET_LOGIN);
     console.log("[ui-compare] Login reference...");
     await login(referenceContext, `http://localhost:${REFERENCE_PORT}`, REFERENCE_LOGIN);
 
     console.log("[ui-compare] Cattura target...");
-    await capture(targetContext, `http://localhost:${TARGET_PORT}`, `/pratiche/${targetCaseId}`, "target", outDir);
+    await capture(targetContext, targetUrl, `/pratiche/${targetCaseId}`, "target", outDir);
     console.log("[ui-compare] Cattura reference...");
-    await capture(referenceContext, `http://localhost:${REFERENCE_PORT}`, "/pratiche/case-007", "reference", outDir);
+    await capture(referenceContext, `http://localhost:${REFERENCE_PORT}`, "/pratiche/case-008", "reference", outDir);
 
     console.log(`[ui-compare] Fatto. Screenshot in ${outDir}`);
   } finally {

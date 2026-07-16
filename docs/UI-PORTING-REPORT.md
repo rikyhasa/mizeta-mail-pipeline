@@ -106,9 +106,63 @@ equivalente (vedi matrice in `docs/UI-PORTING-PLAN.md`).
   browser/screenshot disponibile in questa sessione) — confronto visivo ancora da
   fare manualmente.
 
-## Prossimi passi
+## FASE 8B — parità visiva del dettaglio pratica
 
-FASE 3 continua con: posta acquisita, coda di revisione, bozze e documenti (già in
-parte coperti dal dettaglio pratica), report, registro attività (pagina globale),
-impostazioni, login, responsive completo, rifinitura finale — vedi
-`FASE-8-UI-PORTING.md`, sezione "FASE 3".
+Metodo: `scripts/ui-compare.ts` (nuovo, Playwright) avvia target e reference su porte
+dedicate (mai la 3000), effettua login reale su entrambe, apre lo stesso tipo di
+pratica (categoria `FINE_OR_PENALTY` — reference `case-008` "Verbale ZTL targa demo
+AB123CD" per posizione nel seed array di `.reference/mizeta-flow/src/lib/mock-data.ts`,
+non `case-007` come stimato inizialmente: la categoria `FINE_OR_PENALTY` è
+all'indice 7, 0-based, non 6) e cattura screenshot full-page/above-the-fold a
+1440×900 e 1920×1080. Screenshot intermedi in `docs/screenshots/iter-N/` (non
+versionati), coppia finale in `docs/screenshots/final/` (versionata).
+
+Nota ambientale: la porta 4100 riservata al target è risultata bloccata dal lock
+singleton di `next dev` sulla cartella progetto (un dev server era già in
+esecuzione su `:3001`, non avviato da questa sessione, non toccato). Lo script
+supporta `UI_COMPARE_TARGET_URL` per riusare un dev server del target già attivo
+invece di tentare di avviarne un secondo.
+
+### Iterazione 0 — baseline (nessuna modifica al codice)
+
+Osservato (confronto screenshot 1440×900, pratica MULTA su entrambe le app):
+
+1. Ogni sezione del target usa `Card` (ombra `shadow-sm`, padding 16px, radius
+   12px) invece di `.box` della reference (nessuna ombra, padding 19px, radius
+   12px) — effetto "pila di pannelli admin" confermato visivamente.
+2. "Sintesi operativa": Stato/Responsabile sono `&lt;select&gt;` pieni, con bordo e
+   freccina, non l'etichetta maiuscola + valore in grassetto della reference.
+3. "Scadenze" è una card intera per una sola riga ("Scadenza pagamento ridotto:
+   17/07/2026").
+4. "Anomalie e controlli" è renderizzata anche vuota ("Nessuna anomalia
+   rilevata").
+5. "Collega o separa pratica" appare subito dopo Anomalie, con i campi del form
+   sempre visibili, prima di qualunque dato estratto.
+6. "Dati estratti" non compare affatto sopra la piega a 1440×900 (è la quinta
+   card) — il primo dato mancante richiede uno scroll consistente per essere
+   visto.
+7. I campi "problematici" di Dati estratti (in questo caso 7 su 15, tutti
+   "Dato mancante") sono blocchi pieni larghezza intera con sfondo di
+   avvertimento, non celle compatte della griglia — differenza di densità
+   enorme rispetto alla reference.
+8. Il pannello laterale "Azioni" ha 6 pulsanti tutti allo stesso peso visivo
+   (bordo, 44px) tranne "Segna completata" — che qui è arancione primario
+   nonostante la pratica non abbia responsabile assegnato e abbia 15 dati
+   mancanti: conferma diretta del problema #7/#8 del task doc.
+9. "Contesto" mostra solo 3 righe (Cliente/ente, Reparto, Categorie
+   secondarie); per questa pratica Cliente/ente è "Non associato" mentre sono
+   disponibili dati reali non mostrati (mittente Comune di Torino, targa
+   AB123CD, autista Mario Bianchi, già presenti nei campi estratti).
+10. "Cronologia email" e "Registro attività" sono liste semplici (bordo/testo
+    piccolo), non la timeline a pallini connessi della reference — stesso
+    pattern in entrambe le sezioni, nessuna delle due lo usa.
+11. Fuori scope di questa fase (intestazione/topbar globali, non toccate):
+    pillola "Modalità mock" invece di "Mock connesso" (intenzionale, FASE 8),
+    assenza di Stampa/Genera PDF nell'header (DetailHeader non fa parte del
+    perimetro di FASE 8B).
+12. La pratica di reference scelta (case-008) include il blocco
+    `FineDeviceVerification`, gap già documentato come non portabile (nessun
+    equivalente Prisma) — non è una regressione di questa fase.
+
+Corretto: implementazione in corso, vedi commit successivi e iterazioni 1-N
+sotto.
