@@ -540,7 +540,56 @@ intera (verificato su full-page screenshot).
 | Screenshot finali | `docs/screenshots/revisione/final/` (6 file: 3 viewport × fold/full, solo target) |
 | Funzionalità preservate | query (`CaseRelation` PENDING, `Case.needsHumanReview`), `computeReasons()` (6 tipi), azioni PATCH (confirm/reject relazione, segna verificata), RBAC `case:write`, audit log — nessuna riga toccata |
 
+## FASE 3, tappa 4 — Bozze e documenti (verifica)
+
+Prima di implementare, ricerca dedicata su cosa comporti questa tappa: né
+`docs/SPEC.md` (§10-§12) né la reference descrivono "bozze e documenti" come
+una schermata a sé — SPEC li tratta come contenuto/azioni del dettaglio
+pratica; la reference non ha alcuna pagina dedicata (le bozze vivono solo
+dentro `case-detail.tsx`, i modelli di documento vivono sulla pagina "Report e
+documenti", che è la tappa 5 "report", non questa). I componenti per-pratica
+(`DraftsCard`, `DraftCard`, `DraftHistoryRow`, `DocumentsCard`,
+`DocumentsPanel`) erano già stati reskinnati con `WorkPanel` in FASE 8B.
+Questa tappa è quindi una **verifica**, non una costruzione — confermato anche
+da `docs/UI-PORTING-PLAN.md`, che la segnalava già come "già in parte coperta
+dal dettaglio pratica".
+
+### Difetto trovato e corretto
+
+`DocumentsCard.tsx` mostrava il valore enum grezzo di `GeneratedDocumentType`
+al posto dell'etichetta italiana — es. "FINE_SHEET (PDF)" invece di "Scheda
+multa (PDF)". Nessuna delle altre card del dettaglio pratica ha questo
+problema (tutte usano una mappa `*_LABELS` da `src/lib/i18n/labels.ts`); solo
+questo enum non aveva mai avuto una traduzione. Corretto aggiungendo
+`GENERATED_DOCUMENT_TYPE_LABELS` (8 voci, testo esatto da SPEC.md §12: "Scheda
+preventivo", "Scheda ordine di trasporto", "Dossier reclamo/sinistro", "Scheda
+multa", "Report scadenze amministrative", "Briefing operativo giornaliero",
+"Report crediti scaduti", "Report fatture fornitori") e usandola in
+`DocumentsCard.tsx`. Il payload dell'azione "Genera documento" (`{type:
+"FINE_SHEET", ...}`) resta invariato — solo il testo visualizzato cambia,
+verificato via richiesta HTTP diretta al dev server (label "Scheda multa"
+nell'HTML renderizzato, payload POST ancora `"FINE_SHEET"`).
+
+Verificato inoltre, con una ricerca mirata, che nessun altro componente del
+dettaglio pratica ha lo stesso problema (nessun altro `{x.type}`/`{x.status}`/
+`{x.action}`/`{x.kind}` renderizzato senza passare da una mappa `_LABELS`).
+
+### Verifica
+
+| Verifica | Esito |
+|---|---|
+| `npm run typecheck` | pulito |
+| `npm run lint` | pulito |
+| `npm run test` (228 test) | tutti passano |
+| `npm run build` | completata |
+| Verifica HTTP diretta | label "Scheda multa" nell'HTML renderizzato, payload POST invariato |
+
+Nessun ciclo `ui-compare` necessario: nessuna modifica di layout, solo un
+valore di testo.
+
 ### Prossimi passi
 
-FASE 3 continua con: bozze e documenti, report, registro attività (pagina
-globale), impostazioni, login, responsive completo, rifinitura finale.
+FASE 3 continua con: report (nuova rotta `/report`, galleria di 8 modelli
+documento — SPEC.md §12, mappata 1:1 sulla pagina "Report e documenti" della
+reference), registro attività (pagina globale), impostazioni, login,
+responsive completo, rifinitura finale.

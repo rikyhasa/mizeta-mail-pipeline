@@ -9,6 +9,7 @@ import type {
   Department,
   EmailDraftStatus,
   FieldSourceType,
+  GeneratedDocumentType,
   Role,
   TaskStatus,
 } from "@/generated/prisma/enums";
@@ -126,4 +127,17 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   DRAFT_APPROVED: "Bozza approvata",
   DRAFT_DISCARDED: "Bozza scartata",
   JOB_DEAD_LETTERED: "Job scartato (dead-letter)",
+};
+
+/** Gli 8 modelli di SPEC.md §12 — mancava una traduzione: DocumentsCard mostrava il valore
+ * enum grezzo (es. "QUOTE_SHEET") invece dell'etichetta italiana (FASE 3, tappa 4). */
+export const GENERATED_DOCUMENT_TYPE_LABELS: Record<GeneratedDocumentType, string> = {
+  QUOTE_SHEET: "Scheda preventivo",
+  TRANSPORT_ORDER_SHEET: "Scheda ordine di trasporto",
+  CLAIM_DOSSIER: "Dossier reclamo/sinistro",
+  FINE_SHEET: "Scheda multa",
+  DEADLINES_REPORT: "Report scadenze amministrative",
+  DAILY_BRIEFING: "Briefing operativo giornaliero",
+  OVERDUE_RECEIVABLES_REPORT: "Report crediti scaduti",
+  SUPPLIER_INVOICES_REPORT: "Report fatture fornitori",
 };

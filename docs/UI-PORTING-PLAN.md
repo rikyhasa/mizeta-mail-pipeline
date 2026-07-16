@@ -157,11 +157,21 @@ per il dettaglio.
 | — | — | `ReviewDetail.tsx` | — | — | — | — | — | stato vuoto aveva una doppia cornice tratteggiata (`EmptyState` annidato in un altro contenitore tratteggiato) | rimosso il wrapper ridondante, `EmptyState` reso direttamente | basso | fatto |
 | — | — | `ReviewList.tsx` | — | — | — | — | — | intestazioni di sezione a 12px (`text-xs`) invece del token `.detail-label` (10px) già stabilito | allineate a `.detail-label` | basso | fatto |
 
+## Matrice — FASE 3, tappa 4: Bozze e documenti (verifica, non costruzione)
+
+Né SPEC.md né la reference descrivono questo come una schermata a sé — vedi
+`docs/UI-PORTING-REPORT.md` per il ragionamento completo. Tappa di verifica sui componenti
+per-pratica già reskinnati in FASE 8B.
+
+| UI reference | File origine | Target | Mock reference | Fonte reale | Azione reale | Permessi | Audit | Differenze funzionali | Decisione | Rischi | Stato |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| — | — | `DocumentsCard.tsx` | — | `GeneratedDocument.type` (enum) | — | — | — | il valore enum grezzo (es. "FINE_SHEET") veniva mostrato senza traduzione, unico caso nel dettaglio pratica | nuova mappa `GENERATED_DOCUMENT_TYPE_LABELS` in `src/lib/i18n/labels.ts` (8 voci, testo da SPEC.md §12) | basso | fatto |
+
 ## Righe non ancora compilate (fuori scope, verranno aggiunte via via in FASE 3)
 
-Bozze e documenti (già in parte coperti dal dettaglio pratica) · Report e documenti ·
-Registro attività (pagina globale, oggi esiste solo come sezione per-pratica) · Impostazioni ·
-Login · Responsive completo · Rifinitura finale.
+Report e documenti (nuova rotta `/report`, galleria 8 modelli — SPEC.md §12) · Registro
+attività (pagina globale, oggi esiste solo come sezione per-pratica) · Impostazioni · Login ·
+Responsive completo · Rifinitura finale.
 
 ### Annotazioni per "Rifinitura finale" (raccolte durante FASE 8B, non ancora fatte)
 

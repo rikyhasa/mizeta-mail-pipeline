@@ -1,6 +1,7 @@
 import { WorkPanel } from "@/components/ui/WorkPanel";
 import { ActionButton } from "@/components/ActionButton";
 import { formatDateTime } from "@/lib/format";
+import { GENERATED_DOCUMENT_TYPE_LABELS } from "@/lib/i18n/labels";
 import type { GeneratedDocumentType } from "@/generated/prisma/enums";
 
 interface GeneratedDocumentData {
@@ -35,11 +36,11 @@ export function DocumentsCard({
                   rel="noreferrer"
                   className="font-medium text-[var(--color-brand-dark)] hover:underline"
                 >
-                  {doc.type} ({doc.format})
+                  {GENERATED_DOCUMENT_TYPE_LABELS[doc.type]} ({doc.format})
                 </a>
               ) : (
                 <>
-                  {doc.type} ({doc.format})
+                  {GENERATED_DOCUMENT_TYPE_LABELS[doc.type]} ({doc.format})
                 </>
               )}{" "}
               — {formatDateTime(doc.createdAt)}
