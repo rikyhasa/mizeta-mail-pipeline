@@ -179,10 +179,21 @@ modelli hanno generazione reale.
 | Card bloccata "Presentazioni PowerPoint" | `report/page.tsx` | `report/page.tsx` | badge "Fase futura" | testo di SPEC.md §12 ("post-MVP") | — | — | no | — | 1:1, stesso principio di onestà delle voci di nav disabilitate | basso | fatto |
 | Voce di navigazione "Report e documenti" | `app-shell.tsx` | `nav-items.ts` | — | — | — | — | no | — | `status: "disabled"` → `"active"` | basso | fatto |
 
+## Matrice — FASE 3, tappa 6: Registro attività (pagina globale)
+
+Vedi `docs/UI-PORTING-REPORT.md` per il dettaglio del ciclo visivo (2 iterazioni: baseline +
+raggruppamento accessi ripetuti).
+
+| UI reference | File origine | Target | Mock reference | Fonte reale | Azione reale | Permessi | Audit | Differenze funzionali | Decisione | Rischi | Stato |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Tabella 5 colonne (Data e ora/Azione/Pratica/Attore/Dettaglio), 30 eventi fissi | `audit/page.tsx` | `src/app/(app)/audit/page.tsx` (nuovo) | `mockCases.flatMap(c=>c.audit)` | `AuditLog` reale, paginato | — (sola lettura) | autenticato | — (è già il log) | `metadata` è JSON strutturato per azione, non testo libero come "Dettaglio" nel mock — colonna omessa (stessa scelta di `AuditLogCard.tsx` per-pratica); paginazione reale al posto del limite fisso a 30 | `src/lib/audit/queries.ts` nuovo (`getAuditLogEntries`), 4 colonne invece di 5 | basso | fatto |
+| — | — | `AuditLogTable.tsx` | — | — | — | — | — | run consecutivi di `CASE_VIEWED` sulla stessa pratica/attore dominavano la pagina (rumore da sviluppo/test, un caso reale con 47 accessi consecutivi osservato) | raggruppati in un'unica riga "N accessi alla pratica", stesso principio di `AuditLogCard.tsx` (FASE 8B) applicato alla pagina globale | basso | fatto |
+| Badge "Audit integro" | `audit/page.tsx` | `audit/page.tsx` | decorativo | garanzia architetturale reale (nessuna rotta di modifica/cancellazione per `AuditLog`) | — | — | — | — | 1:1, ma non più decorativo | basso | fatto |
+| Voce di navigazione "Registro attività" | `app-shell.tsx` | `nav-items.ts` | — | — | — | — | no | — | `status: "disabled"` → `"active"` — tutte e 6 le voci ora reali | basso | fatto |
+
 ## Righe non ancora compilate (fuori scope, verranno aggiunte via via in FASE 3)
 
-Registro attività (pagina globale, oggi esiste solo come sezione per-pratica) · Impostazioni ·
-Login · Responsive completo · Rifinitura finale.
+Impostazioni · Login · Responsive completo · Rifinitura finale.
 
 ### Annotazioni per "Rifinitura finale" (raccolte durante FASE 8B, non ancora fatte)
 

@@ -653,7 +653,63 @@ e 1920×1080, nessun problema di layout.
 | Ciclo visivo | 1 iterazione, tre viewport, nessun difetto trovato |
 | Screenshot finali | `docs/screenshots/report/final/` (12 file: 3 viewport × target/reference × fold/full) |
 
+## FASE 3, tappa 6 — Registro attività (pagina globale)
+
+Ultima tappa greenfield: nav `disabled`, nessuna route esistente (come "posta
+acquisita"/"report"). Composizione della reference portata: intestazione
+(eyebrow "Tracciabilità" + h1 + sottotitolo) + badge "Audit integro" a destra
++ tabella paginata 4 colonne (Data e ora, Azione, Pratica, Attore).
+
+Differenze di modello documentate: `AuditLog.metadata` è JSON strutturato
+diverso per ognuna delle 21 azioni (`from`/`to`, `fieldKey`, ecc.), non testo
+libero come la colonna "Dettaglio" scritta a mano nel mock della reference —
+omessa, stessa scelta già fatta per `AuditLogCard.tsx` per-pratica. Paginata
+(stesso `PAGE_SIZE` di `/posta`) invece dei 30 eventi fissi della reference,
+perché il registro reale cresce nel tempo. Il badge "Audit integro" non è
+decorativo: riflette una garanzia architetturale vera (nessuna rotta di
+modifica/cancellazione esiste per `AuditLog` — CLAUDE.md invariante 7).
+
+### Iterazione 0 — baseline
+
+Osservato: gli "Accesso alla pratica" (`CASE_VIEWED`) consecutivi sulla stessa
+pratica/attore dominavano la prima pagina — visite ripetute durante lo
+sviluppo e i test di questa stessa sessione hanno prodotto decine di righe
+identiche consecutive, esattamente lo stesso problema di densità già trovato
+e risolto per `AuditLogCard.tsx` (per-pratica) in FASE 8B, qui alla scala
+globale.
+
+Corretto: `AuditLogTable.tsx` raggruppa i run consecutivi di `CASE_VIEWED`
+sulla stessa pratica/attore in un'unica riga ("N accessi alla pratica"),
+senza alterare l'ordine cronologico né il conteggio totale di paginazione
+(il raggruppamento è solo di presentazione, sulla pagina già caricata).
+
+### Iterazione 1 — verifica dopo il raggruppamento
+
+Un run di 47 accessi consecutivi alla stessa pratica (rumore reale di
+sviluppo/test) si è raggruppato correttamente in "47 accessi alla pratica",
+riducendo la prima pagina da decine di righe ripetitive a 4 righe
+significative (1019 eventi totali su 21 pagine — volume reale accumulato
+durante questa sessione di lavoro). L'altezza pagina non è più comparabile
+1:1 con la reference (900px contro 1424px) perché il contenuto reale della
+prima pagina, dopo il raggruppamento onesto, è molto più compatto — non un
+difetto di layout, un riflesso accurato dei dati reali. Composizione visiva
+(intestazione, badge, tabella) verificata coerente su tutti e 3 i viewport.
+
+### Verifica
+
+| Verifica | Esito |
+|---|---|
+| `npm run typecheck` | pulito |
+| `npm run lint` | pulito |
+| `npm run test` (228 test) | tutti passano |
+| `npm run build` | completata, `/audit` compare come rotta dinamica |
+| Ciclo visivo | 2 iterazioni, tre viewport |
+| Screenshot finali | `docs/screenshots/audit/final/` (12 file: 3 viewport × target/reference × fold/full) |
+
+Tutte e 6 le voci di navigazione sono ora reali — chiude la costruzione delle
+schermate principali di FASE 3.
+
 ### Prossimi passi
 
-FASE 3 continua con: registro attività (pagina globale), impostazioni, login,
-responsive completo, rifinitura finale.
+FASE 3 continua con: impostazioni, login, responsive completo, rifinitura
+finale.
