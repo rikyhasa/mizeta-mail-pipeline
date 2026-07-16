@@ -137,6 +137,15 @@ conservare) · Report e documenti · Registro attività (pagina globale, oggi es
 come sezione per-pratica) · Impostazioni · Login · Responsive completo · Rifinitura
 finale.
 
+### Annotazioni per "Rifinitura finale" (raccolte durante FASE 8B, non ancora fatte)
+
+- **Sintesi operativa**: il testo del summary va troncato a fine parola con
+  ellissi (oggi taglia a metà parola quando supera le righe disponibili — vedi
+  `_components/SummaryCard.tsx`).
+- **Testata pratica**: aggiungere Stampa/Genera PDF anche in `DetailHeader.tsx`,
+  come nella reference (oggi assenti — erano fuori dal perimetro esplicito di
+  FASE 8B, che partiva "dalla testata in poi" senza modificarla).
+
 ## Differenze strutturali tra i modelli dati (riepilogo)
 
 - **Persistenza**: il target ha un modello Prisma/PostgreSQL completo (`Case`,
