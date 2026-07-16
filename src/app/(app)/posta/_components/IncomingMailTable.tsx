@@ -39,7 +39,7 @@ export function IncomingMailTable({
             const lowConfidence = m.confidence !== null && m.confidence < confidenceThreshold;
             return (
               <tr key={m.id}>
-                <td className="px-4 py-4 whitespace-nowrap text-[var(--color-ink)]">
+                <td className="px-4 py-3 whitespace-nowrap text-[var(--color-ink)]">
                   {m.category ? (
                     <span className="inline-flex items-center gap-2.5">
                       <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface-muted)] text-[var(--color-anthracite)]">
@@ -51,21 +51,21 @@ export function IncomingMailTable({
                     <span className="text-[var(--color-ink-muted)]">—</span>
                   )}
                 </td>
-                <td className="max-w-xs px-4 py-4">
-                  <div className="flex flex-wrap items-center gap-1.5">
+                <td className="px-4 py-3">
+                  <div className="flex flex-nowrap items-center gap-1.5 whitespace-nowrap">
                     <span className="font-semibold text-[var(--color-ink)]">{m.subject}</span>
                     {m.isPec && <Badge tone="info">PEC</Badge>}
                   </div>
                   {m.securityFlagsCount > 0 && (
-                    <div className="mt-1 flex items-center gap-1 text-xs text-[var(--color-critical)]">
+                    <div className="mt-1 flex items-center gap-1 text-xs whitespace-nowrap text-[var(--color-critical)]">
                       <ShieldAlert className="h-3 w-3" aria-hidden="true" />
                       Contenuto sospetto isolato
                     </div>
                   )}
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap text-[var(--color-ink)]">{m.fromName ?? m.fromAddress}</td>
-                <td className="px-4 py-4 whitespace-nowrap text-[var(--color-ink-muted)]">{formatDateTime(m.receivedAt)}</td>
-                <td className="px-4 py-4 whitespace-nowrap">
+                <td className="px-4 py-3 whitespace-nowrap text-[var(--color-ink)]">{m.fromName ?? m.fromAddress}</td>
+                <td className="px-4 py-3 whitespace-nowrap text-[var(--color-ink-muted)]">{formatDateTime(m.receivedAt)}</td>
+                <td className="px-4 py-3 whitespace-nowrap">
                   {pct !== null ? (
                     <span className={lowConfidence ? "font-semibold text-[var(--color-warning)]" : "text-[var(--color-ink)]"}>
                       {pct}%
@@ -74,7 +74,7 @@ export function IncomingMailTable({
                     <span className="text-[var(--color-ink-muted)]">—</span>
                   )}
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap text-[var(--color-ink)]">
+                <td className="px-4 py-3 whitespace-nowrap text-[var(--color-ink)]">
                   {m.attachmentsCount > 0 ? (
                     <span className="inline-flex items-center gap-1.5">
                       <Paperclip className="h-3.5 w-3.5 text-[var(--color-ink-muted)]" aria-hidden="true" />
@@ -84,7 +84,7 @@ export function IncomingMailTable({
                     <span className="text-[var(--color-ink-muted)]">—</span>
                   )}
                 </td>
-                <td className="px-4 py-4 whitespace-nowrap">
+                <td className="px-4 py-3 whitespace-nowrap">
                   {m.caseId ? (
                     <Link
                       href={`/pratiche/${m.caseId}`}

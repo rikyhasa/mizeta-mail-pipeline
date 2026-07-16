@@ -130,12 +130,24 @@ alla matrice sopra:
   Cronologia email/Registro attività, passaggio alla timeline a pallini
   connessi (`.detail-timeline*`) invece di liste semplici.
 
+## Matrice — FASE 3, tappa 2: Posta acquisita
+
+A differenza della tappa 1, qui non c'era funzionalità target da conservare/restilizzare: la
+voce di nav era `disabled`, nessuna route esisteva. Vedi `docs/UI-PORTING-REPORT.md` per il
+dettaglio del ciclo visivo (3 viewport, `scripts/ui-compare.ts --screen posta`).
+
+| UI reference | File origine | Target | Mock reference | Fonte reale | Azione reale | Permessi | Audit | Differenze funzionali | Decisione | Rischi | Stato |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Pagina "Posta acquisita" (intestazione + tabella 7 colonne) | `posta/page.tsx` | `src/app/(app)/posta/page.tsx` (nuovo) | `mockEmails` (26 fissi) | `EmailMessage` reale (`direction: INBOUND`) | — (sola lettura) | autenticato | no | categoria/confidenza vivono su `Case` (via relazione), non su `EmailMessage` come nel mock; `caseId` è FK diretta, non una ricerca incrociata su tutte le pratiche | `src/lib/mail/inbox-queries.ts` nuovo, paginato (`PAGE_SIZE` di `/pratiche`) — necessario perché il volume reale cresce, a differenza del seed fisso | basso | fatto |
+| Fallback "Da associare" per email senza pratica | `posta/page.tsx` | `IncomingMailTable.tsx` | codice morto (ogni mock email ha sempre una pratica) | percorso reale: messaggi non collegati (newsletter, promemoria automatici, contenuto non azionabile) | — | — | no | nella reference è puramente decorativo; nel target si attiva davvero — verificato con dati reali del seed (11 messaggi legittimamente non collegati) | nessuna modifica alla pipeline di classificazione, solo presentazione onesta dello stato reale | basso | fatto |
+| Pillola di stato "Connessione mock integra" | `posta/page.tsx` | — | stringa statica | `getProviderStatusSummary()`, già usata dal Topbar | — | — | no | il Topbar globale mostra già lo stesso aggregato reale su ogni pagina; duplicarlo qui avrebbe mostrato testo identico due volte (a differenza della reference, dove le due pillole hanno testi diversi) | rimossa la pillola locale, `ProviderStatusPill` estratto come componente condiviso | basso | fatto |
+| Voce di navigazione "Posta acquisita" | `app-shell.tsx` | `nav-items.ts` | — | — | — | — | no | — | `status: "disabled"` → `"active"` | basso | fatto |
+
 ## Righe non ancora compilate (fuori scope, verranno aggiunte via via in FASE 3)
 
-Posta acquisita · Coda di revisione (restyling, funzionalità già più avanzata da
-conservare) · Report e documenti · Registro attività (pagina globale, oggi esiste solo
-come sezione per-pratica) · Impostazioni · Login · Responsive completo · Rifinitura
-finale.
+Coda di revisione (restyling, funzionalità già più avanzata da conservare) · Report e
+documenti · Registro attività (pagina globale, oggi esiste solo come sezione per-pratica) ·
+Impostazioni · Login · Responsive completo · Rifinitura finale.
 
 ### Annotazioni per "Rifinitura finale" (raccolte durante FASE 8B, non ancora fatte)
 

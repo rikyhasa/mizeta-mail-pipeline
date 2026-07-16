@@ -378,3 +378,97 @@ capacità del target senza equivalente nella reference):
 | Ciclo visivo | 4 iterazioni + 1 rifinitura (baseline inclusa: iter-0, iter-1, iter-2, iter-3, iter-3b, iter-4), entro il limite di 5 |
 | Altezza pagina target/reference (1440×900, full-page) | 1,72x (era 2,61x prima dell'iterazione 4) |
 | Screenshot finale nel report | presente (sezione sopra) |
+
+### Annotazioni per "Rifinitura finale" raccolte in questa fase
+
+- **Sintesi operativa**: troncare il testo del summary a fine parola con ellissi
+  (oggi taglia a metà parola) — vedi `docs/UI-PORTING-PLAN.md`.
+- **Testata pratica**: aggiungere Stampa/Genera PDF anche in `DetailHeader.tsx`,
+  come nella reference.
+
+## FASE 3, tappa 2 — Posta acquisita
+
+A differenza del dettaglio pratica, qui non c'era nulla da restilizzare: la voce
+di navigazione era `disabled` ("Non ancora disponibile") e nessuna route
+esisteva (`FASE-8-UI-PORTING.md` la elenca come tappa 2, "posta acquisita / email
+e allegati"). Costruita da zero seguendo il metodo di FASE 8B: composizione della
+reference letta e misurata (`.reference/mizeta-flow/src/app/(app)/posta/page.tsx`),
+dati reali al posto del mock, stesso ciclo `ui-compare` ora esteso a **tre
+viewport** (1280×800, 1440×900, 1920×1080 — `scripts/ui-compare.ts` generalizzato
+con un registro `SCREENS` e il flag `--screen`).
+
+### Composizione portata
+
+Intestazione (eyebrow "Casella in sola lettura" + h1 "Posta acquisita" +
+sottotitolo con conteggio reale) + un solo pannello tabella a 7 colonne
+(Categoria, Oggetto, Mittente, Ricevuta, Confidenza, Allegati, Pratica), come la
+reference. Differenze di modello dati documentate nei commenti del codice
+(`src/lib/mail/inbox-queries.ts`):
+
+- Categoria/confidenza vivono su `Case` (via `EmailMessage.case`), non su
+  `EmailMessage` come nel mock — join diretto, non una ricerca incrociata come
+  `mockCases.find(...)` nella reference.
+- `caseId` è una FK diretta su `EmailMessage`, non derivata.
+- I messaggi non collegati a una pratica ("Da associare") sono il percorso
+  reale — non decorativo come nella reference — e si sono rivelati durante la
+  verifica: gli 11 messaggi più recenti del seed (newsletter, promemoria
+  automatici, auguri) sono correttamente rimasti senza pratica perché non
+  meritano una pratica, confermando che la logica reale funziona (nessuna
+  modifica alla pipeline in questa fase, solo presentazione).
+- Aggiunta paginazione (stesso `PAGE_SIZE` di `/pratiche`) — necessaria perché il
+  volume reale cresce nel tempo, a differenza dei 26 mock fissi della reference,
+  che non ne aveva bisogno.
+- `ProviderStatusPill` estratto come componente condiviso (prima markup duplicato
+  in `Topbar.tsx`), riusato anche qui.
+
+### Iterazione 0 — baseline
+
+Osservato: la pillola di stato provider compariva due volte con testo
+**identico** ("Modalità mock · sincronizzato alle...") — una nel Topbar globale,
+una nell'intestazione della pagina — perché entrambe leggono la stessa
+`getProviderStatusSummary()`. Nella reference le due pillole mostrano testi
+diversi (stato provider aggregato vs. "Connessione mock integra" specifico della
+casella), quindi la duplicazione lì non si nota; qui sarebbe stata una ripetizione
+visibile e priva di senso. Altezza pagina (full-page, 1440×900): target 4253px,
+reference 1797px (2,37x).
+
+Corretto: rimossa la pillola locale — il Topbar (presente su ogni pagina) la
+mostra già.
+
+### Iterazione 1 — dopo la rimozione della pillola duplicata
+
+Osservato: altezza scesa a 3941px (2,19x), ma le righe della tabella restavano
+alte 2-4 righe per via del wrapping dell'oggetto (`max-w-sm` forzava l'a-capo su
+oggetti reali più lunghi delle preview mock a una riga della reference).
+
+Corretto: rimosso il vincolo di larghezza sulla cella "Oggetto", passata a
+`whitespace-nowrap` come le altre colonne — stessa strategia della reference
+(`table{min-width:1050px}` + `.table-wrap{overflow:auto}`, mai a-capo, scroll
+orizzontale per il contenuto più lungo).
+
+### Iterazione 2 — verifica finale, tre viewport
+
+Righe tutte a una riga, stessa densità della reference. Altezza pagina
+(full-page, 1440×900): **target 2381px, reference 1797px → 1,33x** — sotto la
+soglia di 1,5x, con lo scarto residuo spiegabile dal volume reale (39 messaggi
+contro i 27 della reference, +44%) più che da inefficienza di layout. A 1920×1080
+e 1280×800 la tabella resta leggibile; alcune colonne (Confidenza/Allegati/
+Pratica) richiedono scroll orizzontale quando l'oggetto è molto lungo — stesso
+compromesso della reference, non una regressione introdotta qui.
+
+### Verifica
+
+| Verifica | Esito |
+|---|---|
+| `npm run typecheck` | pulito |
+| `npm run lint` | pulito |
+| `npm run test` (228 test) | tutti passano (un fallimento isolato di `job-queue.test.ts` durante lo sviluppo si è confermato flaky, non legato a queste modifiche — passa in isolamento) |
+| `npm run build` | completata, `/posta` compare come rotta dinamica |
+| Ciclo visivo | 3 iterazioni (iter-0, iter-1, iter-2), tre viewport, entro il limite di 5 |
+| Screenshot finali | `docs/screenshots/posta/final/` (12 file: 3 viewport × target/reference × fold/full) |
+
+### Prossimi passi
+
+FASE 3 continua con: coda di revisione (restyling), bozze e documenti, report,
+registro attività (pagina globale), impostazioni, login, responsive completo,
+rifinitura finale.
