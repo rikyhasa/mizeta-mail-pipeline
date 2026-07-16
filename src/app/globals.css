@@ -13,16 +13,25 @@
 
   /* Identità visiva Mizeta/Zeta Transport — vedi FASE-7-REDESIGN.md.
      L'arancione è il colore del brand (azioni primarie, nav attiva, focus),
-     mai un colore semantico di priorità/urgenza. */
+     mai un colore semantico di priorità/urgenza.
+
+     Fase 8 (docs/UI-PORTING-PLAN.md): la shell riproduce la palette navy del
+     riferimento Mizeta Flow (token --color-anthracite* mantiene il nome per
+     non toccare ogni sito di utilizzo, ma il valore diventa navy). L'unica
+     sostituzione vincolante rispetto al riferimento è l'arancione: brand Zeta
+     Transport #f28a1d/#c8680d al posto di #e56b2f della reference. Questo
+     sostituisce, per questa fase, il vincolo "solo antracite" delle Fasi
+     7/7B/7C. */
   --color-brand: #f28a1d;
   --color-brand-dark: #c8680d;
-  --color-anthracite: #202326;
-  --color-anthracite-light: #2c3236;
-  --color-anthracite-border: #34393e;
-  --color-sidebar-ink: #eef1f3;
-  --color-sidebar-ink-muted: #9aa5b0;
-  --color-ink: #161719;
-  --color-ink-muted: #5f6873;
+  --color-anthracite: #10253f;
+  --color-anthracite-light: #173654;
+  --color-anthracite-border: #2c4560;
+  --color-sidebar-ink: #ffffff;
+  --color-sidebar-ink-muted: #c8d3dd;
+  --color-sidebar-ink-subtle: #aebdcb;
+  --color-ink: #1b2a3a;
+  --color-ink-muted: #66778a;
   --color-surface: #ffffff;
   --color-surface-muted: #f4f6f8;
   --color-border: #dce2e8;
