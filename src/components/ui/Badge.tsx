@@ -20,8 +20,10 @@ export type BadgeTone = "neutral" | "critical" | "warning" | "success" | "info" 
 
 const TONE_CLASSES: Record<BadgeTone, string> = {
   neutral: "bg-slate-100 text-slate-700",
-  critical: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",
-  warning: "bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200",
+  critical:
+    "bg-[var(--color-critical-soft)] text-[var(--color-critical)] ring-1 ring-inset ring-[color-mix(in_srgb,var(--color-critical)_30%,white)]",
+  warning:
+    "bg-[var(--color-warning-soft)] text-[var(--color-warning)] ring-1 ring-inset ring-[color-mix(in_srgb,var(--color-warning)_30%,white)]",
   success: "bg-[color-mix(in_srgb,var(--color-forest)_14%,white)] text-[var(--color-forest)] ring-1 ring-inset ring-[color-mix(in_srgb,var(--color-forest)_35%,white)]",
   info: "bg-[color-mix(in_srgb,var(--color-teal)_12%,white)] text-[var(--color-teal)] ring-1 ring-inset ring-[color-mix(in_srgb,var(--color-teal)_30%,white)]",
   muted: "bg-slate-50 text-slate-500 ring-1 ring-inset ring-slate-200",

@@ -1,8 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { requireUserOrRedirect } from "@/lib/auth/guard";
-import { getAlerts, getFilteredCases, getKpis, type DashboardFilters, type DashboardQuickFilter } from "@/lib/dashboard/queries";
-import { PrimaryAlerts } from "./_components/PrimaryAlerts";
-import { DashboardStatsStrip } from "./_components/DashboardStatsStrip";
+import { getAlerts, getFilteredCases, type DashboardFilters, type DashboardQuickFilter } from "@/lib/dashboard/queries";
 import { FiltersBar } from "./_components/FiltersBar";
 import { ActiveFiltersChips } from "./_components/ActiveFiltersChips";
 import { CasesTable } from "@/components/cases/CasesTable";
@@ -36,9 +34,12 @@ export default async function PraticheDashboardPage({ searchParams }: { searchPa
   const sp = await searchParams;
   const filters = parseFilters(sp);
 
-  const [alerts, kpis, { items, total }, users, customers, suppliers] = await Promise.all([
+  // getAlerts() qui serve solo a etichettare la chip del filtro rapido "quick" quando si
+  // arriva da un link della dashboard (es. /pratiche?quick=overdue) — non renderizza più le
+  // card KPI, quelle vivono nella dashboard ("/"). Non rimuovere: ActiveFiltersChips ne ha
+  // bisogno per mostrare "Scaduti" invece del valore grezzo "overdue".
+  const [alerts, { items, total }, users, customers, suppliers] = await Promise.all([
     getAlerts(),
-    getKpis(),
     getFilteredCases(filters),
     prisma.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.customer.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
@@ -52,8 +53,6 @@ export default async function PraticheDashboardPage({ searchParams }: { searchPa
         <p className="mt-1 text-sm text-[var(--color-ink-muted)]">Le email in arrivo diventano pratiche operative da controllare e completare.</p>
       </div>
 
-      <PrimaryAlerts alerts={alerts} activeQuick={filters.quick} searchParams={sp} />
-      <DashboardStatsStrip alerts={alerts} kpis={kpis} searchParams={sp} />
       <FiltersBar filters={sp} users={users} customers={customers} suppliers={suppliers} />
       <ActiveFiltersChips filters={sp} alerts={alerts} users={users} customers={customers} suppliers={suppliers} />
       <CasesTable items={items} total={total} page={filters.page ?? 1} searchParams={sp} />
