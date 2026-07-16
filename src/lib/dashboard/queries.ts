@@ -155,6 +155,64 @@ export interface CaseListItem {
 
 const PRIORITY_RANK: Record<CasePriority, number> = { CRITICAL: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
 
+const CASE_LIST_INCLUDE = {
+  customer: { select: { name: true } },
+  supplier: { select: { name: true } },
+  assignedTo: { select: { name: true } },
+  deadlines: { where: { resolvedAt: null }, orderBy: { dueAt: "asc" as const }, take: 1 },
+  fields: true,
+  messages: { select: { hasAttachments: true }, take: 1, where: { hasAttachments: true } },
+} satisfies Prisma.CaseInclude;
+
+type CaseWithListRelations = Prisma.CaseGetPayload<{ include: typeof CASE_LIST_INCLUDE }>;
+
+function mapCaseToListItem(c: CaseWithListRelations): CaseListItem {
+  const amountFieldKey = AMOUNT_FIELD_BY_CATEGORY[c.category];
+  const amount = amountFieldKey ? parseFieldNumber(c.fields.find((f) => f.fieldKey === amountFieldKey)?.value ?? null) : null;
+  return {
+    id: c.id,
+    reference: c.reference,
+    category: c.category,
+    title: c.title,
+    customerOrSupplierName: c.customer?.name ?? c.supplier?.name ?? null,
+    amount,
+    nextDeadline: c.deadlines[0]?.dueAt ?? null,
+    priority: c.priority,
+    status: c.status,
+    responsibleName: c.assignedTo?.name ?? null,
+    updatedAt: c.updatedAt,
+    needsHumanReview: c.needsHumanReview,
+    isPec: c.isPec,
+    hasAttachments: c.messages.length > 0,
+  };
+}
+
+function sortCaseListItems(items: CaseListItem[]): void {
+  items.sort((a, b) => {
+    const priorityDiff = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+    if (priorityDiff !== 0) return priorityDiff;
+    const aDeadline = a.nextDeadline?.getTime() ?? Infinity;
+    const bDeadline = b.nextDeadline?.getTime() ?? Infinity;
+    if (aDeadline !== bDeadline) return aDeadline - bDeadline;
+    return b.updatedAt.getTime() - a.updatedAt.getTime();
+  });
+}
+
+/**
+ * Elenco compatto per la dashboard ("Pratiche da lavorare"): stesse proiezione
+ * e ordinamento di `getFilteredCases`, senza filtri/paginazione — solo le
+ * pratiche aperte, limitate a `limit` righe (Fase 8, docs/UI-PORTING-PLAN.md).
+ */
+export async function getDashboardWorkItems(limit = 12): Promise<CaseListItem[]> {
+  const cases = await prisma.case.findMany({
+    where: { status: { in: OPEN_STATUSES } },
+    include: CASE_LIST_INCLUDE,
+  });
+  const items = cases.map(mapCaseToListItem);
+  sortCaseListItems(items);
+  return items.slice(0, limit);
+}
+
 function applyQuickFilter(where: Prisma.CaseWhereInput, quick: DashboardQuickFilter | undefined, now: Date): Prisma.CaseWhereInput {
   if (!quick) return where;
   const today0 = startOfDay(now);
@@ -217,50 +275,14 @@ export async function getFilteredCases(filters: DashboardFilters, now: Date = ne
   if (filters.overdue) where.deadlines = { some: { resolvedAt: null, dueAt: { lt: now } } };
   where = applyQuickFilter(where, filters.quick, now);
 
-  const cases = await prisma.case.findMany({
-    where,
-    include: {
-      customer: { select: { name: true } },
-      supplier: { select: { name: true } },
-      assignedTo: { select: { name: true } },
-      deadlines: { where: { resolvedAt: null }, orderBy: { dueAt: "asc" }, take: 1 },
-      fields: true,
-      messages: { select: { hasAttachments: true }, take: 1, where: { hasAttachments: true } },
-    },
-  });
+  const cases = await prisma.case.findMany({ where, include: CASE_LIST_INCLUDE });
 
-  let items: CaseListItem[] = cases.map((c) => {
-    const amountFieldKey = AMOUNT_FIELD_BY_CATEGORY[c.category];
-    const amount = amountFieldKey ? parseFieldNumber(c.fields.find((f) => f.fieldKey === amountFieldKey)?.value ?? null) : null;
-    return {
-      id: c.id,
-      reference: c.reference,
-      category: c.category,
-      title: c.title,
-      customerOrSupplierName: c.customer?.name ?? c.supplier?.name ?? null,
-      amount,
-      nextDeadline: c.deadlines[0]?.dueAt ?? null,
-      priority: c.priority,
-      status: c.status,
-      responsibleName: c.assignedTo?.name ?? null,
-      updatedAt: c.updatedAt,
-      needsHumanReview: c.needsHumanReview,
-      isPec: c.isPec,
-      hasAttachments: c.messages.length > 0,
-    };
-  });
+  let items: CaseListItem[] = cases.map(mapCaseToListItem);
 
   if (filters.amountMin !== undefined) items = items.filter((i) => i.amount !== null && i.amount >= filters.amountMin!);
   if (filters.amountMax !== undefined) items = items.filter((i) => i.amount !== null && i.amount <= filters.amountMax!);
 
-  items.sort((a, b) => {
-    const priorityDiff = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
-    if (priorityDiff !== 0) return priorityDiff;
-    const aDeadline = a.nextDeadline?.getTime() ?? Infinity;
-    const bDeadline = b.nextDeadline?.getTime() ?? Infinity;
-    if (aDeadline !== bDeadline) return aDeadline - bDeadline;
-    return b.updatedAt.getTime() - a.updatedAt.getTime();
-  });
+  sortCaseListItems(items);
 
   const total = items.length;
   const page = Math.max(1, filters.page ?? 1);

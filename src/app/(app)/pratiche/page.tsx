@@ -5,7 +5,7 @@ import { PrimaryAlerts } from "./_components/PrimaryAlerts";
 import { DashboardStatsStrip } from "./_components/DashboardStatsStrip";
 import { FiltersBar } from "./_components/FiltersBar";
 import { ActiveFiltersChips } from "./_components/ActiveFiltersChips";
-import { CasesTable } from "./_components/CasesTable";
+import { CasesTable } from "@/components/cases/CasesTable";
 import type { CaseCategory, CasePriority, CaseStatus } from "@/generated/prisma/enums";
 
 type SearchParams = Record<string, string | undefined>;

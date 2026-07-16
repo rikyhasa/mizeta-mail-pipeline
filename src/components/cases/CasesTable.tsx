@@ -101,36 +101,45 @@ function ColumnsControl({ visible, toggle }: { visible: Set<OptionalColumnKey>; 
   );
 }
 
+/**
+ * Tabella pratiche condivisa tra `/pratiche` (elenco completo, con colonne
+ * personalizzabili e paginazione) e la dashboard (`compact`, 12 righe, senza
+ * intestazione/paginazione — Fase 8, docs/UI-PORTING-PLAN.md).
+ */
 export function CasesTable({
   items,
   total,
-  page,
-  searchParams,
+  page = 1,
+  searchParams = {},
+  compact = false,
 }: {
   items: CaseListItem[];
-  total: number;
-  page: number;
-  searchParams: Record<string, string | undefined>;
+  total?: number;
+  page?: number;
+  searchParams?: Record<string, string | undefined>;
+  compact?: boolean;
 }) {
   const router = useRouter();
   const { visible, toggle } = useOptionalColumns();
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil((total ?? items.length) / PAGE_SIZE));
 
   function goToCase(id: string, event: MouseEvent<HTMLTableRowElement>) {
     if ((event.target as HTMLElement).closest("a")) return;
     router.push(`/pratiche/${id}`);
   }
 
-  const showAmount = visible.has("amount");
-  const showResponsible = visible.has("responsible");
-  const showUpdatedAt = visible.has("updatedAt");
+  const showAmount = !compact && visible.has("amount");
+  const showResponsible = !compact && visible.has("responsible");
+  const showUpdatedAt = !compact && visible.has("updatedAt");
 
   return (
     <section aria-label="Elenco pratiche" className="flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-[var(--color-ink-muted)]">{total} pratiche trovate</p>
-        <ColumnsControl visible={visible} toggle={toggle} />
-      </div>
+      {!compact && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-[var(--color-ink-muted)]">{total ?? items.length} pratiche trovate</p>
+          <ColumnsControl visible={visible} toggle={toggle} />
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-white">
         <table className="min-w-full divide-y divide-[var(--color-border)] text-sm">
@@ -232,7 +241,7 @@ export function CasesTable({
         </table>
       </div>
 
-      {totalPages > 1 && (
+      {!compact && totalPages > 1 && (
         <nav aria-label="Paginazione" className="flex items-center justify-between text-sm text-[var(--color-ink-muted)]">
           <span>
             Pagina {page} di {totalPages} — {total} pratiche totali
