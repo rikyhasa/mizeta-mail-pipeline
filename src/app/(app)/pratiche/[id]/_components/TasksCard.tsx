@@ -1,0 +1,47 @@
+import { Card, CardHeader } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { TASK_STATUS_LABELS } from "@/lib/i18n/labels";
+import { formatDate } from "@/lib/format";
+import { TaskForm } from "./TaskForm";
+import type { TaskStatus } from "@/generated/prisma/enums";
+
+interface TaskData {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  dueAt: Date | null;
+  assignedTo: { name: string } | null;
+}
+
+/** "Attività": senza equivalente nella reference (i suoi bottoni "Aggiungi attività" nella
+ * colonna azioni non aprono una vera lista) — capacità del target, conservata come sezione. */
+export function TasksCard({
+  caseId,
+  tasks,
+  users,
+}: {
+  caseId: string;
+  tasks: TaskData[];
+  users: { id: string; name: string }[];
+}) {
+  return (
+    <Card padding="compact" id="attivita" className="scroll-mt-24">
+      <CardHeader title="Attività" />
+      {tasks.length === 0 ? (
+        <p className="mb-3 text-sm text-[var(--color-ink-muted)]">Nessuna attività.</p>
+      ) : (
+        <ul className="mb-3 flex flex-col gap-2 text-sm">
+          {tasks.map((t) => (
+            <li key={t.id} className="flex flex-wrap items-center gap-2">
+              <span className="text-[var(--color-ink)]">{t.title}</span>
+              <span className="text-xs text-[var(--color-ink-muted)]">{t.assignedTo?.name ?? "Non assegnata"}</span>
+              {t.dueAt && <span className="text-xs text-[var(--color-ink-muted)]">entro {formatDate(t.dueAt)}</span>}
+              <Badge tone="neutral">{TASK_STATUS_LABELS[t.status]}</Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+      <TaskForm caseId={caseId} users={users} />
+    </Card>
+  );
+}
