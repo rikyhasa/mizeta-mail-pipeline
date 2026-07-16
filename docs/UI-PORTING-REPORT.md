@@ -164,5 +164,108 @@ Osservato (confronto screenshot 1440×900, pratica MULTA su entrambe le app):
     `FineDeviceVerification`, gap già documentato come non portabile (nessun
     equivalente Prisma) — non è una regressione di questa fase.
 
-Corretto: implementazione in corso, vedi commit successivi e iterazioni 1-N
-sotto.
+Corretto: implementazione completa dei componenti (WorkPanel, AttentionSummary,
+EditableMetaField, DeadlinesStrip, RelationsSection/Disclosure, pannello laterale a 5
+gruppi) — vedi commit "feat: parità visiva dettaglio pratica, esce da Card condivisa
+(FASE 8B)".
+
+### Iterazione 1 — dopo la riscrittura dei componenti
+
+Osservato (confronto screenshot 1440×900, stessa pratica):
+
+- Tutti i pannelli ora senza ombra, padding/radius allineati a `.box` — la pagina non
+  legge più come pila di card amministrative identiche.
+- "Attenzione richiesta" compare subito sotto Sintesi operativa, sopra la piega, col
+  primo dato mancante elencato — problema #5 risolto.
+- Stato/Responsabile ora etichetta maiuscola + valore in grassetto con icona matita,
+  editabili al click.
+- Pannello laterale: 4 gruppi visivamente distinti nella piega (Prossima azione in
+  arancione pieno, Azioni rapide senza riquadro, Documenti riepilogo compatto,
+  Chiusura) — "Segna completata" disabilitato con motivo visibile ("7 dato/i
+  mancante/i o da verificare · Nessun responsabile assegnato"), non più arancione.
+- "Relazioni e altre operazioni" ora dopo "Documenti generati", chiuso di default
+  (nessuna relazione pendente per questa pratica), una sola riga.
+- Cronologia email e Registro attività ora sulla stessa timeline a pallini connessi.
+- Difetto residuo osservato: le righe "problematiche" di Dati estratti avevano altezza
+  incoerente (1 o 2 righe a seconda della lunghezza dell'etichetta) per un testo
+  segnaposto ridondante col badge ("Inserisci il valore..." insieme a "Mancante").
+
+Corretto: rimossa la frase segnaposto ridondante in `ExtractedFieldCell.tsx` — la
+riga ora è etichetta + valore (se presente) + badge, senza testo duplicato.
+
+### Iterazione 2 — verifica dopo la correzione, entrambi i viewport
+
+Osservato (1440×900 e 1920×1080, target e reference affiancati):
+
+- Le righe "problematiche" di Dati estratti sono ora tutte alla stessa altezza
+  (una riga), ritmo verticale coerente con la reference.
+- A 1920×1080 la piega mostra tutti e 4 i gruppi del pannello laterale per intero
+  (Prossima azione, Azioni rapide, Documenti, Chiusura) più l'intero blocco "Dati
+  estratti" con i 7 campi problematici — molto più contenuto utile sopra la piega
+  rispetto all'iterazione 0 (dove "Dati estratti" non compariva affatto).
+- Confronto diretto con la reference (stessa larghezza sidebar 340px, stesso
+  `.box`/radius/assenza di ombra, stessa densità dei controlli): le due pagine
+  sono ora chiaramente riconoscibili come la stessa direzione visiva.
+- Differenze residue, tutte previste e non porting defect (vedi sezione
+  "Differenze residue" sotto): lunghezza pagina (il target ha più dati reali:
+  15 campi estratti contro 4, più Attività/Commenti/Documenti generati assenti
+  nella reference), intestazione senza Stampa/Genera PDF (DetailHeader fuori
+  perimetro di questa fase), pillola "Modalità mock" invece di "Mock connesso"
+  (intenzionale, FASE 8), pratica di reference con `FineDeviceVerification`
+  (gap già documentato, nessun equivalente Prisma).
+
+Nessuna ulteriore correzione necessaria: i criteri di accettazione del task doc
+sono soddisfatti (vedi checklist finale). Ciclo visivo concluso alla seconda
+iterazione, entro il limite di 5.
+
+### Confronto finale (screenshot in `docs/screenshots/final/`, versionati)
+
+1440×900, sopra la piega:
+
+| Target | Reference |
+|---|---|
+| ![target 1440x900 fold](screenshots/final/target-1440x900-fold.png) | ![reference 1440x900 fold](screenshots/final/reference-1440x900-fold.png) |
+
+1920×1080, sopra la piega:
+
+| Target | Reference |
+|---|---|
+| ![target 1920x1080 fold](screenshots/final/target-1920x1080-fold.png) | ![reference 1920x1080 fold](screenshots/final/reference-1920x1080-fold.png) |
+
+Pagina intera del target (1440×900, per riferimento — la reference a piena pagina
+per questa pratica è più corta perché priva di Attività/Commenti/Documenti generati,
+capacità del target senza equivalente nella reference):
+`docs/screenshots/final/target-1440x900-full.png`,
+`docs/screenshots/final/reference-1440x900-full.png`.
+
+### Differenze residue e perché sono inevitabili
+
+- **Lunghezza pagina**: il target ha più dati reali per questa pratica (15 campi
+  estratti contro i 4 della reference) e sezioni senza equivalente nella reference
+  (Attività, Commenti interni, Documenti generati) — capacità più avanzate del
+  target, conservate per decisione di FASE 8 (non regredire funzionalità reali).
+- **Intestazione**: la reference ha Stampa/Genera PDF nell'header; `DetailHeader`
+  non fa parte del perimetro di FASE 8B (composizione vincolante del task doc parte
+  dalla testata in poi, non la modifica) — nessuna azione presa.
+- **Pillola topbar**: "Modalità mock · sincronizzato alle" (onesta, stato reale)
+  invece di "Mock connesso · ora" (statico, sempre verde) — decisione intenzionale
+  di FASE 8 (veridicità delle funzioni), non toccata in questa fase.
+- **Altezza controlli**: 44px invece dei 38px della reference sulle azioni
+  primarie/standalone — deviazione consapevole confermata con l'utente in fase di
+  piano, per non violare l'invariante di accessibilità (touch target) già presente
+  in `Button.tsx`.
+- **`FineDeviceVerification`**: la pratica di reference scelta per il confronto
+  (categoria MULTA) include questo blocco, senza equivalente nel modello Prisma del
+  target — gap già documentato in FASE 3/tappa 1, non introdotto né mascherato in
+  questa fase.
+
+### Verifica finale
+
+| Verifica | Esito |
+|---|---|
+| `npm run typecheck` | pulito |
+| `npm run lint` | pulito (dopo aver escluso `.reference/**` da `eslint.config.mjs`) |
+| `npm run test` (228 test, 43 file) | tutti passano |
+| `npm run build` | completata |
+| Ciclo visivo | 2 iterazioni (baseline inclusa: iter-0, iter-1, iter-2), entro il limite di 5 |
+| Screenshot finale nel report | presente (sezione sopra) |

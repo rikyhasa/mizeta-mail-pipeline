@@ -56,13 +56,9 @@ export function ExtractedFieldCell({
   if (tier === "problematic") {
     return (
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-lg border border-[color-mix(in_srgb,var(--color-warning)_35%,white)] bg-[var(--color-warning-soft)] px-3 py-2">
-        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <div className="flex min-w-0 items-baseline gap-2">
           {labelEl}
-          {formattedValue ? (
-            <span className="text-sm text-[var(--color-ink)]">{formattedValue}</span>
-          ) : (
-            <span className="text-xs text-[var(--color-ink-muted)]">Inserisci il valore per completare questo dato.</span>
-          )}
+          {formattedValue && <span className="truncate text-sm text-[var(--color-ink)]">{formattedValue}</span>}
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Badge tone="warning" icon={AlertTriangle}>

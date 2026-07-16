@@ -74,6 +74,62 @@ colonna laterale sticky (340px) con Azioni/Contesto/Controllo umano, come in
 | Colonna "Controllo umano" (disclaimer fisso) | `case-detail.tsx` | `DetailSidebar.tsx` | testo fisso della reference | testo riformulato per riflettere le invarianti reali (CLAUDE.md #2, #3) | — | — | no | copy diversa, stesso significato: nessun invio email, nessun pagamento, nessuna scrittura gestionale, bozze sempre da approvare | testo accurato al comportamento reale, non copiato letteralmente | basso | fatto |
 | Verifica dispositivo multa (`FineDeviceVerification`, `.fine-verification`) | `fine-device-verification.tsx`, `lib/fines/*` | — | `FineTechnicalAnalysis` interamente mock | **nessun equivalente nel modello Prisma del target** | — | — | — | gap funzionale reale: il target non ha ancora un sotto-dominio "verifica multe" | non portato in questa tappa — nessuna struttura visiva aggiunta senza un dato reale dietro, per non creare una falsa parità (principio di veridicità, FASE-8-UI-PORTING.md) | medio (fedeltà incompleta per le pratiche categoria Multa) | non implementato — documentato come gap |
 
+### Addendum FASE 8B — parità visiva (righe 60-74 aggiornate)
+
+La tappa 1 sopra era verificata solo strutturalmente (DOM/HTTP). FASE 8B
+(`FASE-8B-DETTAGLIO-PARITY.md`) ha portato la verifica a livello visivo
+(screenshot reali, vedi `docs/UI-PORTING-REPORT.md`) e ha corretto la
+composizione dove il layout non aveva raggiunto la densità/gerarchia della
+reference. Cambia solo la presentazione — dati, query Prisma, permessi, audit,
+validazioni restano quelli descritti nelle righe sopra, invariati. Rispetto
+alla matrice sopra:
+
+- **"Scadenze"** (riga 62): `DeadlinesCard.tsx` **rimosso**. La scadenza
+  principale confluisce nel meta-grid di `SummaryCard.tsx` (come "Scadenza" in
+  reference); le scadenze aggiuntive (se presenti) in una striscia compatta,
+  `DeadlinesStrip.tsx` — non più una card intera per una riga.
+- **"Anomalie e controlli"** (riga 63): `AnomaliesCard.tsx` **rimosso**,
+  sostituito da `AttentionSummary.tsx`: stessa fonte dati (`securityFlags`,
+  `anomaly_reason`, `CaseRelation` PENDING) più `Case.needsHumanReview` e i
+  campi problematici di `CaseField[]` (già caricati, nessuna nuova query) —
+  non più renderizzata quando non ci sono problemi (prima mostrava "Nessuna
+  anomalia rilevata" come card vuota).
+- **"Collega o separa pratica"** (riga 64): `RelationsCard.tsx` perde il
+  proprio contenitore ed è ora avvolta da `RelationsSection.tsx`, un accordion
+  "Relazioni e altre operazioni" (primo uso reale di `Disclosure.tsx`,
+  fin qui codice morto) spostato dopo "Documenti generati" — mai più prima di
+  "Dati estratti".
+- **Colonna "Azioni"** (riga 72): `DetailSidebar.tsx` riscritta come
+  composizione di 5 componenti — `RecommendedAction.tsx` (nuovo: un solo
+  suggerimento derivato da una lista di blocker condivisa col pulsante di
+  chiusura — presentazione pura, nessuna nuova logica di business, vedi
+  `recommended-action.ts`), `QuickActions.tsx` (le stesse scorciatoie di
+  navigazione reale di prima, peso visivo minore), `DocumentsPanel.tsx`
+  (nuovo: riepilogo compatto, non duplica `DocumentsCard.tsx`),
+  `ClosurePanel.tsx` (nuovo: "Segna completata" non più sempre primario —
+  disabilitato con il motivo visibile quando la pratica ha blocker, stesso
+  toggle `PATCH status` di prima).
+- **Colonna "Contesto"** (riga 73): `ContextPanel.tsx` (nuovo) più ricco —
+  aggiunge mittente e casella di origine (`EmailMessage.fromName/fromAddress`,
+  nuovo include `mailboxConnection` su `loadCase()`), data ricezione
+  (`EmailMessage.receivedAt` del primo messaggio), ultima attività
+  (`Case.updatedAt`), veicolo/targa/conducente (`CaseField` `vehicle_type`/
+  `plate`/`driver_name`, già caricati) e stato revisione
+  (`Case.needsHumanReview`) — ogni riga condizionale al dato reale, mai
+  inventata.
+- **Sintesi operativa** (riga 61): Stato/Responsabile passano da `<select>`
+  sempre visibili a etichetta maiuscola + valore in grassetto, editabili al
+  click (`EditableMetaField.tsx`, avvolge `InlineSelect.tsx` invariato) — la
+  modifica inline resta la stessa funzionalità, cambia solo la presentazione
+  di default.
+- Tutte le altre righe (Dati estratti, Cronologia email, Bozza di risposta,
+  Documenti generati, Attività, Commenti, Registro attività, Controllo umano,
+  gap `FineDeviceVerification`): dati/permessi/azioni invariati, solo swap del
+  contenitore da `Card`/`CardHeader` a `WorkPanel.tsx` (stesse misure di
+  `.box` nella reference — niente ombra, padding 19px, radius 12px) e, per
+  Cronologia email/Registro attività, passaggio alla timeline a pallini
+  connessi (`.detail-timeline*`) invece di liste semplici.
+
 ## Righe non ancora compilate (fuori scope, verranno aggiunte via via in FASE 3)
 
 Posta acquisita · Coda di revisione (restyling, funzionalità già più avanzata da
