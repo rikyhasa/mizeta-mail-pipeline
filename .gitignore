@@ -56,7 +56,10 @@ next-env.d.ts
 # read-only clone of the Mizeta Flow UI reference (Fase 8 porting) — never commit
 /.reference/
 
-# FASE 8B: screenshot intermedi del ciclo visivo, non versionati (solo la coppia finale in
-# docs/screenshots/final/ viene committata, vedi docs/UI-PORTING-REPORT.md)
+# FASE 8B/FASE 3: screenshot intermedi del ciclo visivo (scripts/ui-compare.ts), non
+# versionati — solo la coppia finale in docs/screenshots/<schermata>/final/ viene committata,
+# vedi docs/UI-PORTING-REPORT.md. Il dettaglio pratica (FASE 8B) è l'unica schermata ancora
+# sulla struttura piatta storica /docs/screenshots/iter-*/.
 /docs/screenshots/iter-*/
+/docs/screenshots/*/iter-*/
 

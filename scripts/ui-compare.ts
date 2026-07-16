@@ -7,12 +7,12 @@ import { chromium, type Browser, type BrowserContext } from "playwright";
 import { prisma } from "../src/lib/db/prisma";
 
 /**
- * FASE 8B (FASE-8B-DETTAGLIO-PARITY.md): cattura screenshot del dettaglio pratica sul target
- * e sulla reference (.reference/mizeta-flow) per un confronto visivo reale, non solo
- * strutturale. Strumento di sola verifica: non tocca l'app, non scrive nel DB oltre al login
- * di sessione. Non usa MAI la porta 3000 (demo in uso in ufficio).
+ * FASE 8/FASE 3: cattura screenshot di una schermata sul target e sulla reference
+ * (.reference/mizeta-flow) per un confronto visivo reale, non solo strutturale. Strumento di
+ * sola verifica: non tocca l'app, non scrive nel DB oltre al login di sessione. Non usa MAI
+ * la porta 3000 (demo in uso in ufficio).
  *
- * Uso: npm run ui:compare -- --iter 1
+ * Uso: npm run ui:compare -- --screen posta --iter 1   (screen default: case-detail)
  */
 
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -28,6 +28,7 @@ const REFERENCE_PORT = Number(process.env.UI_COMPARE_REFERENCE_PORT ?? 4200);
 const TARGET_URL_OVERRIDE = process.env.UI_COMPARE_TARGET_URL ?? null;
 
 const VIEWPORTS = [
+  { name: "1280x800", width: 1280, height: 800 },
   { name: "1440x900", width: 1440, height: 900 },
   { name: "1920x1080", width: 1920, height: 1080 },
 ] as const;
@@ -41,9 +42,9 @@ const REFERENCE_LOGIN = {
   password: process.env.DEMO_ADMIN_PASSWORD ?? "Demo-Mizeta-2026!",
 };
 
-function parseIterArg(): string {
-  const idx = process.argv.indexOf("--iter");
-  if (idx === -1 || !process.argv[idx + 1]) return "latest";
+function parseArg(name: string, fallback: string): string {
+  const idx = process.argv.indexOf(name);
+  if (idx === -1 || !process.argv[idx + 1]) return fallback;
   return process.argv[idx + 1];
 }
 
@@ -162,9 +163,33 @@ async function findTargetFineCaseId(): Promise<string> {
   return found.id;
 }
 
+interface ScreenConfig {
+  resolveTargetPath: () => Promise<string>;
+  referencePath: string;
+}
+
+/** Registro delle schermate confrontabili (FASE 3): ogni voce risolve il percorso reale sul
+ * target (spesso dipendente da un id nel DB seed) e il percorso statico equivalente sulla
+ * reference. Aggiungere una voce qui per ogni nuova schermata portata. */
+const SCREENS: Record<string, ScreenConfig> = {
+  "case-detail": {
+    resolveTargetPath: async () => `/pratiche/${await findTargetFineCaseId()}`,
+    referencePath: "/pratiche/case-008",
+  },
+  posta: {
+    resolveTargetPath: async () => "/posta",
+    referencePath: "/posta",
+  },
+};
+
 async function main(): Promise<void> {
-  const iter = parseIterArg();
-  const outDir = path.join(REPO_ROOT, "docs/screenshots", `iter-${iter}`);
+  const iter = parseArg("--iter", "latest");
+  const screenKey = parseArg("--screen", "case-detail");
+  const screen = SCREENS[screenKey];
+  if (!screen) {
+    throw new Error(`Schermata sconosciuta "${screenKey}". Disponibili: ${Object.keys(SCREENS).join(", ")}`);
+  }
+  const outDir = path.join(REPO_ROOT, "docs/screenshots", screenKey, `iter-${iter}`);
   fs.mkdirSync(outDir, { recursive: true });
 
   if (!TARGET_URL_OVERRIDE) await assertPortFree(TARGET_PORT);
@@ -176,7 +201,7 @@ async function main(): Promise<void> {
   let browser: Browser | null = null;
 
   try {
-    const targetCaseId = await findTargetFineCaseId();
+    const targetPath = await screen.resolveTargetPath();
 
     const targetUrl = TARGET_URL_OVERRIDE ?? `http://localhost:${TARGET_PORT}`;
     if (TARGET_URL_OVERRIDE) {
@@ -201,10 +226,10 @@ async function main(): Promise<void> {
     console.log("[ui-compare] Login reference...");
     await login(referenceContext, `http://localhost:${REFERENCE_PORT}`, REFERENCE_LOGIN);
 
-    console.log("[ui-compare] Cattura target...");
-    await capture(targetContext, targetUrl, `/pratiche/${targetCaseId}`, "target", outDir);
-    console.log("[ui-compare] Cattura reference...");
-    await capture(referenceContext, `http://localhost:${REFERENCE_PORT}`, "/pratiche/case-008", "reference", outDir);
+    console.log(`[ui-compare] Cattura target (${targetPath})...`);
+    await capture(targetContext, targetUrl, targetPath, "target", outDir);
+    console.log(`[ui-compare] Cattura reference (${screen.referencePath})...`);
+    await capture(referenceContext, `http://localhost:${REFERENCE_PORT}`, screen.referencePath, "reference", outDir);
 
     console.log(`[ui-compare] Fatto. Screenshot in ${outDir}`);
   } finally {

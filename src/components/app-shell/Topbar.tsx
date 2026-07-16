@@ -1,19 +1,6 @@
 import { Menu, Search } from "lucide-react";
-import type { ProviderStatusSummary, ProviderStatusTone } from "@/lib/observability/provider-status";
-
-const TONE_PILL_CLASSES: Record<ProviderStatusTone, string> = {
-  mock: "bg-[color-mix(in_srgb,var(--color-forest)_14%,white)] text-[var(--color-forest)]",
-  connected: "bg-[color-mix(in_srgb,var(--color-forest)_14%,white)] text-[var(--color-forest)]",
-  attention: "bg-[color-mix(in_srgb,var(--color-warning)_16%,white)] text-[var(--color-warning)]",
-  unavailable: "bg-slate-100 text-slate-500",
-};
-
-const TONE_DOT_CLASSES: Record<ProviderStatusTone, string> = {
-  mock: "bg-[var(--color-forest)]",
-  connected: "bg-[var(--color-forest)]",
-  attention: "bg-[var(--color-warning)]",
-  unavailable: "bg-slate-400",
-};
+import type { ProviderStatusSummary } from "@/lib/observability/provider-status";
+import { ProviderStatusPill } from "@/components/ProviderStatusPill";
 
 /**
  * Topbar client-only per il drawer mobile (`onOpenDrawer`); ricerca globale come
@@ -58,12 +45,7 @@ export function Topbar({
       </form>
 
       <div className="ml-auto flex items-center gap-3">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${TONE_PILL_CLASSES[providerStatus.tone]}`}
-        >
-          <span className={`h-1.5 w-1.5 rounded-full ${TONE_DOT_CLASSES[providerStatus.tone]}`} aria-hidden="true" />
-          {providerStatus.label}
-        </span>
+        <ProviderStatusPill status={providerStatus} />
       </div>
     </header>
   );
