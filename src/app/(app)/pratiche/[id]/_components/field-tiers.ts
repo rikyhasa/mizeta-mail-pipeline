@@ -34,22 +34,18 @@ export function classifyFieldTier(field: {
   return "middle";
 }
 
-/** Ordina, classifica e divide i campi in problematici/altri — calcolo unico condiviso da
- * ExtractedFieldsSection e AttentionSummary (FASE 8B), per non divergere tra le due sezioni. */
-export function tierFields(
-  fields: CaseFieldData[],
-  fieldOrder: string[],
-): { problematic: TieredField[]; other: TieredField[] } {
+/** Ordina e classifica i campi in un'unica lista nell'ordine naturale della categoria
+ * (FASE 8B, iterazione 3): tutti i campi — mancanti, da verificare, confermati — condividono
+ * la stessa griglia compatta, come `.field-list` nella reference. Il tier resta per la sola
+ * differenziazione visiva dentro la cella (badge/valore), non per separare i campi in liste
+ * distinte. Calcolo unico, condiviso da ExtractedFieldsSection e dai blocker in page.tsx. */
+export function tierFields(fields: CaseFieldData[], fieldOrder: string[]): TieredField[] {
   const fieldsByKey = new Map(fields.map((f) => [f.fieldKey, f]));
   const orderedKeys = [...fieldOrder, ...fields.map((f) => f.fieldKey).filter((k) => !fieldOrder.includes(k))];
-  const tiered = orderedKeys
+  return orderedKeys
     .map((key) => {
       const field = fieldsByKey.get(key);
       return field ? { key, field, tier: classifyFieldTier(field) } : null;
     })
     .filter((f): f is TieredField => f !== null);
-  return {
-    problematic: tiered.filter((f) => f.tier === "problematic"),
-    other: tiered.filter((f) => f.tier !== "problematic"),
-  };
 }

@@ -5,62 +5,51 @@ import { fieldLabel, formatFieldValue } from "@/lib/i18n/field-labels";
 import type { CaseCategory } from "@/generated/prisma/enums";
 import type { TieredField } from "./field-tiers";
 
+/** Un'unica griglia compatta per tutti i campi — mancanti, da verificare, confermati — come
+ * `.field-list` nella reference (FASE 8B, iterazione 3): nessun campo isolato in una riga a
+ * tutta larghezza. Il conteggio dei problematici va in una sola riga sotto il titolo, non in
+ * un blocco "Attenzione richiesta" separato (già coperto da "Prossima azione" in colonna
+ * laterale). */
 export function ExtractedFieldsSection({
   caseId,
   category,
   totalFieldCount,
-  hasOrderedFields,
-  problematic,
-  other,
+  problematicCount,
+  fields,
 }: {
   caseId: string;
   category: CaseCategory;
   totalFieldCount: number;
-  hasOrderedFields: boolean;
-  problematic: TieredField[];
-  other: TieredField[];
+  problematicCount: number;
+  fields: TieredField[];
 }) {
   return (
-    <WorkPanel id="dati-estratti" title="Dati estratti" count={totalFieldCount}>
+    <WorkPanel
+      id="dati-estratti"
+      title="Dati estratti"
+      count={totalFieldCount}
+      description={problematicCount > 0 ? `${problematicCount} dato/i mancante/i o da verificare` : undefined}
+    >
       {!isExtractableCategory(category) ? (
         <p className="text-sm text-[var(--color-ink-muted)]">
           Questa categoria riceve solo classificazione e sintesi, senza estrazione campi dedicata.
         </p>
-      ) : !hasOrderedFields ? (
+      ) : fields.length === 0 ? (
         <p className="text-sm text-[var(--color-ink-muted)]">Nessun campo ancora estratto.</p>
       ) : (
-        <div className="flex flex-col gap-4">
-          {problematic.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              {problematic.map(({ key, field, tier }) => (
-                <ExtractedFieldCell
-                  key={key}
-                  caseId={caseId}
-                  fieldKey={key}
-                  label={fieldLabel(key)}
-                  formattedValue={field.value ? formatFieldValue(key, field.value) : null}
-                  field={field}
-                  tier={tier}
-                />
-              ))}
-            </div>
-          )}
-          {other.length > 0 && (
-            <div className="detail-field-grid">
-              {other.map(({ key, field, tier }, index) => (
-                <ExtractedFieldCell
-                  key={key}
-                  caseId={caseId}
-                  fieldKey={key}
-                  label={fieldLabel(key)}
-                  formattedValue={field.value ? formatFieldValue(key, field.value) : null}
-                  field={field}
-                  tier={tier}
-                  spanFull={other.length % 2 !== 0 && index === other.length - 1}
-                />
-              ))}
-            </div>
-          )}
+        <div className="detail-field-grid">
+          {fields.map(({ key, field, tier }, index) => (
+            <ExtractedFieldCell
+              key={key}
+              caseId={caseId}
+              fieldKey={key}
+              label={fieldLabel(key)}
+              formattedValue={field.value ? formatFieldValue(key, field.value) : null}
+              field={field}
+              tier={tier}
+              spanFull={fields.length % 2 !== 0 && index === fields.length - 1}
+            />
+          ))}
         </div>
       )}
     </WorkPanel>

@@ -40,10 +40,10 @@ export function FieldEditForm({ caseId, fieldKey, initialValue }: { caseId: stri
       <button
         type="button"
         onClick={() => setEditing(true)}
-        className={buttonClassName({ variant: "tertiary", size: "sm" })}
+        aria-label="Modifica valore"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)]"
       >
-        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-        Modifica
+        <Pencil className="h-4 w-4" aria-hidden="true" />
       </button>
     );
   }

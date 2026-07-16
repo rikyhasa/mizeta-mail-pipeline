@@ -120,7 +120,7 @@ body {
   border-radius: 8px;
   overflow: hidden;
 }
-@media (max-width: 639px) {
+@media (max-width: 800px) {
   .detail-field-grid { grid-template-columns: 1fr; }
 }
 .detail-timeline {

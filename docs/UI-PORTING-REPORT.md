@@ -214,9 +214,58 @@ Osservato (1440×900 e 1920×1080, target e reference affiancati):
   (intenzionale, FASE 8), pratica di reference con `FineDeviceVerification`
   (gap già documentato, nessun equivalente Prisma).
 
-Nessuna ulteriore correzione necessaria: i criteri di accettazione del task doc
-sono soddisfatti (vedi checklist finale). Ciclo visivo concluso alla seconda
-iterazione, entro il limite di 5.
+### Iterazione 3 — feedback utente su "Dati estratti"
+
+Osservato dall'utente dopo l'iterazione 2: i campi mancanti/da verificare in "Dati
+estratti" restavano banner gialli a tutta larghezza impilati (uno per campo) — con
+7 campi mancanti la sezione tornava una pila di righe, esattamente ciò che la
+reference non fa. Inoltre "Attenzione richiesta" duplicava informazioni già
+presenti in "Prossima azione" nel pannello laterale.
+
+Corretto:
+
+1. **Griglia unica per tutti i campi.** `tierFields()` non divide più i campi in
+   problematici/altri: restituisce un'unica lista nell'ordine naturale della
+   categoria. `ExtractedFieldCell.tsx` ha un solo percorso di render (non più tre
+   contenitori diversi per tier): stessa cella `bg-white p-3.5` per tutti, badge
+   piccolo "Mancante"/"Da verificare" DENTRO la cella (riga label) solo per i
+   problematici, icona di spunta per i confermati. Nessun campo occupa più una riga
+   a tutta larghezza — tutti nella stessa `.detail-field-grid` a 2 colonne.
+2. **Una sola azione inline.** "Conferma" resta l'unica azione-bottone visibile;
+   "Modifica" (`FieldEditForm.tsx`) passa da bottone con testo a icona sola (matita
+   in cerchio, come "Fonte"), cosi le tre affordance (Conferma/Modifica/Fonte)
+   restano compatte sulla stessa riga senza competere visivamente.
+3. **Rimosso il blocco "Attenzione richiesta"** (`AttentionSummary.tsx` eliminato).
+   Al suo posto, una riga compatta sotto il titolo di "Dati estratti"
+   ("N dato/i mancante/i o da verificare", via il prop `description` già presente
+   su `WorkPanel`). Per non perdere segnali reali che il vecchio blocco copriva
+   ma la lista `blockerReasons` non copriva ancora (anomalia fattura, flag di
+   sicurezza email), questi due sono stati aggiunti come blocker propri in
+   `page.tsx` — ora "Prossima azione"/"Chiusura" li considerano davvero, rendendo
+   vera l'affermazione che l'informazione "è già in Prossima azione" invece di
+   ometterla soltanto. `anomaly_reason` è già un `CaseField` ordinario (categoria
+   `SUPPLIER_INVOICE`) e compare comunque nella griglia di "Dati estratti" — nessuna
+   perdita di visibilità.
+4. **Breakpoint responsive allineato**: `.detail-field-grid` collassa a 1 colonna
+   sotto 800px, come `.field-list` della reference (`@media(max-width:800px)`) —
+   prima collassava già a 640px (breakpoint `sm` di Tailwind), troppo presto
+   rispetto alla reference.
+
+Rivalidato con `npm run ui:compare` sulla stessa pratica MULTA (15 campi, 7
+mancanti) a entrambi i viewport: le righe della griglia sono ora tutte della
+stessa altezza (etichetta+badge, valore, azioni — 3 righe compatte, ~118px),
+indipendentemente dal tier, in linea con la densità della cella `.field` della
+reference (label+valore, azione inline quando non confermato). Non è stato
+possibile un confronto a parità esatta di conteggio campi (la pratica di
+reference scelta per categoria MULTA ne ha 4, tutti già presenti, contro i 15 —
+di cui 7 mancanti — della pratica target), perché i modelli dati non coincidono
+per costruzione (capacità più ricca del target, già documentata); il confronto
+valido e verificato è quello per singola cella, non per altezza totale sezione.
+
+Nessuna ulteriore correzione necessaria oltre questa: i criteri di accettazione
+del task doc sono soddisfatti (vedi checklist finale). Ciclo visivo concluso alla
+terza iterazione (con una sotto-iterazione 3b per la precisione del breakpoint),
+entro il limite di 5.
 
 ### Confronto finale (screenshot in `docs/screenshots/final/`, versionati)
 
@@ -267,5 +316,5 @@ capacità del target senza equivalente nella reference):
 | `npm run lint` | pulito (dopo aver escluso `.reference/**` da `eslint.config.mjs`) |
 | `npm run test` (228 test, 43 file) | tutti passano |
 | `npm run build` | completata |
-| Ciclo visivo | 2 iterazioni (baseline inclusa: iter-0, iter-1, iter-2), entro il limite di 5 |
+| Ciclo visivo | 3 iterazioni + 1 rifinitura (baseline inclusa: iter-0, iter-1, iter-2, iter-3, iter-3b), entro il limite di 5 |
 | Screenshot finale nel report | presente (sezione sopra) |

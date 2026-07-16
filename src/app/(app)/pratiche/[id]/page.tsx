@@ -5,12 +5,11 @@ import { CASE_STATUS_LABELS } from "@/lib/i18n/labels";
 import { formatCurrency } from "@/lib/format";
 import { AMOUNT_FIELD_BY_CATEGORY, parseFieldNumber } from "@/lib/dashboard/field-keys";
 import { isExtractableCategory } from "@/lib/adapters/llm/schemas/extraction-index";
-import { CATEGORY_FIELD_ORDER, fieldLabel } from "@/lib/i18n/field-labels";
+import { CATEGORY_FIELD_ORDER } from "@/lib/i18n/field-labels";
 import type { CaseCategory, CaseStatus, GeneratedDocumentType } from "@/generated/prisma/enums";
 import { DetailHeader } from "./_components/DetailHeader";
 import { DetailSidebar } from "./_components/DetailSidebar";
 import { SummaryCard } from "./_components/SummaryCard";
-import { AttentionSummary } from "./_components/AttentionSummary";
 import { ExtractedFieldsSection } from "./_components/ExtractedFieldsSection";
 import { EmailTimelineCard } from "./_components/EmailTimelineCard";
 import { DraftsCard } from "./_components/DraftsCard";
@@ -105,17 +104,21 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const partyName = caseRecord.customer?.name ?? caseRecord.supplier?.name ?? null;
 
   const fieldOrder = isExtractableCategory(caseRecord.category) ? CATEGORY_FIELD_ORDER[caseRecord.category] : [];
-  const { problematic, other } = tierFields(caseRecord.fields, fieldOrder);
-  const hasOrderedFields = fieldOrder.length > 0 || caseRecord.fields.some((f) => !fieldOrder.includes(f.fieldKey));
+  const tieredFields = tierFields(caseRecord.fields, fieldOrder);
+  const problematicCount = tieredFields.filter((f) => f.tier === "problematic").length;
 
   const anomalyReason = fieldsByKey.get("anomaly_reason")?.value ?? null;
 
   // Lista unica di blocker, condivisa da RecommendedAction (sidebar) e dal pulsante "Segna
   // completata" (ClosurePanel) — presentazione soltanto, nessuna nuova logica di business.
+  // È anche l'unico posto dove questi segnali compaiono nella colonna principale: niente più
+  // blocco "Attenzione richiesta" separato che ripeteva la stessa informazione (FASE 8B,
+  // iterazione 3) — anomaly_reason è già un campo ordinario in "Dati estratti" (vedi
+  // CATEGORY_FIELD_ORDER), qui serve solo a comporre il messaggio del blocker.
   const blockerReasons: { text: string; href: string }[] = [];
-  if (problematic.length > 0) {
+  if (problematicCount > 0) {
     blockerReasons.push({
-      text: `${problematic.length} dato/i mancante/i o da verificare`,
+      text: `${problematicCount} dato/i mancante/i o da verificare`,
       href: "#dati-estratti",
     });
   }
@@ -130,6 +133,12 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   }
   if (!caseRecord.assignedToId) {
     blockerReasons.push({ text: "Nessun responsabile assegnato", href: "#sintesi" });
+  }
+  if (anomalyReason) {
+    blockerReasons.push({ text: `Anomalia fattura: ${anomalyReason}`, href: "#dati-estratti" });
+  }
+  if (securityFlags.length > 0) {
+    blockerReasons.push({ text: `${securityFlags.length} segnale/i di sicurezza rilevato/i nelle email`, href: "#email" });
   }
   if (pendingRelations.length > 0) {
     blockerReasons.push({ text: `${pendingRelations.length} collegamento/i pratica da verificare`, href: "#relazioni" });
@@ -164,22 +173,12 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             amountFormatted={formatCurrency(amount)}
           />
 
-          <AttentionSummary
-            problematicFieldLabels={problematic.slice(0, 4).map((f) => fieldLabel(f.key))}
-            problematicFieldsCount={problematic.length}
-            anomalyReason={anomalyReason}
-            securityFlags={securityFlags}
-            pendingRelations={pendingRelations}
-            needsHumanReview={caseRecord.needsHumanReview}
-          />
-
           <ExtractedFieldsSection
             caseId={caseRecord.id}
             category={caseRecord.category}
             totalFieldCount={caseRecord.fields.length}
-            hasOrderedFields={hasOrderedFields}
-            problematic={problematic}
-            other={other}
+            problematicCount={problematicCount}
+            fields={tieredFields}
           />
 
           <EmailTimelineCard messages={caseRecord.messages} />
