@@ -1,6 +1,6 @@
 import { formatDateTime } from "@/lib/format";
 import { ActionButton } from "@/components/ActionButton";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { WorkPanel } from "@/components/ui/WorkPanel";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { NewMailboxForm } from "./NewMailboxForm";
@@ -25,8 +25,7 @@ export function MailboxesSection({ mailboxes, emailProvider }: { mailboxes: Mail
   const actionsEnabled = emailProvider !== "pec_imap";
 
   return (
-    <Card padding="compact">
-      <CardHeader title="Provider email e stato connessione" />
+    <WorkPanel title="Provider email e stato connessione">
       {!actionsEnabled && (
         <div className="mb-3 flex items-center gap-2 rounded-lg bg-[var(--color-warning-soft)] px-3 py-2">
           <Badge tone="warning">Non ancora attivo</Badge>
@@ -35,17 +34,17 @@ export function MailboxesSection({ mailboxes, emailProvider }: { mailboxes: Mail
           </p>
         </div>
       )}
-      <div className="flex flex-col divide-y divide-[var(--color-border)]">
+      <div className="flex flex-col">
         {mailboxes.map((mailbox) => (
-          <div key={mailbox.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+          <div key={mailbox.id} className="detail-setting-row">
             <div>
-              <div className="font-medium text-[var(--color-ink)]">
+              <div className="detail-setting-name">
                 {mailbox.displayName} {mailbox.isPec && <Badge tone="info">PEC</Badge>}
               </div>
-              <div className="text-xs text-[var(--color-ink-muted)]">
+              <div className="detail-setting-desc">
                 {mailbox.emailAddress} · {mailbox.provider} · stato: {mailbox.status}
               </div>
-              <div className="text-xs text-[var(--color-ink-muted)]">
+              <div className="detail-setting-desc">
                 Ultima sincronizzazione: {formatDateTime(mailbox.lastSyncAt)} · Ultimo controllo salute:{" "}
                 {mailbox.lastHealthStatus ?? "n/d"} ({formatDateTime(mailbox.lastHealthCheckAt)})
                 {mailbox.subscriptionExpiresAt && <> · Subscription in scadenza: {formatDateTime(mailbox.subscriptionExpiresAt)}</>}
@@ -76,6 +75,6 @@ export function MailboxesSection({ mailboxes, emailProvider }: { mailboxes: Mail
         {mailboxes.length === 0 && <EmptyState title="Nessuna casella collegata" />}
       </div>
       <NewMailboxForm emailProviderLabel={emailProvider} />
-    </Card>
+    </WorkPanel>
   );
 }

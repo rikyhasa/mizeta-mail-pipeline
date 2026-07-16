@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { CASE_CATEGORY_LABELS, DEPARTMENT_LABELS } from "@/lib/i18n/labels";
 import type { CaseCategory, Department } from "@/generated/prisma/enums";
 import type { RuleSettingsData } from "@/lib/rules/types";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { WorkPanel } from "@/components/ui/WorkPanel";
 import { InactiveBadge } from "@/components/ui/Badge";
 import { fieldControlClassName } from "@/components/ui/Field";
 import { UnsavedChangesBar } from "@/components/ui/UnsavedChangesBar";
@@ -62,12 +62,8 @@ export function CategorySettingsForm({ settings }: { settings: RuleSettingsData 
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <Card padding="compact" variant="flat">
-        <div className="mb-3 flex items-center gap-2">
-          <InactiveBadge />
-          <p className="text-xs text-[var(--color-ink-muted)]">Configurabile e salvato in questa fase, ma non ancora applicato dalla pipeline.</p>
-        </div>
-        <CardHeader title="Categorie abilitate" />
+      <WorkPanel title="Categorie abilitate" action={<InactiveBadge />}>
+        <p className="mb-3 text-xs text-[var(--color-ink-muted)]">Configurabile e salvato in questa fase, ma non ancora applicato dalla pipeline.</p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {CATEGORIES.map((c) => (
             <label key={c} className="flex min-h-[36px] cursor-not-allowed items-center gap-2 text-sm text-[var(--color-ink-muted)]">
@@ -92,10 +88,9 @@ export function CategorySettingsForm({ settings }: { settings: RuleSettingsData 
             </label>
           ))}
         </div>
-      </Card>
+      </WorkPanel>
 
-      <Card padding="compact">
-        <CardHeader title="Reparto predefinito per categoria" />
+      <WorkPanel title="Reparto predefinito per categoria">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {CATEGORIES.map((c) => (
             <label key={c} className="flex flex-col gap-1.5 text-sm">
@@ -119,7 +114,7 @@ export function CategorySettingsForm({ settings }: { settings: RuleSettingsData 
             </label>
           ))}
         </div>
-      </Card>
+      </WorkPanel>
 
       <UnsavedChangesBar
         visible={dirty}

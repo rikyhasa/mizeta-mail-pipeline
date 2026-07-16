@@ -1,7 +1,7 @@
 import { ROLE_LABELS } from "@/lib/i18n/labels";
 import { InlineSelect } from "@/components/InlineSelect";
 import { ActionButton } from "@/components/ActionButton";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { WorkPanel } from "@/components/ui/WorkPanel";
 import { Badge } from "@/components/ui/Badge";
 import { NewUserForm } from "./NewUserForm";
 import type { Role } from "@/generated/prisma/enums";
@@ -18,16 +18,15 @@ interface UserRow {
 
 export function UsersSection({ users }: { users: UserRow[] }) {
   return (
-    <Card padding="compact">
-      <CardHeader title="Utenti e ruoli" />
-      <div className="mb-4 flex flex-col divide-y divide-[var(--color-border)]">
+    <WorkPanel title="Utenti e ruoli">
+      <div className="mb-4 flex flex-col">
         {users.map((u) => (
-          <div key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+          <div key={u.id} className="detail-setting-row">
             <div>
-              <div className="font-medium text-[var(--color-ink)]">
+              <div className="detail-setting-name">
                 {u.name} {!u.active && <Badge tone="muted">Disattivo</Badge>}
               </div>
-              <div className="text-xs text-[var(--color-ink-muted)]">{u.email}</div>
+              <div className="detail-setting-desc">{u.email}</div>
             </div>
             <div className="flex items-center gap-2">
               <InlineSelect url={`/api/settings/users/${u.id}`} fieldName="role" value={u.role} options={ROLE_OPTIONS} label="Ruolo" />
@@ -45,6 +44,6 @@ export function UsersSection({ users }: { users: UserRow[] }) {
         ))}
       </div>
       <NewUserForm />
-    </Card>
+    </WorkPanel>
   );
 }

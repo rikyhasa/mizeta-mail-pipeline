@@ -187,3 +187,29 @@ body {
 @media (max-width: 1200px) {
   .detail-meta-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* FASE 3 (Impostazioni): riga di elenco compatta, misure lette da .setting-row/.setting-name/
+   .setting-desc nella reference (.reference/mizeta-flow/src/app/globals.css), tradotte sui
+   token del target — stesso principio delle classi .detail-* sopra. */
+.detail-setting-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.detail-setting-row:last-child {
+  border-bottom: 0;
+}
+.detail-setting-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.detail-setting-desc {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--color-ink-muted);
+}

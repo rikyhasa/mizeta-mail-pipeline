@@ -709,7 +709,68 @@ difetto di layout, un riflesso accurato dei dati reali. Composizione visiva
 Tutte e 6 le voci di navigazione sono ora reali — chiude la costruzione delle
 schermate principali di FASE 3.
 
+## FASE 3, tappa 7 — Impostazioni (restyling)
+
+A differenza delle tappe greenfield, `/impostazioni` esisteva già, attiva e
+gated `ADMIN` (`ADMIN_NAV_ITEM`), con funzionalità reale più avanzata della
+reference. Ricerca preliminare confermata: **la reference qui è in gran parte
+decorativa** — `demoUsers` hardcoded, "Ultima sincronizzazione" hardcoded,
+bottoni "Salva modifiche"/"Test connessione"/"Invita utente" senza handler,
+tre sezioni (Privacy, Assegnazione, Limiti di sicurezza) completamente statiche
+senza controlli. Il target invece ha 7 sezioni reali, tutte collegate a
+`RuleSettingsData`/`MailboxConnection`/`User`/`ReplyTemplate` reali, con rotte
+API vere gated `settings:manage` e audit — ogni voce di SPEC.md §16 è già
+implementata. Restyling puro, nessuna funzionalità nuova.
+
+### Decisioni
+
+- **Layout**: mantenuto `SettingsNav` (7 tab verticali) invece di appiattire
+  sulla griglia `.settings-grid` a 6 card della reference — il target ha una
+  sezione in più (Modelli di risposta, Monitoraggio, senza equivalente nella
+  reference) e diversi form con molti campi (`AutomationSettingsForm`: 8
+  soglie + 3 retention); una griglia piatta con tutto sempre visibile avrebbe
+  contraddetto i principi di densità già stabiliti in questa fase. Stessa
+  scelta già fatta per "coda di revisione" (`SplitView` mantenuta).
+- **9 componenti migrati da `Card`/`CardHeader` (pattern pre-FASE-8B) a
+  `WorkPanel`**: `MailboxesSection`, `AutomationSettingsForm` (3 pannelli),
+  `CategorySettingsForm` (2 pannelli), `UsersSection`, `ReplyTemplatesSection`,
+  `ObservabilitySection`, più il pannello "Modalità" inline in `page.tsx`.
+- **Nuove classi condivise** `.detail-setting-row`/`.detail-setting-name`/
+  `.detail-setting-desc` in `globals.css`, misure lette da `.setting-row`/
+  `.setting-name`/`.setting-desc` della reference — applicate alle righe di
+  elenco statiche (caselle email, utenti, modelli di risposta), sostituendo
+  l'approssimazione precedente (`text-xs`/`font-medium` ad hoc).
+- **Nuova card "Limiti di sicurezza"** (tab "Informazioni tecniche", accanto a
+  "Modalità" in una griglia 2 colonne): le 3 righe della reference (invio
+  email disabilitato, scrittura gestionale disabilitata, pagamenti
+  disabilitati) sono garanzie architetturali reali (CLAUDE.md invarianti 1-2),
+  non inventate — stesso contenuto già usato altrove nell'app (`ContextPanel`,
+  descrizione di `DraftsCard`). Aggiunta eyebrow "Configurazione"
+  nell'intestazione, mancante rispetto alle altre schermate di FASE 3.
+- **Non aggiunto**: un bottone "Salva modifiche" a livello di pagina (la
+  reference ce l'ha ma senza handler) — ogni tab ha già il proprio salvataggio
+  reale tramite `UnsavedChangesBar`; un bottone globale sarebbe stato
+  fuorviante. Non aggiunto nemmeno un toggle "Escludi caselle personali" (la
+  reference ce l'ha in "Privacy e conservazione") — non esiste in
+  `RuleSettingsData`, aggiungerlo sarebbe stata funzionalità nuova non
+  richiesta, fuori dal perimetro di un restyling.
+
+### Verifica
+
+Confronto visivo diretto: stile pannello (nessuna ombra, bordo, radius 12px)
+e tipografia coerenti con le altre schermate di FASE 3. Verificata anche la
+tab "Informazioni tecniche" (contenuto nuovo, non raggiungibile via URL
+diretto essendo `SettingsNav` client-side) con uno script Playwright ad hoc.
+
+| Verifica | Esito |
+|---|---|
+| `npm run typecheck` | pulito |
+| `npm run lint` | pulito |
+| `npm run test` (228 test) | tutti passano |
+| `npm run build` | completata |
+| Ciclo visivo | 2 iterazioni, tre viewport (tab "Connessioni email", default) + verifica manuale della tab "Informazioni tecniche" |
+| Screenshot finali | `docs/screenshots/impostazioni/final/` (12 file: 3 viewport × target/reference × fold/full) |
+
 ### Prossimi passi
 
-FASE 3 continua con: impostazioni, login, responsive completo, rifinitura
-finale.
+FASE 3 continua con: login, responsive completo, rifinitura finale.

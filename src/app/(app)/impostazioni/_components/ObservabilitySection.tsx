@@ -1,6 +1,6 @@
 import { formatCurrency } from "@/lib/format";
 import type { ObservabilitySnapshot } from "@/lib/observability/metrics";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { WorkPanel } from "@/components/ui/WorkPanel";
 
 /** Riepilogo compatto coda job + costo/errori AI (SPEC.md §17). Il dettaglio completo, con
  * metadati più estesi, resta disponibile via `/api/observability` (ADMIN). */
@@ -8,8 +8,7 @@ export function ObservabilitySection({ snapshot }: { snapshot: ObservabilitySnap
   const { jobs, aiRuns, manualCorrections } = snapshot;
 
   return (
-    <Card padding="compact">
-      <CardHeader title="Osservabilità" description="Stato della coda job e utilizzo dei modelli AI." />
+    <WorkPanel title="Osservabilità" description="Stato della coda job e utilizzo dei modelli AI.">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <Stat label="In attesa" value={jobs.PENDING} />
         <Stat label="In corso" value={jobs.RUNNING} />
@@ -45,7 +44,7 @@ export function ObservabilitySection({ snapshot }: { snapshot: ObservabilitySnap
           </div>
         </div>
       </div>
-    </Card>
+    </WorkPanel>
   );
 }
 

@@ -195,6 +195,10 @@ const SCREENS: Record<string, ScreenConfig> = {
     resolveTargetPath: async () => "/audit",
     referencePath: "/audit",
   },
+  impostazioni: {
+    resolveTargetPath: async () => "/impostazioni",
+    referencePath: "/impostazioni",
+  },
 };
 
 async function main(): Promise<void> {

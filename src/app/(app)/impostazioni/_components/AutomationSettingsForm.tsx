@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { RuleSettingsData } from "@/lib/rules/types";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { WorkPanel } from "@/components/ui/WorkPanel";
 import { InactiveBadge } from "@/components/ui/Badge";
 import { FormField, fieldControlClassName } from "@/components/ui/Field";
 import { UnsavedChangesBar } from "@/components/ui/UnsavedChangesBar";
@@ -111,8 +111,7 @@ export function AutomationSettingsForm({ settings }: { settings: RuleSettingsDat
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <Card padding="compact">
-        <CardHeader title="Soglie di automazione" description="Confidenze e finestre temporali usate dalle regole automatiche della pipeline." />
+      <WorkPanel title="Soglie di automazione" description="Confidenze e finestre temporali usate dalle regole automatiche della pipeline.">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {numberField("classificationConfidenceThreshold", "Confidenza minima classificazione (0-1)", 0.01, 0, 1)}
           {numberField("matchingAutoLinkConfidenceThreshold", "Confidenza minima collegamento automatico (0-1)", 0.01, 0, 1)}
@@ -123,24 +122,20 @@ export function AutomationSettingsForm({ settings }: { settings: RuleSettingsDat
           {numberField("quoteSameDayResponseWithinHours", "Ore per risposta preventivo in giornata", 1, 1)}
           {numberField("amountMismatchTolerancePercent", "Tolleranza discordanza importi (%)", 1, 0)}
         </div>
-      </Card>
+      </WorkPanel>
 
-      <Card padding="compact">
-        <CardHeader title="Conservazione dati (retention)" />
+      <WorkPanel title="Conservazione dati (retention)">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {nullableDaysField("emailRetentionDays", "Conservazione email")}
           {nullableDaysField("attachmentRetentionDays", "Conservazione allegati")}
           {nullableDaysField("auditLogRetentionDays", "Conservazione audit log")}
         </div>
-      </Card>
+      </WorkPanel>
 
-      <Card padding="compact" variant="flat">
-        <div className="mb-3 flex items-center gap-2">
-          <InactiveBadge />
-          <p className="text-xs text-[var(--color-ink-muted)]">
-            Configurabile e salvato in questa fase, ma non ancora applicato automaticamente dalla pipeline.
-          </p>
-        </div>
+      <WorkPanel title="Mittenti/cartelle esclusi" action={<InactiveBadge />}>
+        <p className="mb-3 text-xs text-[var(--color-ink-muted)]">
+          Configurabile e salvato in questa fase, ma non ancora applicato automaticamente dalla pipeline.
+        </p>
         <FormField label="Mittenti/cartelle esclusi (uno per riga)" htmlFor="auto-excluded-senders">
           <textarea
             id="auto-excluded-senders"
@@ -156,7 +151,7 @@ export function AutomationSettingsForm({ settings }: { settings: RuleSettingsDat
             className={`${fieldControlClassName} cursor-not-allowed bg-white/60 text-[var(--color-ink-muted)]`}
           />
         </FormField>
-      </Card>
+      </WorkPanel>
 
       <UnsavedChangesBar
         visible={dirty}

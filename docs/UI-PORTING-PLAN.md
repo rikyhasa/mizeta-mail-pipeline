@@ -191,9 +191,24 @@ raggruppamento accessi ripetuti).
 | Badge "Audit integro" | `audit/page.tsx` | `audit/page.tsx` | decorativo | garanzia architetturale reale (nessuna rotta di modifica/cancellazione per `AuditLog`) | — | — | — | — | 1:1, ma non più decorativo | basso | fatto |
 | Voce di navigazione "Registro attività" | `app-shell.tsx` | `nav-items.ts` | — | — | — | — | no | — | `status: "disabled"` → `"active"` — tutte e 6 le voci ora reali | basso | fatto |
 
+## Matrice — FASE 3, tappa 7: Impostazioni (restyling)
+
+Reference qui in gran parte decorativa (`demoUsers` hardcoded, bottoni senza handler, 3
+sezioni statiche) — il target ha 7 sezioni reali che coprono già ogni voce di SPEC.md §16.
+Vedi `docs/UI-PORTING-REPORT.md` per il ragionamento completo.
+
+| UI reference | File origine | Target | Mock reference | Fonte reale | Azione reale | Permessi | Audit | Differenze funzionali | Decisione | Rischi | Stato |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Griglia piatta 6 card (`.settings-grid`) | `impostazioni/page.tsx` | `SettingsNav` (7 tab verticali, invariata) | 3 sezioni su 6 completamente statiche, bottoni senza handler | `RuleSettingsData`/`MailboxConnection`/`User`/`ReplyTemplate` reali | PATCH/POST reali su 8 rotte `/api/settings/*` | `settings:manage` | sì (già presente) | il target ha 2 sezioni senza equivalente reference (Modelli di risposta, Monitoraggio) e form con molti campi — una griglia piatta sempre visibile avrebbe contraddetto la densità già stabilita | mantenuto `SettingsNav`, stessa scelta di "coda di revisione" (`SplitView`) | basso | fatto |
+| 9 componenti (`MailboxesSection`, `AutomationSettingsForm` ×3, `CategorySettingsForm` ×2, `UsersSection`, `ReplyTemplatesSection`, `ObservabilitySection`, pannello "Modalità") | — | — | — | — | — | — | — | usavano `Card`/`CardHeader` (pattern pre-FASE-8B) | migrati a `WorkPanel` | basso | fatto |
+| `.setting-row`/`.setting-name`/`.setting-desc` | `globals.css:74` | `globals.css` | — | — | — | — | — | non ancora portate | nuove classi `.detail-setting-row`/`.detail-setting-name`/`.detail-setting-desc`, misure esatte dalla reference | basso | fatto |
+| Card "Limiti di sicurezza" (Privacy/Assegnazione/Limiti — 3 righe statiche) | `impostazioni/page.tsx` | `impostazioni/page.tsx` (tab "Informazioni tecniche") | testo statico | garanzie architetturali reali (CLAUDE.md invarianti 1-2) | — | — | — | — | nuova card, stesso contenuto già usato in `ContextPanel`/`DraftsCard` | basso | fatto |
+| Bottone "Salva modifiche" (header) | `impostazioni/page.tsx` | — | senza handler | — | — | — | — | ogni tab ha già il proprio salvataggio reale (`UnsavedChangesBar`) | non portato: un bottone globale sarebbe stato fuorviante | basso | non applicabile (per scelta) |
+| Toggle "Escludi caselle personali" | `impostazioni/page.tsx` | — | statico | — | — | — | — | non esiste in `RuleSettingsData` | non aggiunto: funzionalità nuova non richiesta, fuori dal perimetro di un restyling | basso | non applicabile (per scelta) |
+
 ## Righe non ancora compilate (fuori scope, verranno aggiunte via via in FASE 3)
 
-Impostazioni · Login · Responsive completo · Rifinitura finale.
+Login · Responsive completo · Rifinitura finale.
 
 ### Annotazioni per "Rifinitura finale" (raccolte durante FASE 8B, non ancora fatte)
 

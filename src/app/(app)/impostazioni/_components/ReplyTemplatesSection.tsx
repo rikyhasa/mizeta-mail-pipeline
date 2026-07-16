@@ -1,6 +1,6 @@
 import { CASE_CATEGORY_LABELS } from "@/lib/i18n/labels";
 import { ActionButton } from "@/components/ActionButton";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { WorkPanel } from "@/components/ui/WorkPanel";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { NewReplyTemplateForm } from "./NewReplyTemplateForm";
@@ -16,19 +16,18 @@ interface ReplyTemplateRow {
 
 export function ReplyTemplatesSection({ templates }: { templates: ReplyTemplateRow[] }) {
   return (
-    <Card padding="compact">
-      <CardHeader
-        title="Modelli di risposta"
-        description="Scheletro opzionale usato dalla generazione bozze; se assente per una categoria si usa uno scheletro di default."
-      />
-      <div className="mb-4 flex flex-col divide-y divide-[var(--color-border)]">
+    <WorkPanel
+      title="Modelli di risposta"
+      description="Scheletro opzionale usato dalla generazione bozze; se assente per una categoria si usa uno scheletro di default."
+    >
+      <div className="mb-4 flex flex-col">
         {templates.map((t) => (
-          <div key={t.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+          <div key={t.id} className="detail-setting-row">
             <div>
-              <div className="font-medium text-[var(--color-ink)]">
+              <div className="detail-setting-name">
                 {t.name} {!t.isActive && <Badge tone="muted">Disattivo</Badge>}
               </div>
-              <div className="text-xs text-[var(--color-ink-muted)]">
+              <div className="detail-setting-desc">
                 {t.category ? CASE_CATEGORY_LABELS[t.category] : "Generico"} · {t.subject}
               </div>
             </div>
@@ -40,6 +39,6 @@ export function ReplyTemplatesSection({ templates }: { templates: ReplyTemplateR
         {templates.length === 0 && <EmptyState title="Nessun modello configurato" description="Si usano gli scheletri di default." />}
       </div>
       <NewReplyTemplateForm />
-    </Card>
+    </WorkPanel>
   );
 }
