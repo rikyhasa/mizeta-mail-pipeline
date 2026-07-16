@@ -1,4 +1,4 @@
-import { Card, CardHeader } from "@/components/ui/Card";
+import { WorkPanel } from "./WorkPanel";
 import { formatDateTime } from "@/lib/format";
 import { CommentForm } from "./CommentForm";
 
@@ -11,8 +11,7 @@ interface CommentData {
 
 export function CommentsCard({ caseId, comments }: { caseId: string; comments: CommentData[] }) {
   return (
-    <Card padding="compact" id="commenti" className="scroll-mt-24">
-      <CardHeader title="Commenti interni" />
+    <WorkPanel id="commenti" title="Commenti interni">
       {comments.length === 0 ? (
         <p className="mb-3 text-sm text-[var(--color-ink-muted)]">Nessun commento.</p>
       ) : (
@@ -28,6 +27,6 @@ export function CommentsCard({ caseId, comments }: { caseId: string; comments: C
         </ul>
       )}
       <CommentForm caseId={caseId} />
-    </Card>
+    </WorkPanel>
   );
 }

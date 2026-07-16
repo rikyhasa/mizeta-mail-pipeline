@@ -1,5 +1,5 @@
 import { Sparkles } from "lucide-react";
-import { Card, CardHeader } from "@/components/ui/Card";
+import { WorkPanel } from "./WorkPanel";
 import { ActionButton } from "@/components/ActionButton";
 import { DraftCard, type DraftData } from "./DraftCard";
 import { DraftHistoryRow } from "./DraftHistoryRow";
@@ -19,11 +19,11 @@ export function DraftsCard({
   draftNumberById: Map<string, number>;
 }) {
   return (
-    <Card padding="compact" id="bozza" className="scroll-mt-24">
-      <CardHeader
-        title="Bozza di risposta"
-        description="Le bozze non vengono mai inviate: richiedono sempre approvazione umana esplicita."
-      />
+    <WorkPanel
+      id="bozza"
+      title="Bozza di risposta"
+      description="Le bozze non vengono mai inviate: richiedono sempre approvazione umana esplicita."
+    >
       {!activeDraft && <p className="mb-3 text-sm text-[var(--color-ink-muted)]">Nessuna bozza generata.</p>}
       {activeDraft && <DraftCard caseId={caseId} draft={activeDraft} />}
       <ActionButton method="POST" url={`/api/cases/${caseId}/drafts`} className="mt-3">
@@ -38,6 +38,6 @@ export function DraftsCard({
           ))}
         </div>
       )}
-    </Card>
+    </WorkPanel>
   );
 }

@@ -1,4 +1,4 @@
-import { Card, CardHeader } from "@/components/ui/Card";
+import { WorkPanel } from "./WorkPanel";
 import { Badge } from "@/components/ui/Badge";
 import { TASK_STATUS_LABELS } from "@/lib/i18n/labels";
 import { formatDate } from "@/lib/format";
@@ -25,8 +25,7 @@ export function TasksCard({
   users: { id: string; name: string }[];
 }) {
   return (
-    <Card padding="compact" id="attivita" className="scroll-mt-24">
-      <CardHeader title="Attività" />
+    <WorkPanel id="attivita" title="Attività">
       {tasks.length === 0 ? (
         <p className="mb-3 text-sm text-[var(--color-ink-muted)]">Nessuna attività.</p>
       ) : (
@@ -42,6 +41,6 @@ export function TasksCard({
         </ul>
       )}
       <TaskForm caseId={caseId} users={users} />
-    </Card>
+    </WorkPanel>
   );
 }

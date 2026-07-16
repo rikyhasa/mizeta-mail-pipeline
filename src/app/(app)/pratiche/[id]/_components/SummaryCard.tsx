@@ -1,12 +1,23 @@
-import { Card, CardHeader } from "@/components/ui/Card";
+import { WorkPanel } from "./WorkPanel";
 import { PriorityBadge } from "@/components/ui/Badge";
-import { InlineSelect } from "@/components/InlineSelect";
+import { EditableMetaField } from "./EditableMetaField";
+import { DeadlinesStrip } from "./DeadlinesStrip";
 import { formatDate } from "@/lib/format";
-import type { CasePriority, CaseStatus } from "@/generated/prisma/enums";
+import type { CasePriority, CaseStatus, DeadlineKind } from "@/generated/prisma/enums";
 
-/** "Sintesi operativa" (reference): sommario + priorità + griglia metadati. A
- * differenza della reference (campi statici), Stato e Responsabile restano
- * modificabili inline — funzionalità già presente nel target, conservata. */
+interface DeadlineData {
+  id: string;
+  kind: DeadlineKind;
+  dueAt: Date;
+  isCritical: boolean;
+  resolvedAt: Date | null;
+}
+
+/** "Sintesi operativa" (reference): sommario + priorità + meta-grid. Stato e Responsabile
+ * restano modificabili (click per rivelare l'InlineSelect esistente, FASE 8B problema #11 —
+ * la reference li mostra statici, qui la modifica inline è mantenuta perché già presente nel
+ * target). La scadenza principale è integrata qui; le altre scadenze (se presenti) in una
+ * striscia compatta sotto, non più in una card dedicata. */
 export function SummaryCard({
   caseId,
   priority,
@@ -17,6 +28,7 @@ export function SummaryCard({
   assignedToId,
   assigneeOptions,
   nextDeadlineAt,
+  otherDeadlines,
   amountFormatted,
 }: {
   caseId: string;
@@ -28,35 +40,34 @@ export function SummaryCard({
   assignedToId: string | null;
   assigneeOptions: { value: string; label: string }[];
   nextDeadlineAt: Date | null;
+  otherDeadlines: DeadlineData[];
   amountFormatted: string;
 }) {
   return (
-    <Card padding="compact">
-      <CardHeader title="Sintesi operativa" action={<PriorityBadge priority={priority} />} />
-      {summary && <p className="text-sm text-[var(--color-ink-muted)]">{summary}</p>}
+    <WorkPanel id="sintesi" title="Sintesi operativa" action={<PriorityBadge priority={priority} />}>
+      {summary && <p className="detail-summary-text">{summary}</p>}
       {confidence !== null && (
         <p className="mt-1 text-xs text-[var(--color-ink-muted)]">Confidenza classificazione: {Math.round(confidence * 100)}%</p>
       )}
-      <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-[var(--color-border)] pt-4 sm:grid-cols-4">
-        <InlineSelect url={`/api/cases/${caseId}/status`} fieldName="status" value={status} options={statusOptions} label="Stato" />
-        <InlineSelect
+      <div className="detail-meta-grid">
+        <EditableMetaField url={`/api/cases/${caseId}/status`} fieldName="status" value={status} options={statusOptions} label="Stato" />
+        <EditableMetaField
           url={`/api/cases/${caseId}/assign`}
           fieldName="assignedToId"
           value={assignedToId ?? ""}
           options={assigneeOptions}
           label="Responsabile"
         />
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-[var(--color-ink)]">Scadenza</span>
-          <div className="flex min-h-[44px] items-center text-sm font-medium text-[var(--color-ink)]">
-            {nextDeadlineAt ? formatDate(nextDeadlineAt) : "Nessuna scadenza"}
-          </div>
+        <div>
+          <span className="detail-label">Scadenza</span>
+          <div className="detail-value">{nextDeadlineAt ? formatDate(nextDeadlineAt) : "Nessuna scadenza"}</div>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-[var(--color-ink)]">Importo</span>
-          <div className="flex min-h-[44px] items-center text-sm font-medium text-[var(--color-ink)]">{amountFormatted}</div>
+        <div>
+          <span className="detail-label">Importo</span>
+          <div className="detail-value">{amountFormatted}</div>
         </div>
       </div>
-    </Card>
+      <DeadlinesStrip deadlines={otherDeadlines} />
+    </WorkPanel>
   );
 }

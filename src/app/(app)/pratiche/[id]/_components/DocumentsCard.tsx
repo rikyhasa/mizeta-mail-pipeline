@@ -1,4 +1,4 @@
-import { Card, CardHeader } from "@/components/ui/Card";
+import { WorkPanel } from "./WorkPanel";
 import { ActionButton } from "@/components/ActionButton";
 import { formatDateTime } from "@/lib/format";
 import type { GeneratedDocumentType } from "@/generated/prisma/enums";
@@ -21,8 +21,7 @@ export function DocumentsCard({
   documentType: { type: GeneratedDocumentType; label: string } | undefined;
 }) {
   return (
-    <Card padding="compact" id="documenti" className="scroll-mt-24">
-      <CardHeader title="Documenti generati" />
+    <WorkPanel id="documenti" title="Documenti generati">
       {documents.length === 0 ? (
         <p className="mb-3 text-sm text-[var(--color-ink-muted)]">Nessun documento generato.</p>
       ) : (
@@ -55,6 +54,6 @@ export function DocumentsCard({
       ) : (
         <p className="text-xs text-[var(--color-ink-muted)]">Nessun modello documento disponibile per questa categoria.</p>
       )}
-    </Card>
+    </WorkPanel>
   );
 }

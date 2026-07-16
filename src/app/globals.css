@@ -65,3 +65,125 @@ body {
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
 }
+
+/* FASE 8B (docs/UI-PORTING-PLAN.md, FASE-8B-DETTAGLIO-PARITY.md): dettaglio pratica —
+   parità visiva con .reference/mizeta-flow/src/app/globals.css (.box/.box-head/.meta-grid/
+   .field-list/.timeline/.action-stack), misure lette dalla reference e tradotte sui token
+   del target. Pagina unica che smette di usare Card/Button condivisi (permesso esplicito
+   dal task doc): niente ombra, come .box della reference. */
+
+.detail-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 19px;
+}
+.detail-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.detail-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-top: 17px;
+  padding-top: 17px;
+  border-top: 1px solid var(--color-border);
+}
+.detail-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-muted);
+}
+.detail-value {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.detail-summary-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-ink-muted);
+}
+.detail-field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--color-border);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+@media (max-width: 639px) {
+  .detail-field-grid { grid-template-columns: 1fr; }
+}
+.detail-timeline {
+  display: grid;
+  gap: 0;
+}
+.detail-timeline-item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  gap: 10px;
+  padding-bottom: 18px;
+}
+.detail-timeline-item:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 31px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--color-border);
+}
+.detail-timeline-dot {
+  width: 29px;
+  height: 29px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-surface);
+  z-index: 1;
+}
+.detail-timeline-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.detail-timeline-copy {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--color-ink-muted);
+}
+.detail-action-stack {
+  display: grid;
+  gap: 8px;
+}
+.detail-quick-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-muted);
+}
+.detail-quick-link:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-ink);
+}
+
+@media (max-width: 1200px) {
+  .detail-meta-grid { grid-template-columns: repeat(2, 1fr); }
+}

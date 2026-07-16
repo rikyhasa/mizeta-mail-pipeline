@@ -1,9 +1,11 @@
-import { Card, CardHeader } from "@/components/ui/Card";
 import { ActionButton } from "@/components/ActionButton";
 import { CASE_RELATION_KIND_LABELS, CASE_RELATION_STATUS_LABELS } from "@/lib/i18n/labels";
 import { RelationForm } from "./RelationForm";
 import type { RelationSummary } from "./relation-types";
 
+/** Contenuto di "Collega o separa pratica": senza wrapper proprio (FASE 8B), va dentro
+ * l'accordion "Relazioni e altre operazioni" in RelationsSection.tsx — mai prima di "Dati
+ * estratti" (problema #4 del task doc). */
 export function RelationsCard({
   caseId,
   pendingRelations,
@@ -14,8 +16,7 @@ export function RelationsCard({
   otherRelations: RelationSummary[];
 }) {
   return (
-    <Card padding="compact" id="collegamenti" className="scroll-mt-24">
-      <CardHeader title="Collega o separa pratica" />
+    <>
       {pendingRelations.length > 0 && (
         <div className="mb-3 flex flex-col gap-2">
           <h3 className="text-xs font-semibold tracking-wide text-[var(--color-ink-muted)] uppercase">Candidati da verificare</h3>
@@ -47,6 +48,6 @@ export function RelationsCard({
         </ul>
       )}
       <RelationForm caseId={caseId} />
-    </Card>
+    </>
   );
 }

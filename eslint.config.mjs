@@ -22,6 +22,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Componenti di riferimento visivo, non compilati nell'app — vedi FASE-7C-REDESIGN-STRUTTURALE.md.
     "docs/design-reference/**",
+    // Clone locale read-only della reference Mizeta Flow (Fase 8, gitignored) — progetto Next.js
+    // a sé, non fa parte del target: i suoi `.next/**` generati non vanno linterati qui.
+    ".reference/**",
   ]),
 ]);
 

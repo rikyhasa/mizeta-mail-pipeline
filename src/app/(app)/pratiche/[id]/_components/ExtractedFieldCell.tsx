@@ -44,9 +44,7 @@ export function ExtractedFieldCell({
   const pct = field.confidence !== null ? Math.round(field.confidence * 100) : null;
   const showLowConfidence = tier === "middle" && !field.needsHumanReview && pct !== null && pct < 70;
 
-  const labelEl = (
-    <span className="text-xs font-semibold tracking-wide text-[var(--color-ink-muted)] uppercase">{label}</span>
-  );
+  const labelEl = <span className="detail-label">{label}</span>;
   const sourceInfo = (
     <FieldSourceInfo
       sourceType={field.sourceType}
@@ -57,18 +55,19 @@ export function ExtractedFieldCell({
 
   if (tier === "problematic") {
     return (
-      <div className="flex flex-col gap-2 rounded-lg border border-[color-mix(in_srgb,var(--color-warning)_35%,white)] bg-[var(--color-warning-soft)] p-3.5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 rounded-lg border border-[color-mix(in_srgb,var(--color-warning)_35%,white)] bg-[var(--color-warning-soft)] px-3 py-2">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
           {labelEl}
-          <Badge tone="warning" icon={AlertTriangle}>
-            {!field.value ? "Dato mancante" : `Da verificare${pct !== null ? ` · confidenza ${pct}%` : ""}`}
-          </Badge>
+          {formattedValue ? (
+            <span className="text-sm text-[var(--color-ink)]">{formattedValue}</span>
+          ) : (
+            <span className="text-xs text-[var(--color-ink-muted)]">Inserisci il valore per completare questo dato.</span>
+          )}
         </div>
-        {formattedValue && <p className="text-sm text-[var(--color-ink)]">{formattedValue}</p>}
-        <p className="text-xs text-[var(--color-ink-muted)]">
-          {!field.value ? "Inserisci il valore per completare questo dato." : "Controlla il valore proposto prima di procedere."}
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <Badge tone="warning" icon={AlertTriangle}>
+            {!field.value ? "Mancante" : `Da verificare${pct !== null ? ` · ${pct}%` : ""}`}
+          </Badge>
           {!field.confirmedBy && (
             <ActionButton method="PATCH" url={`/api/cases/${caseId}/fields/${fieldKey}`} body={{}} size="sm">
               Conferma
@@ -86,7 +85,7 @@ export function ExtractedFieldCell({
       <div className={`flex flex-col gap-1 bg-white p-3.5 ${spanFull ? "sm:col-span-2" : ""}`}>
         {labelEl}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-sm font-semibold text-[var(--color-ink)]">{formattedValue}</span>
+          <span className="detail-value">{formattedValue}</span>
           <span title={field.confirmedBy ? `Confermato da ${field.confirmedBy.name}` : undefined}>
             <Check className="h-3.5 w-3.5 text-[var(--color-forest)]" aria-hidden="true" />
             <span className="sr-only">{field.confirmedBy ? `Confermato da ${field.confirmedBy.name}` : "Confermato"}</span>
@@ -102,7 +101,7 @@ export function ExtractedFieldCell({
     <div className={`flex flex-col gap-1 bg-white p-3.5 ${spanFull ? "sm:col-span-2" : ""}`}>
       {labelEl}
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm text-[var(--color-ink)]">{formattedValue}</span>
+        <span className="detail-value font-normal">{formattedValue}</span>
         {showLowConfidence && <span className="text-xs text-[var(--color-ink-muted)]">Confidenza {pct}%</span>}
         <ActionButton method="PATCH" url={`/api/cases/${caseId}/fields/${fieldKey}`} body={{}} variant="tertiary" size="sm">
           Conferma
