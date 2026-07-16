@@ -13,6 +13,7 @@ import { prisma } from "../src/lib/db/prisma";
  * la porta 3000 (demo in uso in ufficio).
  *
  * Uso: npm run ui:compare -- --screen posta --iter 1   (screen default: case-detail)
+ * Modalità mobile/tablet (FASE 3, tappa 9): npm run ui:compare -- --screen dashboard --mode mobile
  */
 
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -27,10 +28,21 @@ const REFERENCE_PORT = Number(process.env.UI_COMPARE_REFERENCE_PORT ?? 4200);
  * avviare uno nuovo dallo script — non viene mai avviato né terminato nulla in quel caso. */
 const TARGET_URL_OVERRIDE = process.env.UI_COMPARE_TARGET_URL ?? null;
 
-const VIEWPORTS = [
+const DESKTOP_VIEWPORTS = [
   { name: "1280x800", width: 1280, height: 800 },
   { name: "1440x900", width: 1440, height: 900 },
   { name: "1920x1080", width: 1920, height: 1080 },
+] as const;
+
+/** FASE 3, tappa 9 (responsive completo): stessi breakpoint della reference
+ * (`@media(max-width:1200px)` e `@media(max-width:800px)` in
+ * .reference/mizeta-flow/src/app/globals.css) più uno smartphone reale sotto
+ * entrambe le soglie, per verificare visivamente il collasso dello shell
+ * (drawer/hamburger) e delle griglie multi-colonna, non solo per lettura CSS. */
+const MOBILE_VIEWPORTS = [
+  { name: "390x844", width: 390, height: 844 },
+  { name: "768x1024", width: 768, height: 1024 },
+  { name: "1024x800", width: 1024, height: 800 },
 ] as const;
 
 const TARGET_LOGIN = {
@@ -138,9 +150,10 @@ async function capture(
   casePath: string,
   label: string,
   outDir: string,
+  viewports: readonly { name: string; width: number; height: number }[],
 ): Promise<void> {
   const page = await context.newPage();
-  for (const vp of VIEWPORTS) {
+  for (const vp of viewports) {
     await page.setViewportSize({ width: vp.width, height: vp.height });
     await page.goto(`${baseUrl}${casePath}`, { waitUntil: "networkidle" });
     await page.screenshot({ path: path.join(outDir, `${label}-${vp.name}-fold.png`) });
@@ -178,6 +191,14 @@ interface ScreenConfig {
  * target (spesso dipendente da un id nel DB seed) e il percorso statico equivalente sulla
  * reference, se esiste. Aggiungere una voce qui per ogni nuova schermata portata. */
 const SCREENS: Record<string, ScreenConfig> = {
+  dashboard: {
+    resolveTargetPath: async () => "/",
+    referencePath: "/",
+  },
+  pratiche: {
+    resolveTargetPath: async () => "/pratiche",
+    referencePath: "/pratiche",
+  },
   "case-detail": {
     resolveTargetPath: async () => `/pratiche/${await findTargetFineCaseId()}`,
     referencePath: "/pratiche/case-008",
@@ -212,11 +233,16 @@ const SCREENS: Record<string, ScreenConfig> = {
 async function main(): Promise<void> {
   const iter = parseArg("--iter", "latest");
   const screenKey = parseArg("--screen", "case-detail");
+  const mode = parseArg("--mode", "desktop");
+  if (mode !== "desktop" && mode !== "mobile") {
+    throw new Error(`Modalità sconosciuta "${mode}". Disponibili: desktop, mobile.`);
+  }
+  const viewports = mode === "mobile" ? MOBILE_VIEWPORTS : DESKTOP_VIEWPORTS;
   const screen = SCREENS[screenKey];
   if (!screen) {
     throw new Error(`Schermata sconosciuta "${screenKey}". Disponibili: ${Object.keys(SCREENS).join(", ")}`);
   }
-  const outDir = path.join(REPO_ROOT, "docs/screenshots", screenKey, `iter-${iter}`);
+  const outDir = path.join(REPO_ROOT, "docs/screenshots", screenKey, `iter-${iter}${mode === "mobile" ? "-mobile" : ""}`);
   fs.mkdirSync(outDir, { recursive: true });
 
   const hasReference = screen.referencePath !== null;
@@ -254,7 +280,7 @@ async function main(): Promise<void> {
       await login(targetContext, targetUrl, TARGET_LOGIN);
     }
     console.log(`[ui-compare] Cattura target (${targetPath})...`);
-    await capture(targetContext, targetUrl, targetPath, "target", outDir);
+    await capture(targetContext, targetUrl, targetPath, "target", outDir, viewports);
 
     if (hasReference) {
       console.log(`[ui-compare] Avvio reference su :${REFERENCE_PORT}...`);
@@ -267,7 +293,7 @@ async function main(): Promise<void> {
         await login(referenceContext, `http://localhost:${REFERENCE_PORT}`, REFERENCE_LOGIN);
       }
       console.log(`[ui-compare] Cattura reference (${screen.referencePath})...`);
-      await capture(referenceContext, `http://localhost:${REFERENCE_PORT}`, screen.referencePath!, "reference", outDir);
+      await capture(referenceContext, `http://localhost:${REFERENCE_PORT}`, screen.referencePath!, "reference", outDir, viewports);
     } else {
       console.log("[ui-compare] Nessuna pagina reference equivalente per questa schermata — solo cattura target.");
     }

@@ -217,9 +217,23 @@ dalla reference.
 | `.login-page` (headline 47px, lockup brand 2 righe, eyebrow, riga 3 funzionalità, form h2 27px, bottone piena larghezza, `.form-help`) | `login/page.tsx` | `src/app/login/page.tsx` | credenziali precompilate, `.form-help` con claim "ambiente dimostrativo" falso per il target | form reale invariato | POST reale verso `/api/auth/login` (invariato) | — | — | tutti i valori misurati e applicati come Tailwind arbitrari one-off, non promossi a token condivisi | headline/eyebrow/lockup/riga funzionalità/dimensioni form portate esattamente; `.form-help` sostituita con una frase reale (non il claim demo della reference) | basso | fatto |
 | Sfondo pannello destro (`background:#fff` esplicito) | `login/page.tsx` | `login/page.tsx` | — | — | — | — | — | ereditava `--color-surface-muted` dal `body`, grigio leggero invece di bianco puro | aggiunto `bg-white` su `&lt;main&gt;` | basso | fatto |
 
+## Matrice — FASE 3, tappa 9: Responsive completo
+
+Verifica trasversale, non una schermata singola: nessun divario funzionale trovato, solo
+conferma che il comportamento responsive già costruito nelle tappe precedenti (pilota FASE 2 +
+breakpoint `.detail-*` di FASE 8B) regge su tutte le 9 schermate portate. Dettagli completi in
+`docs/UI-PORTING-REPORT.md`, sezione "FASE 3, tappa 9".
+
+| UI reference | File origine | Target | Verifica | Esito | Decisione | Rischi | Stato |
+|---|---|---|---|---|---|---|---|
+| `@media(max-width:800px)` shell (`.app-shell`, `.sidebar`, `.nav{overflow:auto}`) | `globals.css` | `AppShell.tsx`/`Sidebar.tsx`/`Topbar.tsx` | drawer overlay sotto `lg:` (1024px), verificato interattivamente (apertura/chiusura a 390px) | già corretto, costruito nel pilota FASE 2 | nessuna modifica | basso | verificato |
+| `@media(max-width:1200px)` `.meta-grid` / `@media(max-width:800px)` `.field-list` | `globals.css` | `.detail-meta-grid`/`.detail-field-grid` (`globals.css`, FASE 8B) | screenshot a 768px (1 colonna) e 1024px (2 colonne) | breakpoint già identici alla reference | nessuna modifica | basso | verificato |
+| griglie KPI/statistiche/filtri (`.cards-seven`, `.stats-strip`) | `globals.css` | `DashboardKpiCards`, `StatsStrip`, `FiltersBar`, form Impostazioni (Tailwind `grid-cols-N sm:grid-cols-M`) | screenshot a 390px | già collassano senza overflow | nessuna modifica | basso | verificato |
+| tabelle (nessun equivalente diretto: reference non ha tabelle dense multi-colonna fuori da `.cards-seven`) | — | `CasesTable`, `IncomingMailTable`, `AuditLogTable` (`overflow-x-auto` + `whitespace-nowrap`) | screenshot a 390px (colonne di destra tagliate al bordo, scroll orizzontale non catturabile in uno screenshot statico) | pattern scelto deliberatamente in tappa 2, coerente con `.nav{overflow:auto}` della reference | nessuna modifica | basso | verificato |
+
 ## Righe non ancora compilate (fuori scope, verranno aggiunte via via in FASE 3)
 
-Responsive completo · Rifinitura finale.
+Rifinitura finale.
 
 ### Annotazioni per "Rifinitura finale" (raccolte durante FASE 8B, non ancora fatte)
 

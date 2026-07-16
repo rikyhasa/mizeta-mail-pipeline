@@ -828,3 +828,88 @@ altezza pagina identica: **900px sia per il target sia per la reference**
 
 FASE 3 continua con: responsive completo, rifinitura finale (troncamento
 sintesi, Stampa/Genera PDF in testata, ricerca e filtri live).
+
+## FASE 3, tappa 9 — Responsive completo
+
+A differenza delle tappe precedenti, qui non c'era una singola schermata da
+portare ma una verifica trasversale su tutte le 9 schermate portate finora
+(dashboard, elenco pratiche, dettaglio pratica, posta acquisita, coda di
+revisione, report e documenti, registro attività, impostazioni, login), a tre
+larghezze aggiuntive rispetto al ciclo desktop già usato nelle tappe 1-8.
+
+### Metodo
+
+`scripts/ui-compare.ts` esteso con una modalità `--mode mobile` (di default
+resta `--mode desktop`, invariato): `DESKTOP_VIEWPORTS` (i tre viewport
+1280/1440/1920 già esistenti) diventa il default, `MOBILE_VIEWPORTS` aggiunge
+`390×844` (smartphone reale, sotto entrambe le soglie della reference),
+`768×1024` (tablet, coincide con la soglia reference
+`@media(max-width:800px)`) e `1024×800` (soglia esatta del breakpoint `lg:`
+di Tailwind usato dallo shell del target per passare da drawer mobile a
+sidebar statica). Il registro `SCREENS` è stato esteso con `dashboard` (`/`)
+e `pratiche` (`/pratiche`): erano state portate nel pilota (FASE 2, prima di
+questa sessione) ma non erano ancora nel registro di confronto.
+
+Catturati tutti gli screenshot (`npm run ui:compare -- --screen <s> --mode
+mobile --iter 1`) e ispezionati uno per uno (fold e full-page, target e
+reference dove presente). Verificato anche manualmente, con uno script
+Playwright ad-hoc (non incluso nel repo), che il drawer di navigazione mobile
+si apra correttamente cliccando l'hamburger a 390px — non catturabile da un
+semplice screenshot statico, che parte sempre a drawer chiuso.
+
+### Cosa già funzionava (nessuna modifica necessaria)
+
+- **Shell** (`AppShell`/`Sidebar`/`Topbar`): sotto `lg:` (1024px) la sidebar
+  diventa un drawer overlay apribile da un pulsante hamburger, verificato
+  interattivamente — icone, stato attivo, footer utente e logout tutti
+  presenti e leggibili nel drawer aperto a 390px.
+- **Griglie KPI/statistiche** (`DashboardKpiCards`, `StatsStrip`,
+  `ObservabilitySection`): già `grid-cols-2 sm:grid-cols-N`, collassano senza
+  overflow a 390px.
+- **Filtri** (`FiltersBar`, form di Impostazioni): già `grid-cols-1
+  sm:grid-cols-2`, si impilano correttamente.
+- **`.detail-field-grid`/`.detail-meta-grid`** (dettaglio pratica, FASE 8B):
+  breakpoint a 800px/1200px già allineati esattamente alla reference,
+  verificato a 768px (sotto soglia, 1 colonna) e 1024px (sopra soglia, 2
+  colonne).
+- **Tabelle** (`CasesTable`, `IncomingMailTable`, `AuditLogTable`): hanno già
+  un contenitore `overflow-x-auto` con celle `whitespace-nowrap` — a 390px lo
+  screenshot statico mostra le colonne di destra tagliate al bordo, ma è lo
+  stesso pattern di scroll orizzontale già scelto deliberatamente nella
+  tappa 2 (Posta acquisita) e coerente con la reference stessa (`.nav{overflow:
+  auto}` per la propria barra di navigazione). Non una regressione.
+- **`SettingsNav`**: la barra di tab verticale diventa una fila orizzontale
+  scrollabile (`overflow-x-auto`, `shrink-0`, `whitespace-nowrap`) sotto
+  `lg:`, stesso principio.
+- **Login**: pannello sinistro già `hidden lg:flex`, form centrato a piena
+  larghezza sotto `lg:`, nessuna regressione rispetto alla parità pixel
+  raggiunta nella tappa 8.
+
+### Esito
+
+Nessun bug responsive reale trovato. Le tappe precedenti (in particolare il
+pilota FASE 2, esplicitamente scoperto "completo dal punto di vista...
+responsive" nel task doc, e la FASE 8B che ha introdotto i breakpoint
+`.detail-*` copiati dalla reference) avevano già costruito un comportamento
+responsive corretto — questa tappa è stata quindi una verifica che ha
+confermato l'assenza di regressioni, non un lavoro di correzione. Nessuna
+riga di codice applicativo modificata; solo `scripts/ui-compare.ts` esteso
+per rendere la verifica ripetibile in futuro.
+
+### Verifica
+
+| Verifica | Esito |
+|---|---|
+| `npm run typecheck` | pulito |
+| `npm run lint` | pulito |
+| `npm run test` (228 test) | 227 passano, 1 fallimento isolato (`job-queue.test.ts`, timing test noto/pre-esistente, passa da solo: `npx vitest run tests/integration/job-queue.test.ts` → 6/6) |
+| `npm run build` | completata |
+| Ciclo visivo | 9 schermate × 3 viewport (390×844, 768×1024, 1024×800), target vs reference dove presente |
+| Verifica interattiva drawer mobile | apertura/chiusura corretta a 390px |
+| Screenshot | `docs/screenshots/<schermata>/mobile/` (4 file per schermata con reference: target/reference × 390 full/768 fold; 2 file per `revisione`, senza reference) |
+
+### Prossimi passi
+
+Resta solo la rifinitura finale (troncamento sintesi a fine parola,
+Stampa/Genera PDF in testata, ricerca globale con dropdown, filtri live su
+Pratiche e Posta acquisita).
