@@ -22,6 +22,19 @@ const currencyFormatter = new Intl.NumberFormat(LOCALE, {
   currency: "EUR",
 });
 
+const timeFormatter = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+const weekdayDateFormatter = new Intl.DateTimeFormat(LOCALE, {
+  timeZone: TIME_ZONE,
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+
 export function formatDate(value: Date | string | null | undefined): string {
   if (!value) return "—";
   return dateFormatter.format(new Date(value));
@@ -35,4 +48,13 @@ export function formatDateTime(value: Date | string | null | undefined): string 
 export function formatCurrency(value: number | string | null | undefined): string {
   if (value === null || value === undefined) return "—";
   return currencyFormatter.format(typeof value === "string" ? Number(value) : value);
+}
+
+export function formatTime(value: Date | string): string {
+  return timeFormatter.format(new Date(value));
+}
+
+/** Es. "martedì 14 luglio" — usata dall'eyebrow della dashboard, sempre calcolata sulla data reale. */
+export function formatWeekdayDate(value: Date): string {
+  return weekdayDateFormatter.format(value);
 }
