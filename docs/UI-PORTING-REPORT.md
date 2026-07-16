@@ -63,9 +63,52 @@ o con `docs/design-reference/`).
   bottone della reference è comunque simulato/senza handler. Per ADMIN, l'azione
   primaria della dashboard è un link reale a Impostazioni → Connessioni email.
 
-### Prossimi passi
+## FASE 3, tappa 1 — dettaglio pratica (pagina unica, niente tab)
 
-In attesa di approvazione esplicita per procedere con FASE 3 (dettaglio pratica, posta
-acquisita, coda di revisione, bozze e documenti, report, registro attività,
-impostazioni, login, responsive completo, rifinitura finale) — vedi
-`FASE-8-UI-PORTING.md`, sezione "CRITERIO DEL PILOTA".
+**Stato**: implementato e verificato via HTTP. Direttiva vincolante dell'utente:
+pagina a scorrimento unico con colonna laterale sticky di azioni/contesto, nessun
+componente `Tabs`. I 6 tab precedenti (Panoramica, Dati estratti, Email e allegati,
+Attività e note, Bozze e documenti, Registro attività) sono confluiti in 11 sezioni
+impilate nella colonna principale, nell'ordine della reference dove esiste un
+equivalente (vedi matrice in `docs/UI-PORTING-PLAN.md`).
+
+### Verificato via HTTP (dev server)
+
+| Verifica | Esito |
+|---|---|
+| `npm run typecheck` | pulito |
+| `npm run lint` | pulito |
+| `npm run test` (228 test) | tutti passano |
+| `npm run build` | completata |
+| `role="tablist"` nel markup | **assente** (Tabs rimosso) |
+| `id` delle 9 sezioni con ancoraggio (`anomalie`, `collegamenti`, `dati-estratti`, `email`, `bozza`, `documenti`, `attivita`, `commenti`, `registro`) | tutti presenti, **esattamente in quest'ordine** nel DOM |
+| Link della colonna "Azioni" (`#dati-estratti`, `#attivita`, `#commenti`, `#documenti`) | presenti, puntano alle sezioni reali |
+| Colonna laterale sticky (`lg:sticky lg:top-24`) | presente |
+| Box "Contesto" e disclaimer "Controllo umano" | presenti, testo coerente con CLAUDE.md (invarianti 2 e 3) |
+| `InlineSelect` Stato/Responsabile ancora funzionanti (dentro "Sintesi operativa") | presenti (`id="inline-select-status"`, `id="inline-select-assignedToId"`) |
+| Toggle "Segna completata"/"Riapri pratica" nella colonna Azioni | presente, coerente con lo stato della pratica testata |
+
+### Differenze note rispetto alla reference (motivate)
+
+- **Verifica dispositivo multa** (`FineDeviceVerification` nella reference): non
+  portata. Nessun equivalente nel modello Prisma del target — gap funzionale
+  documentato in `docs/UI-PORTING-PLAN.md`, non colmato con una struttura visiva
+  senza dati reali dietro (principio di veridicità).
+- **Colonna "Azioni"**: la reference ha bottoni che presumibilmente aprono un flusso
+  (mock, non presente nel codice sorgente esaminato); il target usa ancoraggi di
+  navigazione reali verso le sezioni corrispondenti, già editabili inline dove
+  possibile (Stato/Responsabile in "Sintesi operativa"), quindi "Assegna
+  responsabile" non ha un bottone dedicato duplicato.
+- **Allegati**: uniti dentro "Cronologia email" (annidati per messaggio) invece di
+  restare una card separata come nel target precedente — aumenta la fedeltà alla
+  reference senza perdere la funzione di download.
+- **Nessuno screenshot visivo**: stesso limite ambientale del pilota (nessun tool
+  browser/screenshot disponibile in questa sessione) — confronto visivo ancora da
+  fare manualmente.
+
+## Prossimi passi
+
+FASE 3 continua con: posta acquisita, coda di revisione, bozze e documenti (già in
+parte coperti dal dettaglio pratica), report, registro attività (pagina globale),
+impostazioni, login, responsive completo, rifinitura finale — vedi
+`FASE-8-UI-PORTING.md`, sezione "FASE 3".

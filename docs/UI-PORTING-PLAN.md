@@ -47,14 +47,39 @@ Stato porting**.
 | Elenco pratiche completo | `cases-table.tsx`, `app/(app)/pratiche/page.tsx` | `src/app/(app)/pratiche/page.tsx` (slim) | filtro client-side su array mock (categoria/priorità/stato/testo) | `getFilteredCases()` (server-side, già più ricco) | filtri reali, paginazione reale | autenticato | no | il target ha filtri molto più ricchi (responsabile/cliente/fornitore/intervallo date/importi/allegati/scaduto/filtri rapidi) e colonne personalizzabili con `localStorage`, assenti nella reference | **tutte le funzionalità del target vengono conservate**: solo restyling visivo (pannello unico filtri+tabella, densità, badge) | basso | fatto |
 | Badge priorità/stato | classi CSS `.priority-*`/`.status-*` | `src/components/ui/Badge.tsx` | classi CSS statiche con coppie di colori fisse | stesso componente (`Badge`/`PriorityBadge`/`StatusBadge`), tinte lette dai token `--color-critical`/`--color-warning` già presenti in `globals.css` | — | — | no | il target oggi usa classi Tailwind sciolte (`red-50/red-700`, `amber-50/amber-800`) invece dei token centralizzati già definiti | allineamento ai token esistenti, nessun nuovo componente parallelo | basso | fatto |
 
-## Righe non ancora compilate (fuori scope pilota, verranno aggiunte in FASE 3)
+## Matrice — FASE 3, tappa 1: dettaglio pratica
 
-Dettaglio pratica (incl. verifica multe/`FineDeviceVerification`, senza equivalente nel
-modello Prisma del target — gap funzionale da documentare quando affrontato) · Posta
-acquisita · Coda di revisione (restyling, funzionalità già più avanzata da conservare)
-· Bozze e documenti · Report e documenti · Registro attività (pagina globale, oggi
-esiste solo come tab per-pratica) · Impostazioni · Login · Responsive completo ·
-Rifinitura finale.
+Decisione vincolante dell'utente per questa tappa: **pagina unica a scorrimento, NIENTE
+tab**. I contenuti oggi divisi nei 6 tab (`Tabs`) confluiscono come sezioni impilate
+nella colonna principale, nell'ordine della reference dove esiste un equivalente;
+colonna laterale sticky (340px) con Azioni/Contesto/Controllo umano, come in
+`docs/design-reference-codex.css` (`.detail-grid`/`.detail-side`).
+
+| UI reference | File origine | Target | Mock reference | Fonte reale | Azione reale | Permessi | Audit | Differenze funzionali | Decisione | Rischi | Stato |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Layout `.detail-grid` (contenuto + colonna sticky 340px) | `case-detail.tsx` | `pratiche/[id]/page.tsx` (grid `minmax(0,1fr)_340px`) | — | dati reali del `Case` Prisma | — | autenticato | no | il target usava `Tabs` (6 schede); ora sezioni impilate come richiesto dall'utente | rimosso `Tabs`, sezioni `Card` con `id` per ancoraggi | medio (pagina più lunga da scorrere) | fatto |
+| Box "Sintesi operativa" (priorità + summary + meta-grid Stato/Responsabile/Scadenza/Importo) | `case-detail.tsx` | `SummaryCard.tsx` | campi statici | `Case` reale; Stato/Responsabile restano **modificabili inline** (`InlineSelect`) | PATCH status/assign | case:write | no | reference ha campi statici, target mantiene la modifica inline (più avanzato) | conservata la modifica inline, solo restyling nel meta-grid | basso | fatto |
+| "Scadenze" (assente in reference: solo 1 campo "Scadenza" nel meta-grid) | — | `DeadlinesCard.tsx` | — | `CaseDeadline[]` reale, multi-scadenza | — | case:read | no | capacità del target senza equivalente reference | sezione propria dopo Sintesi operativa | basso | fatto |
+| Box "Anomalie e controlli" | `case-detail.tsx` | `AnomaliesCard.tsx` | array di flag su dati mock | `securityFlags` da `EmailMessage`, `anomaly_reason` da `CaseField`, `CaseRelation` PENDING | — | case:read | no | — | 1:1, solo restyling | basso | fatto |
+| — (assente in reference, "review" è solo un filtro tabella) | — | `RelationsCard.tsx` | — | `CaseRelation` reale (duplicati/collegate) | PATCH relations (confirm/reject) | case:write | sì (route esistente) | capacità del target senza equivalente reference — conservata | sezione propria dopo Anomalie | basso | fatto |
+| Box "Dati estratti" con badge conteggio | `case-detail.tsx` | `ExtractedFieldsSection.tsx` | array `fields` mock, bottone "Conferma" client-only | `CaseField[]` reale, conferma reale con audit (`FIELD_CONFIRMED`) | PATCH fields | case:write | sì | reference: "Conferma" aggiorna solo `useState` locale — qui persiste davvero | 1:1 struttura visiva, dietro dati/azioni reali | basso | fatto |
+| Box "Cronologia email" (allegati annidati per messaggio) | `case-detail.tsx` | `EmailTimelineCard.tsx` | array `emails` mock | `EmailMessage[]`/`Attachment[]` reali | download allegato via `/api/attachments/[id]` | case:read | no | il target aveva "Allegati" come card separata dalla cronologia — unificate come nella reference, allegati annidati per messaggio | fuso in un'unica sezione, fedeltà aumentata | basso | fatto |
+| Box "Bozza di risposta" con bottone "Crea/Rigenera bozza" | `case-detail.tsx` | `DraftsCard.tsx` | bottone simulato, notice "modalità simulata; nessuna email è stata inviata" | `EmailDraft` reale, generato da `LLMProvider`, approvazione umana obbligatoria (invariante 3) | POST drafts, PATCH approve/discard | case:write | sì | reference finge la generazione; qui è reale (mock LLM heuristics o Anthropic dietro flag), e non invia mai nulla (invariante 2) | bottone di generazione spostato dall'header dentro la sezione, come in reference | basso | fatto |
+| — (assente in reference come sezione: solo il PDF export nell'header) | — | `DocumentsCard.tsx` | — | `GeneratedDocument[]` reale, generazione via `GeneratedDocumentService` | POST documents | case:write | sì | capacità del target senza equivalente reference — conservata | sezione propria dopo Bozza di risposta | basso | fatto |
+| — (assente in reference: bottone "Aggiungi attività" nella colonna azioni non apre una lista reale) | — | `TasksCard.tsx` | — | `Task[]` reale | POST tasks | case:write | no | capacità del target senza equivalente reference — conservata | sezione propria, raggiungibile da "Aggiungi attività" nella colonna Azioni | basso | fatto |
+| — (assente in reference: bottone "Commento interno" nella colonna azioni non apre una lista reale) | — | `CommentsCard.tsx` | — | `Comment[]` reale | POST comments | case:write | no | capacità del target senza equivalente reference — conservata | sezione propria, raggiungibile da "Commento interno" nella colonna Azioni | basso | fatto |
+| Box "Registro attività" (per-pratica) | `case-detail.tsx` | `AuditLogCard.tsx` | array `audit` mock, attore sempre "Sistema mock" | `AuditLog[]` reale, attore reale o "(sistema)" | — | case:read | — (è già il log) | — | 1:1, ultima sezione della pagina | basso | fatto |
+| Colonna "Azioni" (bottoni: Assegna responsabile, Modifica dati, Aggiungi attività, Commento interno, Genera documento, Segna completata) | `case-detail.tsx` | `DetailSidebar.tsx` | bottoni simulati, "Assegna responsabile"/"Modifica dati" senza vera UI dietro | scorciatoie di **navigazione reale** (ancoraggi `#dati-estratti` `#attivita` `#commenti` `#documenti`) + toggle di stato reale | PATCH status | case:write | sì (toggle) | "Assegna responsabile" e "Modifica dati" non hanno un bottone dedicato: sono già editabili inline in Sintesi operativa/Dati estratti — niente azione duplicata e finta | ancoraggi reali invece di azioni popup simulate | basso | fatto |
+| Colonna "Contesto" (party/reparto/categorie secondarie) | `case-detail.tsx` | `DetailSidebar.tsx` | campi statici | `Case.customer`/`.supplier`/`.department`/`.secondaryCategories` reali | — | case:read | no | — | 1:1 | basso | fatto |
+| Colonna "Controllo umano" (disclaimer fisso) | `case-detail.tsx` | `DetailSidebar.tsx` | testo fisso della reference | testo riformulato per riflettere le invarianti reali (CLAUDE.md #2, #3) | — | — | no | copy diversa, stesso significato: nessun invio email, nessun pagamento, nessuna scrittura gestionale, bozze sempre da approvare | testo accurato al comportamento reale, non copiato letteralmente | basso | fatto |
+| Verifica dispositivo multa (`FineDeviceVerification`, `.fine-verification`) | `fine-device-verification.tsx`, `lib/fines/*` | — | `FineTechnicalAnalysis` interamente mock | **nessun equivalente nel modello Prisma del target** | — | — | — | gap funzionale reale: il target non ha ancora un sotto-dominio "verifica multe" | non portato in questa tappa — nessuna struttura visiva aggiunta senza un dato reale dietro, per non creare una falsa parità (principio di veridicità, FASE-8-UI-PORTING.md) | medio (fedeltà incompleta per le pratiche categoria Multa) | non implementato — documentato come gap |
+
+## Righe non ancora compilate (fuori scope, verranno aggiunte via via in FASE 3)
+
+Posta acquisita · Coda di revisione (restyling, funzionalità già più avanzata da
+conservare) · Report e documenti · Registro attività (pagina globale, oggi esiste solo
+come sezione per-pratica) · Impostazioni · Login · Responsive completo · Rifinitura
+finale.
 
 ## Differenze strutturali tra i modelli dati (riepilogo)
 
