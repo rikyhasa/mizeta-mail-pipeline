@@ -53,3 +53,6 @@ next-env.d.ts
 # per-developer local Claude Code permissions
 .claude/settings.local.json
 
+# read-only clone of the Mizeta Flow UI reference (Fase 8 porting) — never commit
+/.reference/
+
