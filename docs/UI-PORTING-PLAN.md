@@ -143,11 +143,25 @@ dettaglio del ciclo visivo (3 viewport, `scripts/ui-compare.ts --screen posta`).
 | Pillola di stato "Connessione mock integra" | `posta/page.tsx` | — | stringa statica | `getProviderStatusSummary()`, già usata dal Topbar | — | — | no | il Topbar globale mostra già lo stesso aggregato reale su ogni pagina; duplicarlo qui avrebbe mostrato testo identico due volte (a differenza della reference, dove le due pillole hanno testi diversi) | rimossa la pillola locale, `ProviderStatusPill` estratto come componente condiviso | basso | fatto |
 | Voce di navigazione "Posta acquisita" | `app-shell.tsx` | `nav-items.ts` | — | — | — | — | no | — | `status: "disabled"` → `"active"` | basso | fatto |
 
+## Matrice — FASE 3, tappa 3: Coda di revisione (restyling)
+
+Nessuna pagina reference da misurare: in `.reference/mizeta-flow` "coda di revisione" è solo
+un filtro client-side sulla tabella pratiche (`cases-table.tsx`), non un layout proprio.
+Restyling puro del linguaggio già stabilito nelle tappe 1-2 — vedi `docs/UI-PORTING-REPORT.md`
+per il dettaglio.
+
+| UI reference | File origine | Target | Mock reference | Fonte reale | Azione reale | Permessi | Audit | Differenze funzionali | Decisione | Rischi | Stato |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Filtro "Da verificare" (bottone + etichetta rossa inline) | `cases-table.tsx` | `src/app/(app)/revisione/` (invariato in questa tappa) | `needsHumanReview` letto da un array mock | `CaseRelation` PENDING + `Case.needsHumanReview`, già reali da prima di FASE 3 | PATCH relazione (confirm/reject), PATCH review (segna verificata) | `case:write` | sì (già presente) | il target ha uno split-view con motore di motivazioni a 6 tipi (`computeReasons()`), la reference solo un filtro senza pagina propria — capacità del target, va preservata integralmente | nessuna query/azione toccata in questa tappa, solo contenitori | basso | fatto (funzionalità preesistente, non toccata) |
+| — (nessun contenitore proprio nella reference) | — | `ReviewDetail.tsx` | — | — | — | — | — | i due pannelli (relazione/pratica) usavano `rounded-xl p-5` ad hoc | adottato `WorkPanel` (ora `src/components/ui/WorkPanel.tsx`, promosso da componente locale del dettaglio pratica) — stesse misure di `.box` (padding 19px, radius 12px, niente ombra) | basso | fatto |
+| — | — | `ReviewDetail.tsx` | — | — | — | — | — | stato vuoto aveva una doppia cornice tratteggiata (`EmptyState` annidato in un altro contenitore tratteggiato) | rimosso il wrapper ridondante, `EmptyState` reso direttamente | basso | fatto |
+| — | — | `ReviewList.tsx` | — | — | — | — | — | intestazioni di sezione a 12px (`text-xs`) invece del token `.detail-label` (10px) già stabilito | allineate a `.detail-label` | basso | fatto |
+
 ## Righe non ancora compilate (fuori scope, verranno aggiunte via via in FASE 3)
 
-Coda di revisione (restyling, funzionalità già più avanzata da conservare) · Report e
-documenti · Registro attività (pagina globale, oggi esiste solo come sezione per-pratica) ·
-Impostazioni · Login · Responsive completo · Rifinitura finale.
+Bozze e documenti (già in parte coperti dal dettaglio pratica) · Report e documenti ·
+Registro attività (pagina globale, oggi esiste solo come sezione per-pratica) · Impostazioni ·
+Login · Responsive completo · Rifinitura finale.
 
 ### Annotazioni per "Rifinitura finale" (raccolte durante FASE 8B, non ancora fatte)
 

@@ -467,8 +467,80 @@ compromesso della reference, non una regressione introdotta qui.
 | Ciclo visivo | 3 iterazioni (iter-0, iter-1, iter-2), tre viewport, entro il limite di 5 |
 | Screenshot finali | `docs/screenshots/posta/final/` (12 file: 3 viewport × target/reference × fold/full) |
 
+## FASE 3, tappa 3 — Coda di revisione (restyling)
+
+A differenza delle due tappe precedenti, qui non esiste alcuna pagina reference da
+misurare: in `.reference/mizeta-flow`, "coda di revisione" è solo un filtro
+client-side (`useState` booleano `review`) sulla tabella pratiche condivisa
+(`cases-table.tsx`, 23 righe) — un bottone "Da verificare" nella barra filtri e
+un'etichetta rossa inline (`· Verifica richiesta`) sulla riga, nessun layout
+proprio. Il target invece ha già un'implementazione reale più avanzata
+(`src/app/(app)/revisione/`): split-view con due query reali (`CaseRelation`
+PENDING + `Case.needsHumanReview`), un motore di motivazioni a 6 tipi
+(`computeReasons()`: confidenza bassa, campi mancanti, campi incerti, anomalia
+fattura, flag di sicurezza, scadenza critica), azioni PATCH reali (conferma/
+rifiuta relazione, segna verificata) con RBAC (`case:write`) e audit log —
+esplicitamente da conservare integralmente (`FASE-8-UI-PORTING.md`: *"Non
+perdere: motivazioni della revisione; distinzione tra duplicati, dati mancanti,
+anomalie e bassa confidenza; confronto pratiche; azioni reali; audit;
+permessi."*).
+
+Questa tappa è quindi **solo reskin visivo**: portare il linguaggio già
+stabilito nelle tappe 1-2 (WorkPanel/`.detail-panel`, tipografia, densità) senza
+toccare query, azioni, permessi o audit. Nessuna pagina reference da
+fotografare — verifica fatta confrontando visivamente `/revisione` con le
+schermate già portate (dettaglio pratica, posta acquisita), non con un
+equivalente reference inesistente. `scripts/ui-compare.ts` esteso per
+supportare schermate senza controparte reference (`referencePath: null`):
+cattura solo lato target.
+
+### Cosa è cambiato
+
+- **`WorkPanel` promosso a componente condiviso**: da
+  `pratiche/[id]/_components/WorkPanel.tsx` a `src/components/ui/WorkPanel.tsx`
+  (8 punti di import aggiornati nel dettaglio pratica, nessun cambiamento di
+  comportamento). Prima consumatrice di un componente nato per una singola
+  schermata che ne serve una seconda — la promozione a `components/ui` è la
+  conseguenza naturale, non un refactor a sé.
+- **`ReviewDetail.tsx`**: entrambi i pannelli (relazione da confermare/
+  rifiutare, pratica da verificare) passano da `rounded-xl border bg-white p-5`
+  ad hoc a `WorkPanel` — stesse misure di `.box` (padding 19px, radius 12px,
+  nessuna ombra) già stabilite in FASE 8B. Il titolo del pannello pratica
+  diventa il link `{reference} — {title}` (era già un link, ora dentro il
+  contenitore giusto); l'etichetta di priorità si sposta nello slot `action`
+  (in alto a destra, come `PriorityBadge` in Sintesi operativa); categoria/data
+  di creazione diventano la `description` sotto il titolo.
+- **Corretto un difetto di densità trovato durante il reskin**: lo stato vuoto
+  ("Seleziona un elemento") avvolgeva `EmptyState` — che ha già un proprio
+  bordo tratteggiato, padding e centratura — in un SECONDO contenitore
+  tratteggiato (`rounded-xl border-dashed p-10`), risultando in una doppia
+  cornice tratteggiata annidata. Rimosso il wrapper ridondante.
+- **`ReviewList.tsx`**: le due intestazioni di sezione ("Duplicati da
+  verificare", "Pratiche da verificare") passano dalla variante ad hoc
+  (`text-xs` = 12px) alla classe `.detail-label` (10px, uppercase, tracking
+  0.06em) già stabilita per le etichette di campo nel dettaglio pratica.
+
+### Verifica
+
+Confronto visivo diretto (screenshot affiancati) tra `/revisione` e le
+schermate già portate: stesso stile pannello (bianco, nessuna ombra, bordo
+`var(--color-border)`, radius 12px), stessa tipografia (18px semibold per i
+titoli pannello, 10px uppercase per le etichette), stessi badge, stesso
+arancione brand per focus/azioni primarie, stesso stato attivo della voce di
+navigazione. Nessuna sezione vuota o contenitore ridondante nella pagina
+intera (verificato su full-page screenshot).
+
+| Verifica | Esito |
+|---|---|
+| `npm run typecheck` | pulito |
+| `npm run lint` | pulito |
+| `npm run test` (228 test) | tutti passano |
+| `npm run build` | completata |
+| Ciclo visivo | 1 iterazione (iter-0, nessun difetto residuo dopo la correzione dello stato vuoto), tre viewport, solo target (nessuna reference equivalente) |
+| Screenshot finali | `docs/screenshots/revisione/final/` (6 file: 3 viewport × fold/full, solo target) |
+| Funzionalità preservate | query (`CaseRelation` PENDING, `Case.needsHumanReview`), `computeReasons()` (6 tipi), azioni PATCH (confirm/reject relazione, segna verificata), RBAC `case:write`, audit log — nessuna riga toccata |
+
 ### Prossimi passi
 
-FASE 3 continua con: coda di revisione (restyling), bozze e documenti, report,
-registro attività (pagina globale), impostazioni, login, responsive completo,
-rifinitura finale.
+FASE 3 continua con: bozze e documenti, report, registro attività (pagina
+globale), impostazioni, login, responsive completo, rifinitura finale.
