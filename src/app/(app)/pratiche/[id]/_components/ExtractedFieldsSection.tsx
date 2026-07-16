@@ -1,4 +1,4 @@
-import { WorkPanel } from "./WorkPanel";
+import { WorkPanel } from "@/components/ui/WorkPanel";
 import { ExtractedFieldCell } from "./ExtractedFieldCell";
 import { isExtractableCategory } from "@/lib/adapters/llm/schemas/extraction-index";
 import { fieldLabel, formatFieldValue } from "@/lib/i18n/field-labels";

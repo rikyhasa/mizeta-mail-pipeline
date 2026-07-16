@@ -1,5 +1,5 @@
 import { Clock3 } from "lucide-react";
-import { WorkPanel } from "./WorkPanel";
+import { WorkPanel } from "@/components/ui/WorkPanel";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { AUDIT_ACTION_LABELS } from "@/lib/i18n/labels";
 import { formatDateTime, formatTime } from "@/lib/format";

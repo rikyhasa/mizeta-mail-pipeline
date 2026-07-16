@@ -2,10 +2,12 @@ import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/Badge";
 
 /**
- * Sostituisce Card/CardHeader per il dettaglio pratica (FASE 8B): stesse misure di `.box`
- * nella reference (.reference/mizeta-flow/src/app/globals.css) — niente ombra, padding 19px,
- * radius 12px — invece dei default di Card (ombra, padding 16px). Vedi classi `.detail-panel*`
- * in src/app/globals.css.
+ * Sostituisce Card/CardHeader dove serve il linguaggio visivo stabilito in FASE 8B (dettaglio
+ * pratica): stesse misure di `.box` nella reference (.reference/mizeta-flow/src/app/globals.css)
+ * — niente ombra, padding 19px, radius 12px — invece dei default di Card (ombra, padding 16px).
+ * Vedi classi `.detail-panel*` in src/app/globals.css. Promosso da componente locale del
+ * dettaglio pratica a condiviso quando "Coda di revisione" ne è diventata la seconda
+ * consumatrice (FASE 3).
  */
 export function WorkPanel({
   id,

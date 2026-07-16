@@ -1,4 +1,4 @@
-import { WorkPanel } from "./WorkPanel";
+import { WorkPanel } from "@/components/ui/WorkPanel";
 import { PriorityBadge } from "@/components/ui/Badge";
 import { EditableMetaField } from "./EditableMetaField";
 import { DeadlinesStrip } from "./DeadlinesStrip";

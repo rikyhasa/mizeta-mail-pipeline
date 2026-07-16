@@ -1,5 +1,5 @@
 import { Mail, Paperclip } from "lucide-react";
-import { WorkPanel } from "./WorkPanel";
+import { WorkPanel } from "@/components/ui/WorkPanel";
 import { Badge } from "@/components/ui/Badge";
 import { formatDateTime } from "@/lib/format";
 

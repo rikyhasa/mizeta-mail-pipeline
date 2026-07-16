@@ -23,7 +23,7 @@ export function ReviewList({
     <div className="flex flex-col gap-5">
       {relations.length > 0 && (
         <div>
-          <h2 className="mb-2 px-1 text-xs font-semibold tracking-wide text-[var(--color-ink-muted)] uppercase">
+          <h2 className="detail-label mb-2 px-1">
             Duplicati da verificare
           </h2>
           <ul className="flex flex-col gap-1.5">
@@ -45,7 +45,7 @@ export function ReviewList({
 
       {cases.length > 0 && (
         <div>
-          <h2 className="mb-2 px-1 text-xs font-semibold tracking-wide text-[var(--color-ink-muted)] uppercase">
+          <h2 className="detail-label mb-2 px-1">
             Pratiche da verificare
           </h2>
           <ul className="flex flex-col gap-1.5">

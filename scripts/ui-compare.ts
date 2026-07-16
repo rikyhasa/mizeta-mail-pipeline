@@ -165,12 +165,15 @@ async function findTargetFineCaseId(): Promise<string> {
 
 interface ScreenConfig {
   resolveTargetPath: () => Promise<string>;
-  referencePath: string;
+  /** null quando la schermata non ha equivalente nella reference (es. "Coda di revisione",
+   * capacità solo del target) — in quel caso la cattura è solo lato target, da confrontare
+   * visivamente con le schermate già portate invece che con una pagina reference. */
+  referencePath: string | null;
 }
 
 /** Registro delle schermate confrontabili (FASE 3): ogni voce risolve il percorso reale sul
  * target (spesso dipendente da un id nel DB seed) e il percorso statico equivalente sulla
- * reference. Aggiungere una voce qui per ogni nuova schermata portata. */
+ * reference, se esiste. Aggiungere una voce qui per ogni nuova schermata portata. */
 const SCREENS: Record<string, ScreenConfig> = {
   "case-detail": {
     resolveTargetPath: async () => `/pratiche/${await findTargetFineCaseId()}`,
@@ -179,6 +182,10 @@ const SCREENS: Record<string, ScreenConfig> = {
   posta: {
     resolveTargetPath: async () => "/posta",
     referencePath: "/posta",
+  },
+  revisione: {
+    resolveTargetPath: async () => "/revisione",
+    referencePath: null,
   },
 };
 
@@ -192,9 +199,13 @@ async function main(): Promise<void> {
   const outDir = path.join(REPO_ROOT, "docs/screenshots", screenKey, `iter-${iter}`);
   fs.mkdirSync(outDir, { recursive: true });
 
+  const hasReference = screen.referencePath !== null;
+
   if (!TARGET_URL_OVERRIDE) await assertPortFree(TARGET_PORT);
-  await assertPortFree(REFERENCE_PORT);
-  await ensureReferenceDeps();
+  if (hasReference) {
+    await assertPortFree(REFERENCE_PORT);
+    await ensureReferenceDeps();
+  }
 
   let targetServer: ChildProcess | null = null;
   let referenceServer: ChildProcess | null = null;
@@ -213,23 +224,27 @@ async function main(): Promise<void> {
       await waitForServer(`${targetUrl}/login`);
     }
 
-    console.log(`[ui-compare] Avvio reference su :${REFERENCE_PORT}...`);
-    referenceServer = spawnDevServer(REFERENCE_ROOT, REFERENCE_PORT);
-    await waitForServer(`http://localhost:${REFERENCE_PORT}/login`);
-
     browser = await chromium.launch();
     const targetContext = await browser.newContext();
-    const referenceContext = await browser.newContext();
 
     console.log("[ui-compare] Login target...");
     await login(targetContext, targetUrl, TARGET_LOGIN);
-    console.log("[ui-compare] Login reference...");
-    await login(referenceContext, `http://localhost:${REFERENCE_PORT}`, REFERENCE_LOGIN);
-
     console.log(`[ui-compare] Cattura target (${targetPath})...`);
     await capture(targetContext, targetUrl, targetPath, "target", outDir);
-    console.log(`[ui-compare] Cattura reference (${screen.referencePath})...`);
-    await capture(referenceContext, `http://localhost:${REFERENCE_PORT}`, screen.referencePath, "reference", outDir);
+
+    if (hasReference) {
+      console.log(`[ui-compare] Avvio reference su :${REFERENCE_PORT}...`);
+      referenceServer = spawnDevServer(REFERENCE_ROOT, REFERENCE_PORT);
+      await waitForServer(`http://localhost:${REFERENCE_PORT}/login`);
+
+      const referenceContext = await browser.newContext();
+      console.log("[ui-compare] Login reference...");
+      await login(referenceContext, `http://localhost:${REFERENCE_PORT}`, REFERENCE_LOGIN);
+      console.log(`[ui-compare] Cattura reference (${screen.referencePath})...`);
+      await capture(referenceContext, `http://localhost:${REFERENCE_PORT}`, screen.referencePath!, "reference", outDir);
+    } else {
+      console.log("[ui-compare] Nessuna pagina reference equivalente per questa schermata — solo cattura target.");
+    }
 
     console.log(`[ui-compare] Fatto. Screenshot in ${outDir}`);
   } finally {

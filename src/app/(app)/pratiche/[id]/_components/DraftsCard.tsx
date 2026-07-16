@@ -1,5 +1,5 @@
 import { Sparkles } from "lucide-react";
-import { WorkPanel } from "./WorkPanel";
+import { WorkPanel } from "@/components/ui/WorkPanel";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { ActionButton } from "@/components/ActionButton";
 import { DraftCard, type DraftData } from "./DraftCard";

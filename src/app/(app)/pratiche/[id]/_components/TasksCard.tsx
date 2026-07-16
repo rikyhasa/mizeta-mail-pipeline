@@ -1,5 +1,5 @@
 import { Plus } from "lucide-react";
-import { WorkPanel } from "./WorkPanel";
+import { WorkPanel } from "@/components/ui/WorkPanel";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { Badge } from "@/components/ui/Badge";
 import { TASK_STATUS_LABELS } from "@/lib/i18n/labels";

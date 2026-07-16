@@ -1,4 +1,4 @@
-import { WorkPanel } from "./WorkPanel";
+import { WorkPanel } from "@/components/ui/WorkPanel";
 import { ActionButton } from "@/components/ActionButton";
 import { formatDateTime } from "@/lib/format";
 import type { GeneratedDocumentType } from "@/generated/prisma/enums";
