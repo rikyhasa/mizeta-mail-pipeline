@@ -169,6 +169,9 @@ interface ScreenConfig {
    * capacità solo del target) — in quel caso la cattura è solo lato target, da confrontare
    * visivamente con le schermate già portate invece che con una pagina reference. */
   referencePath: string | null;
+  /** true per la pagina di login: va catturata SENZA autenticarsi prima (altrimenti il
+   * redirect post-login la farebbe saltare). */
+  skipLogin?: boolean;
 }
 
 /** Registro delle schermate confrontabili (FASE 3): ogni voce risolve il percorso reale sul
@@ -198,6 +201,11 @@ const SCREENS: Record<string, ScreenConfig> = {
   impostazioni: {
     resolveTargetPath: async () => "/impostazioni",
     referencePath: "/impostazioni",
+  },
+  login: {
+    resolveTargetPath: async () => "/login",
+    referencePath: "/login",
+    skipLogin: true,
   },
 };
 
@@ -239,8 +247,12 @@ async function main(): Promise<void> {
     browser = await chromium.launch();
     const targetContext = await browser.newContext();
 
-    console.log("[ui-compare] Login target...");
-    await login(targetContext, targetUrl, TARGET_LOGIN);
+    if (screen.skipLogin) {
+      console.log("[ui-compare] Schermata senza autenticazione (login) — nessun accesso preliminare.");
+    } else {
+      console.log("[ui-compare] Login target...");
+      await login(targetContext, targetUrl, TARGET_LOGIN);
+    }
     console.log(`[ui-compare] Cattura target (${targetPath})...`);
     await capture(targetContext, targetUrl, targetPath, "target", outDir);
 
@@ -250,8 +262,10 @@ async function main(): Promise<void> {
       await waitForServer(`http://localhost:${REFERENCE_PORT}/login`);
 
       const referenceContext = await browser.newContext();
-      console.log("[ui-compare] Login reference...");
-      await login(referenceContext, `http://localhost:${REFERENCE_PORT}`, REFERENCE_LOGIN);
+      if (!screen.skipLogin) {
+        console.log("[ui-compare] Login reference...");
+        await login(referenceContext, `http://localhost:${REFERENCE_PORT}`, REFERENCE_LOGIN);
+      }
       console.log(`[ui-compare] Cattura reference (${screen.referencePath})...`);
       await capture(referenceContext, `http://localhost:${REFERENCE_PORT}`, screen.referencePath!, "reference", outDir);
     } else {

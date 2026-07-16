@@ -771,6 +771,60 @@ diretto essendo `SettingsNav` client-side) con uno script Playwright ad hoc.
 | Ciclo visivo | 2 iterazioni, tre viewport (tab "Connessioni email", default) + verifica manuale della tab "Informazioni tecniche" |
 | Screenshot finali | `docs/screenshots/impostazioni/final/` (12 file: 3 viewport × target/reference × fold/full) |
 
+## FASE 3, tappa 8 — Login
+
+A differenza di "impostazioni", qui non c'era nulla di funzionalmente
+incompleto: `/login` era già reale (form POST verso `/api/auth/login`, zod,
+verifica password, sessione, redirect su errore). Solo un divario visivo
+rispetto alla reference, mai misurato con precisione finora.
+
+### Divari misurati (letti da `.reference/mizeta-flow/src/app/globals.css`)
+
+- **Headline sinistra**: `text-page-title` (30px) invece di `.login-copy
+  h1{font-size:47px;line-height:1.08}` — divario maggiore trovato in questa
+  tappa.
+- **Lockup brand**: riga singola "Mizeta Mail Pipeline" invece della struttura
+  a due righe `.brand-name`(18px/750)/`.brand-sub`(11px) della reference;
+  `brand-mark` 36px invece di 38px.
+- **Eyebrow mancanti** su entrambi i lati (sinistra: "Da email a lavoro
+  organizzato"; destra: sopra "Bentornato").
+- **Riga di 3 funzionalità** in basso a sinistra (Controllo umano/Posta in
+  sola lettura/Audit completo) assente — contenuto reale (non demo), stessi
+  invarianti già citati altrove nell'app.
+- **Intestazione form**: `text-section-title` (21px) invece di 27px
+  (`.login-form h2{font-size:27px}`); bottone non a piena larghezza
+  (`.login-form .btn{width:100%}`).
+- **Nota sotto il bottone assente**: la reference ha
+  `.form-help` ("Ambiente dimostrativo...", falso per il target); sostituita
+  con una frase reale (stesso testo già usato in `ContextPanel`/pagina di
+  login precedente) invece di ometterla o di copiare l'affermazione demo.
+- **Sfondo pannello destro**: ereditava `var(--color-surface-muted)` dal
+  `body` invece del bianco esplicito `.login-page{background:#fff}` della
+  reference — visibile come un grigio leggero anziché bianco puro, corretto
+  con `bg-white` su `&lt;main&gt;`.
+
+Tutti i valori sono arbitrari Tailwind one-off (`text-[47px]`, `text-[27px]`,
+ecc.) non promossi a token condivisi: usati solo qui, non un pattern da
+riusare altrove.
+
+### Verifica
+
+`scripts/ui-compare.ts` esteso con `skipLogin: true` (la pagina di login va
+catturata SENZA autenticarsi prima — altrimenti il redirect post-login la
+farebbe saltare). Alla seconda iterazione (dopo la correzione dello sfondo),
+altezza pagina identica: **900px sia per il target sia per la reference**
+(full-page, 1440×900) — parità pixel esatta sull'altezza totale.
+
+| Verifica | Esito |
+|---|---|
+| `npm run typecheck` | pulito |
+| `npm run lint` | pulito |
+| `npm run test` (228 test) | tutti passano |
+| `npm run build` | completata |
+| Ciclo visivo | 2 iterazioni, tre viewport |
+| Screenshot finali | `docs/screenshots/login/final/` (12 file: 3 viewport × target/reference × fold/full) |
+
 ### Prossimi passi
 
-FASE 3 continua con: login, responsive completo, rifinitura finale.
+FASE 3 continua con: responsive completo, rifinitura finale (troncamento
+sintesi, Stampa/Genera PDF in testata, ricerca e filtri live).

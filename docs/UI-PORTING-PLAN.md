@@ -206,9 +206,20 @@ Vedi `docs/UI-PORTING-REPORT.md` per il ragionamento completo.
 | Bottone "Salva modifiche" (header) | `impostazioni/page.tsx` | — | senza handler | — | — | — | — | ogni tab ha già il proprio salvataggio reale (`UnsavedChangesBar`) | non portato: un bottone globale sarebbe stato fuorviante | basso | non applicabile (per scelta) |
 | Toggle "Escludi caselle personali" | `impostazioni/page.tsx` | — | statico | — | — | — | — | non esiste in `RuleSettingsData` | non aggiunto: funzionalità nuova non richiesta, fuori dal perimetro di un restyling | basso | non applicabile (per scelta) |
 
+## Matrice — FASE 3, tappa 8: Login
+
+`/login` era già interamente reale (form POST, zod, verifica password, sessione) — nessun
+divario funzionale, solo visivo. Vedi `docs/UI-PORTING-REPORT.md` per i valori esatti letti
+dalla reference.
+
+| UI reference | File origine | Target | Mock reference | Fonte reale | Azione reale | Permessi | Audit | Differenze funzionali | Decisione | Rischi | Stato |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| `.login-page` (headline 47px, lockup brand 2 righe, eyebrow, riga 3 funzionalità, form h2 27px, bottone piena larghezza, `.form-help`) | `login/page.tsx` | `src/app/login/page.tsx` | credenziali precompilate, `.form-help` con claim "ambiente dimostrativo" falso per il target | form reale invariato | POST reale verso `/api/auth/login` (invariato) | — | — | tutti i valori misurati e applicati come Tailwind arbitrari one-off, non promossi a token condivisi | headline/eyebrow/lockup/riga funzionalità/dimensioni form portate esattamente; `.form-help` sostituita con una frase reale (non il claim demo della reference) | basso | fatto |
+| Sfondo pannello destro (`background:#fff` esplicito) | `login/page.tsx` | `login/page.tsx` | — | — | — | — | — | ereditava `--color-surface-muted` dal `body`, grigio leggero invece di bianco puro | aggiunto `bg-white` su `&lt;main&gt;` | basso | fatto |
+
 ## Righe non ancora compilate (fuori scope, verranno aggiunte via via in FASE 3)
 
-Login · Responsive completo · Rifinitura finale.
+Responsive completo · Rifinitura finale.
 
 ### Annotazioni per "Rifinitura finale" (raccolte durante FASE 8B, non ancora fatte)
 
