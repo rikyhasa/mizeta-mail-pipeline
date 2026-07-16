@@ -167,11 +167,22 @@ per-pratica già reskinnati in FASE 8B.
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | — | — | `DocumentsCard.tsx` | — | `GeneratedDocument.type` (enum) | — | — | — | il valore enum grezzo (es. "FINE_SHEET") veniva mostrato senza traduzione, unico caso nel dettaglio pratica | nuova mappa `GENERATED_DOCUMENT_TYPE_LABELS` in `src/lib/i18n/labels.ts` (8 voci, testo da SPEC.md §12) | basso | fatto |
 
+## Matrice — FASE 3, tappa 5: Report e documenti
+
+Galleria onesta, solo presentazione — nessuna migrazione, nessuna funzionalità backend nuova
+(decisione utente). Vedi `docs/UI-PORTING-REPORT.md` per il ragionamento completo su quali
+modelli hanno generazione reale.
+
+| UI reference | File origine | Target | Mock reference | Fonte reale | Azione reale | Permessi | Audit | Differenze funzionali | Decisione | Rischi | Stato |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Galleria 8 modelli documento (`.settings-grid`, 2 colonne) | `report/page.tsx` | `src/app/(app)/report/page.tsx` (nuovo) | ogni card genera un PDF da un `caseId` hardcoded, bottone "Genera esempio · {code}" | `GeneratedDocument` reale, aggregato per tipo | — (nessuna generazione dalla pagina stessa) | autenticato | no | solo 3 modelli su 8 hanno generazione server-side reale (`QUOTE_SHEET`/`CLAIM_DOSSIER`/`FINE_SHEET`); gli altri 5 — inclusa "Scheda ordine di trasporto", mai implementata nemmeno per-pratica, e i 4 report aggregati — richiederebbero funzionalità backend mai esistita (caseId opzionale su `GeneratedDocument`, generazione cross-pratica) | `src/lib/documents/report-queries.ts` nuovo (`getDocumentTemplateStats`, conteggio reale via `groupBy`); i 3 modelli implementati linkano a `/pratiche?category=X` invece di generare qui (la generazione resta in `DocumentsCard.tsx`, non duplicata); gli altri 5 badge "Non ancora disponibile" | basso | fatto |
+| Card bloccata "Presentazioni PowerPoint" | `report/page.tsx` | `report/page.tsx` | badge "Fase futura" | testo di SPEC.md §12 ("post-MVP") | — | — | no | — | 1:1, stesso principio di onestà delle voci di nav disabilitate | basso | fatto |
+| Voce di navigazione "Report e documenti" | `app-shell.tsx` | `nav-items.ts` | — | — | — | — | no | — | `status: "disabled"` → `"active"` | basso | fatto |
+
 ## Righe non ancora compilate (fuori scope, verranno aggiunte via via in FASE 3)
 
-Report e documenti (nuova rotta `/report`, galleria 8 modelli — SPEC.md §12) · Registro
-attività (pagina globale, oggi esiste solo come sezione per-pratica) · Impostazioni · Login ·
-Responsive completo · Rifinitura finale.
+Registro attività (pagina globale, oggi esiste solo come sezione per-pratica) · Impostazioni ·
+Login · Responsive completo · Rifinitura finale.
 
 ### Annotazioni per "Rifinitura finale" (raccolte durante FASE 8B, non ancora fatte)
 

@@ -587,9 +587,73 @@ dettaglio pratica ha lo stesso problema (nessun altro `{x.type}`/`{x.status}`/
 Nessun ciclo `ui-compare` necessario: nessuna modifica di layout, solo un
 valore di testo.
 
+## FASE 3, tappa 5 — Report e documenti
+
+Come "posta acquisita", nessuna funzionalità target da preservare: la voce di
+nav era `disabled`, nessuna route esisteva. A differenza delle tappe
+precedenti, la ricerca preliminare ha trovato un vincolo importante prima di
+scrivere qualunque codice: **solo 3 degli 8 modelli documento di SPEC.md §12
+hanno generazione server-side reale** (`QUOTE_SHEET`/`CLAIM_DOSSIER`/
+`FINE_SHEET`, già per-pratica). Gli altri 5 — inclusa "Scheda ordine di
+trasporto" (`TRANSPORT_ORDER_SHEET`, mai implementata nemmeno per-pratica) e i
+4 report aggregati (scadenze, briefing, crediti, fatture) — non hanno alcuna
+implementazione: l'API restituisce 501, e costruirli davvero richiederebbe
+rendere `GeneratedDocument.caseId` opzionale (nuova migrazione), estendere
+`GeneratedDocumentService` con una modalità di generazione cross-pratica e
+scrivere motori di aggregazione — funzionalità mai esistita né nel target né
+nella reference (che è solo una mock: ogni card punta a un `caseId`
+hardcoded).
+
+**Decisione presa con l'utente**: galleria onesta, solo presentazione.
+Nessuna migrazione, nessuna funzione backend nuova — coerente col principio di
+veridicità già seguito ovunque (nav disabilitate, gap `FineDeviceVerification`
+documentato in FASE 3/tappa 1, ecc.).
+
+### Composizione
+
+Intestazione (eyebrow "Documenti operativi" + h1 "Report e documenti" +
+sottotitolo) + griglia 2 colonne di 8 card modello, stesse misure di
+`.detail-panel` già stabilite, più una card bloccata "Presentazioni
+PowerPoint" (SPEC.md §12 la definisce esplicitamente post-MVP — non
+inventata, solo resa onestamente come "Fase futura").
+
+Per ognuno dei 3 modelli implementati: conteggio reale (`groupBy` su
+`GeneratedDocument`, nuova query `getDocumentTemplateStats()` in
+`src/lib/documents/report-queries.ts`, nessun dato finto) + link reale verso
+`/pratiche?category=X` (filtro già esistente) — **niente bottone "Genera"
+sulla pagina stessa**: la generazione resta per-pratica in
+`DocumentsCard.tsx`, non duplicata qui. Per gli altri 5: badge "Non ancora
+disponibile", stesso trattamento onesto già usato per le voci di nav
+disabilitate.
+
+### Verifica visiva
+
+A differenza di "coda di revisione", qui la reference ha una pagina reale da
+confrontare — `scripts/ui-compare.ts` esteso con la voce `report`. Risultato
+alla prima iterazione, senza correzioni necessarie:
+
+| Metrica (full-page, 1440×900) | Target | Reference | Rapporto |
+|---|---|---|---|
+| Altezza pagina | 960px | 1014px | 0,95x |
+
+Il target risulta leggermente **più corto** della reference — le card senza
+azione disponibile mostrano solo un badge invece del bottone "Genera esempio"
+della reference, compensando lo spazio dei link "Vai alle pratiche" sulle
+card implementate. Nessuna iterazione necessaria; verificato anche a 1280×800
+e 1920×1080, nessun problema di layout.
+
+### Verifica
+
+| Verifica | Esito |
+|---|---|
+| `npm run typecheck` | pulito |
+| `npm run lint` | pulito |
+| `npm run test` (228 test) | tutti passano |
+| `npm run build` | completata, `/report` compare come rotta dinamica |
+| Ciclo visivo | 1 iterazione, tre viewport, nessun difetto trovato |
+| Screenshot finali | `docs/screenshots/report/final/` (12 file: 3 viewport × target/reference × fold/full) |
+
 ### Prossimi passi
 
-FASE 3 continua con: report (nuova rotta `/report`, galleria di 8 modelli
-documento — SPEC.md §12, mappata 1:1 sulla pagina "Report e documenti" della
-reference), registro attività (pagina globale), impostazioni, login,
+FASE 3 continua con: registro attività (pagina globale), impostazioni, login,
 responsive completo, rifinitura finale.
