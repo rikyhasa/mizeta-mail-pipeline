@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { buttonClassName, type ButtonSize, type ButtonVariant } from "@/components/ui/Button";
 
 export function ActionButton({
+  id,
   method,
   url,
   body,
@@ -16,6 +17,7 @@ export function ActionButton({
   disabled,
   disabledReason,
 }: {
+  id?: string;
   method: "POST" | "PATCH";
   url: string;
   body?: unknown;
@@ -56,6 +58,7 @@ export function ActionButton({
     return (
       <span className="inline-flex flex-col gap-1">
         <button
+          id={id}
           type="button"
           disabled
           className={buttonClassName({ variant, size, className })}
@@ -71,6 +74,7 @@ export function ActionButton({
   return (
     <span className="inline-flex flex-col gap-1">
       <button
+        id={id}
         type="button"
         onClick={handleClick}
         disabled={pending}

@@ -38,7 +38,8 @@ const toolbarSelectClassName =
  * senza bottone "Applica" — select/checkbox/date submittano subito, i campi di digitazione
  * libera (`q`, importi) con un debounce. Nessuna API nuova o cambiata: stesso `GET /pratiche`
  * con query string già usato dal form precedente, solo sincronizzato via `router.push` invece
- * che da una submit nativa. "Azzera filtri" resta un link reale verso `/pratiche`. */
+ * che da una submit nativa. "Azzera filtri" resta un link reale verso `/pratiche`, mostrato solo
+ * quando almeno un filtro è attivo (docs/UX-AUDIT-2026-07.md, Fase C). */
 export function FiltersBar({
   filters,
   users,
@@ -51,6 +52,7 @@ export function FiltersBar({
   suppliers: Option[];
 }) {
   const hasAdvancedActive = ADVANCED_KEYS.some((key) => filters[key]);
+  const hasAnyFilterActive = hasAdvancedActive || Boolean(filters.q || filters.category || filters.status || filters.priority);
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -213,9 +215,11 @@ export function FiltersBar({
           </div>
         </details>
 
-        <Link href="/pratiche" className="text-sm font-medium text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:underline">
-          Azzera filtri
-        </Link>
+        {hasAnyFilterActive && (
+          <Link href="/pratiche" className="text-sm font-medium text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:underline">
+            Azzera filtri
+          </Link>
+        )}
       </form>
     </section>
   );

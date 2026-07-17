@@ -123,8 +123,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   });
 
   const recommendedAction = deriveRecommendedAction({
-    blockers: blockerReasons.map((b) => b.text),
-    blockerHrefs: blockerReasons.map((b) => b.href),
+    blockers: blockerReasons,
     activeDraftStatus: activeDraft?.status ?? null,
   });
 

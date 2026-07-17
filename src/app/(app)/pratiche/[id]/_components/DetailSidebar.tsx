@@ -53,7 +53,7 @@ export function DetailSidebar({
   needsHumanReview: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-4 print:hidden lg:sticky lg:top-24">
+    <div className="flex flex-col gap-4 print:hidden lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
       <RecommendedAction action={recommendedAction} />
       <QuickActions />
       <DocumentsPanel documentCount={documentCount} lastDocumentAt={lastDocumentAt} />

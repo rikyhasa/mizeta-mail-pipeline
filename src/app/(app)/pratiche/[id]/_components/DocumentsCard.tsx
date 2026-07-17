@@ -1,5 +1,6 @@
 import { WorkPanel } from "@/components/ui/WorkPanel";
 import { ActionButton } from "@/components/ActionButton";
+import { FocusOnHashMatch } from "@/components/FocusOnHashMatch";
 import { formatDateTime } from "@/lib/format";
 import { GENERATED_DOCUMENT_TYPE_LABELS } from "@/lib/i18n/labels";
 import type { GeneratedDocumentType } from "@/generated/prisma/enums";
@@ -23,6 +24,7 @@ export function DocumentsCard({
 }) {
   return (
     <WorkPanel id="documenti" title="Documenti generati">
+      <FocusOnHashMatch id="documenti-azione" />
       {documents.length === 0 ? (
         <p className="mb-3 text-sm text-[var(--color-ink-muted)]">Nessun documento generato.</p>
       ) : (
@@ -49,11 +51,18 @@ export function DocumentsCard({
         </ul>
       )}
       {documentType ? (
-        <ActionButton method="POST" url={`/api/cases/${caseId}/documents`} body={{ type: documentType.type, format: "PDF" }}>
+        <ActionButton
+          id="documenti-azione"
+          method="POST"
+          url={`/api/cases/${caseId}/documents`}
+          body={{ type: documentType.type, format: "PDF" }}
+        >
           {documentType.label}
         </ActionButton>
       ) : (
-        <p className="text-xs text-[var(--color-ink-muted)]">Nessun modello documento disponibile per questa categoria.</p>
+        <p id="documenti-azione" className="text-xs text-[var(--color-ink-muted)]">
+          Nessun modello documento disponibile per questa categoria.
+        </p>
       )}
     </WorkPanel>
   );

@@ -25,7 +25,7 @@ export function RecommendedAction({ action }: { action: RecommendedActionData | 
       <p className="mt-2 text-sm font-semibold text-[var(--color-ink)]">{action.label}</p>
       {action.description && <p className="mt-1 text-xs text-[var(--color-ink-muted)]">{action.description}</p>}
       <a href={action.href} className={buttonClassName({ variant: "primary", size: "md", className: "mt-3 w-full" })}>
-        Vai
+        {action.ctaLabel}
       </a>
     </div>
   );

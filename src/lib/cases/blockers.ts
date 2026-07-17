@@ -4,9 +4,22 @@ import { classifyFieldTier } from "@/app/(app)/pratiche/[id]/_components/field-t
 /** Stesso valore già usato in ExtractedFieldCell.tsx (70%), non un nuovo numero inventato. */
 const LOW_CONFIDENCE_THRESHOLD = 0.7;
 
+/** Categoria del blocker: usata solo per scegliere un verbo concreto nella CTA "Prossima azione"
+ * (docs/UX-AUDIT-2026-07.md, punto 3.3.4 — "Vai" era un'etichetta generica) — non introduce
+ * nuova logica di business, la lista e l'ordine dei blocker restano quelli di sempre. */
+export type CaseBlockerKind =
+  | "missing_fields"
+  | "needs_review"
+  | "low_confidence"
+  | "no_assignee"
+  | "anomaly"
+  | "security_flags"
+  | "pending_relations";
+
 export interface CaseBlockerReason {
   text: string;
   href: string;
+  kind: CaseBlockerKind;
 }
 
 export interface CaseBlockerInput {
@@ -28,25 +41,37 @@ export interface CaseBlockerInput {
 export function deriveCaseBlockers(input: CaseBlockerInput): CaseBlockerReason[] {
   const blockers: CaseBlockerReason[] = [];
   if (input.problematicCount > 0) {
-    blockers.push({ text: `${input.problematicCount} dato/i mancante/i o da verificare`, href: "#dati-estratti" });
+    blockers.push({ text: `${input.problematicCount} dato/i mancante/i o da verificare`, href: "#dati-estratti", kind: "missing_fields" });
   }
   if (input.needsHumanReview) {
-    blockers.push({ text: "La pratica richiede revisione umana", href: "#dati-estratti" });
+    blockers.push({ text: "La pratica richiede revisione umana", href: "#dati-estratti", kind: "needs_review" });
   }
   if (input.confidence !== null && input.confidence < LOW_CONFIDENCE_THRESHOLD) {
-    blockers.push({ text: `Confidenza classificazione bassa (${Math.round(input.confidence * 100)}%)`, href: "#sintesi" });
+    blockers.push({
+      text: `Confidenza classificazione bassa (${Math.round(input.confidence * 100)}%)`,
+      href: "#sintesi",
+      kind: "low_confidence",
+    });
   }
   if (!input.assignedToId) {
-    blockers.push({ text: "Nessun responsabile assegnato", href: "#sintesi" });
+    blockers.push({ text: "Nessun responsabile assegnato", href: "#sintesi", kind: "no_assignee" });
   }
   if (input.anomalyReason) {
-    blockers.push({ text: `Anomalia fattura: ${input.anomalyReason}`, href: "#dati-estratti" });
+    blockers.push({ text: `Anomalia fattura: ${input.anomalyReason}`, href: "#dati-estratti", kind: "anomaly" });
   }
   if (input.securityFlagsCount > 0) {
-    blockers.push({ text: `${input.securityFlagsCount} segnale/i di sicurezza rilevato/i nelle email`, href: "#email" });
+    blockers.push({
+      text: `${input.securityFlagsCount} segnale/i di sicurezza rilevato/i nelle email`,
+      href: "#email",
+      kind: "security_flags",
+    });
   }
   if (input.pendingRelationsCount > 0) {
-    blockers.push({ text: `${input.pendingRelationsCount} collegamento/i pratica da verificare`, href: "#relazioni" });
+    blockers.push({
+      text: `${input.pendingRelationsCount} collegamento/i pratica da verificare`,
+      href: "#relazioni",
+      kind: "pending_relations",
+    });
   }
   return blockers;
 }

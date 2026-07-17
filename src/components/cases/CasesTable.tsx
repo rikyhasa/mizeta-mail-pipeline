@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useSyncExternalStore, type MouseEvent } from "react";
+import { useMemo, useState, useSyncExternalStore, type MouseEvent } from "react";
 import { ChevronRight, SlidersHorizontal } from "lucide-react";
 import type { CaseListItem } from "@/lib/dashboard/queries";
 import { PAGE_SIZE } from "@/lib/dashboard/constants";
@@ -50,6 +50,7 @@ function getColumnsServerSnapshot(): string {
  */
 function useOptionalColumns() {
   const raw = useSyncExternalStore(subscribeToColumnsChange, getColumnsSnapshot, getColumnsServerSnapshot);
+  const [persistFailed, setPersistFailed] = useState(false);
 
   const visible = useMemo(() => {
     try {
@@ -66,15 +67,26 @@ function useOptionalColumns() {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
       window.dispatchEvent(new Event(COLUMNS_CHANGE_EVENT));
+      setPersistFailed(false);
     } catch {
-      // preferenza non persistita, ma la sessione corrente funziona comunque.
+      // localStorage non disponibile (modalità privata/quota esaurita): la preferenza non viene
+      // salvata — avvisare invece di fallire in silenzio (docs/UX-AUDIT-2026-07.md, Fase C).
+      setPersistFailed(true);
     }
   }
 
-  return { visible, toggle };
+  return { visible, toggle, persistFailed };
 }
 
-function ColumnsControl({ visible, toggle }: { visible: Set<OptionalColumnKey>; toggle: (key: OptionalColumnKey) => void }) {
+function ColumnsControl({
+  visible,
+  toggle,
+  persistFailed,
+}: {
+  visible: Set<OptionalColumnKey>;
+  toggle: (key: OptionalColumnKey) => void;
+  persistFailed: boolean;
+}) {
   return (
     <details className="group relative">
       <summary className="flex min-h-[36px] w-fit cursor-pointer list-none items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-white px-3 py-1.5 text-xs font-medium text-[var(--color-ink)] hover:bg-[var(--color-surface-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)] [&::-webkit-details-marker]:hidden">
@@ -96,6 +108,11 @@ function ColumnsControl({ visible, toggle }: { visible: Set<OptionalColumnKey>; 
             </label>
           ))}
         </div>
+        {persistFailed && (
+          <p role="alert" className="mt-2 text-xs text-red-600">
+            Preferenza non salvata in questo browser.
+          </p>
+        )}
       </div>
     </details>
   );
@@ -120,7 +137,7 @@ export function CasesTable({
   compact?: boolean;
 }) {
   const router = useRouter();
-  const { visible, toggle } = useOptionalColumns();
+  const { visible, toggle, persistFailed } = useOptionalColumns();
   const totalPages = Math.max(1, Math.ceil((total ?? items.length) / PAGE_SIZE));
 
   function goToCase(id: string, event: MouseEvent<HTMLTableRowElement>) {
@@ -137,7 +154,7 @@ export function CasesTable({
       {!compact && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-[var(--color-ink-muted)]">{total ?? items.length} pratiche trovate</p>
-          <ColumnsControl visible={visible} toggle={toggle} />
+          <ColumnsControl visible={visible} toggle={toggle} persistFailed={persistFailed} />
         </div>
       )}
 
