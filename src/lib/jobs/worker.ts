@@ -10,10 +10,12 @@ import { enqueueJob } from "@/lib/jobs/queue";
 import {
   ingestMailboxChangesIdempotencyKey,
   renewSubscriptionIdempotencyKey,
+  syncSpeedDeviceRegistryIdempotencyKey,
   type IngestMailboxChangesPayload,
   type ProcessIncomingMessagePayload,
   type RenewSubscriptionPayload,
 } from "@/lib/jobs/types";
+import { runScheduledSpeedRegistrySync } from "@/lib/speed-registry/sync-speed-device-registry";
 
 /**
  * Claim transazionale del prossimo job pronto: `SELECT ... FOR UPDATE SKIP LOCKED` è l'unica
@@ -68,11 +70,35 @@ async function dispatch(job: Job): Promise<void> {
       });
       return;
     }
+    case "SYNC_SPEED_DEVICE_REGISTRY": {
+      await runScheduledSpeedRegistrySync();
+      return;
+    }
     default: {
       const exhaustiveCheck: never = job.type;
       throw new Error(`JobType non riconosciuto: ${String(exhaustiveCheck)}`);
     }
   }
+}
+
+const RECURRING_JOB_TYPES = new Set<Job["type"]>(["SYNC_SPEED_DEVICE_REGISTRY"]);
+const SPEED_REGISTRY_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Auto-rischedulazione (docs/SPEC-AUTOVELOX-DRAFT.md §7bis): non esiste un cron interno, quindi
+ * un job "ricorrente" si riaccoda da solo al proprio completamento (successo o esaurimento
+ * tentativi), riusando il dedup su `idempotencyKey` già presente in `enqueueJob` — mai una nuova
+ * libreria di scheduling. Non riaccoda dopo un fallimento transitorio: quello è già gestito dal
+ * backoff di `markFailed`, riaccodare anche lì romperebbe il backoff.
+ */
+async function rescheduleIfRecurring(job: Job): Promise<void> {
+  if (!RECURRING_JOB_TYPES.has(job.type)) return;
+  await enqueueJob({
+    type: "SYNC_SPEED_DEVICE_REGISTRY",
+    payload: {},
+    idempotencyKey: syncSpeedDeviceRegistryIdempotencyKey(),
+    runAt: new Date(Date.now() + SPEED_REGISTRY_SYNC_INTERVAL_MS),
+  });
 }
 
 async function markSucceeded(job: Job): Promise<void> {
@@ -127,6 +153,7 @@ export async function runWorkerOnce(): Promise<{ claimed: boolean; jobId?: strin
     await dispatch(job);
     await markSucceeded(job);
     logger.info("job.succeeded", { jobId: job.id, jobType: job.type, attempts: job.attempts });
+    await rescheduleIfRecurring(job);
   } catch (error) {
     await markFailed(job, error);
     logger.error("job.failed", {
@@ -135,16 +162,29 @@ export async function runWorkerOnce(): Promise<{ claimed: boolean; jobId?: strin
       attempts: job.attempts,
       error: error instanceof Error ? error.message : String(error),
     });
+    if (job.attempts >= job.maxAttempts) await rescheduleIfRecurring(job);
   }
   return { claimed: true, jobId: job.id };
 }
 
 /** Tick periodico di recovery (SPEC.md §3): accoda `RENEW_SUBSCRIPTION` per le mailbox
  * microsoft365 vicine a scadenza e `INGEST_MAILBOX_CHANGES` per ogni mailbox connessa
- * come safety net contro webhook persi. Mai per `pec_imap` (scheletro non funzionante). */
+ * come safety net contro webhook persi. Mai per `pec_imap` (scheletro non funzionante).
+ *
+ * Anche il bootstrap di `SYNC_SPEED_DEVICE_REGISTRY` (docs/SPEC-AUTOVELOX-DRAFT.md §7bis) vive
+ * qui: `enqueueJob` è già idempotente su `idempotencyKey` — se il job non è mai esistito lo crea
+ * ed esegue subito; se è già PENDING/RUNNING con la sua schedulazione a 24h, no-op (non la
+ * disturba); se per qualunque motivo si fosse fermato in stato terminale senza essersi
+ * riaccodato da solo, questo tick lo riarma — stesso ruolo di safety net degli altri due job. */
 export async function runRecoveryTick(): Promise<void> {
   const mailboxes = await prisma.mailboxConnection.findMany({ where: { status: "CONNECTED" } });
   const marginMs = env.MICROSOFT365_SUBSCRIPTION_RENEWAL_MARGIN_HOURS * 60 * 60 * 1000;
+
+  await enqueueJob({
+    type: "SYNC_SPEED_DEVICE_REGISTRY",
+    payload: {},
+    idempotencyKey: syncSpeedDeviceRegistryIdempotencyKey(),
+  });
 
   for (const mailbox of mailboxes) {
     if (mailbox.provider === "PEC_IMAP") continue;

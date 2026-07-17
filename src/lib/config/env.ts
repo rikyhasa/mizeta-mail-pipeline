@@ -56,6 +56,12 @@ const envSchema = z.object({
   ATTACHMENT_STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
   ATTACHMENT_STORAGE_LOCAL_DIR: z.string().min(1).default("./storage"),
 
+  // Registro MIT dispositivi (docs/SPEC-AUTOVELOX-DRAFT.md §7bis): "real" fa richieste HTTP
+  // dirette a velox.mit.gov.it (mai da contenuto email, CLAUDE.md invariante 1/2 non si applica
+  // qui — è una fonte esterna nota, non un link presente in un'email), "mock" legge fixture
+  // locali per demo/test/eval senza rete.
+  SPEED_REGISTRY_FETCHER: z.enum(["real", "mock"]).default("mock"),
+
   SEED_DEMO_PASSWORD: z.string().min(8).default("Password123!"),
 });
 
