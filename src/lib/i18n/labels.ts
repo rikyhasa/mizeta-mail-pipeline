@@ -13,6 +13,10 @@ import type {
   Department,
   EmailDraftStatus,
   EnforcementCheckApplicability,
+  EnforcementDocumentStatus,
+  EnforcementDocumentType,
+  EnforcementRegistryMatchState,
+  EnforcementVerificationState,
   FieldSourceType,
   GeneratedDocumentType,
   Role,
@@ -140,6 +144,8 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   SPEED_REGISTRY_SYNCED: "Registro MIT sincronizzato",
   SPEED_REGISTRY_MANUAL_UPLOAD: "Registro MIT caricato manualmente",
   APPEAL_DECISION_RECORDED: "Decisione ricorso registrata",
+  ENFORCEMENT_DOCUMENTATION_REQUESTED: "Documentazione tecnica richiesta",
+  ENFORCEMENT_TECHNICAL_REVIEW_REQUESTED: "Segnalato per verifica tecnica",
 };
 
 /** Gli 8 modelli di SPEC.md §12 — mancava una traduzione: DocumentsCard mostrava il valore
@@ -195,4 +201,42 @@ export const ENFORCEMENT_CHECK_APPLICABILITY_LABELS: Record<EnforcementCheckAppl
   AVERAGE_SPEED_CONTROL: "Tutor / velocità media",
   TELELASER: "Telelaser",
   OTHER_SPEED_DEVICE: "Altro dispositivo di rilevamento velocità",
+};
+
+/** Stati del pannello di verifica (docs/SPEC-AUTOVELOX-DRAFT.md §8): solo stati documentali,
+ * mai un giudizio di validità della sanzione (CLAUDE.md invariante 9). */
+export const ENFORCEMENT_VERIFICATION_STATE_LABELS: Record<EnforcementVerificationState, string> = {
+  NOT_APPLICABLE: "Non applicabile",
+  TO_BE_IDENTIFIED: "Da identificare",
+  IDENTIFIED: "Identificato",
+  DOCUMENTATION_TO_ACQUIRE: "Documentazione da acquisire",
+  DOCUMENTATION_INCOMPLETE: "Documentazione incompleta",
+  DATA_CONFLICT: "Dati in conflitto",
+  TO_BE_VERIFIED: "Da verificare",
+  DOCUMENTED_VERIFICATION_COMPLETE: "Verifica documentale completata",
+  REQUIRES_LEGAL_REVIEW: "In verifica legale",
+};
+
+export const ENFORCEMENT_DOCUMENT_TYPE_LABELS: Record<EnforcementDocumentType, string> = {
+  APPROVAL_OR_HOMOLOGATION_DECREE: "Decreto di approvazione/omologazione",
+  CALIBRATION_CERTIFICATE: "Certificato di taratura",
+  FUNCTIONALITY_CERTIFICATE: "Certificato di funzionalità",
+  TECHNICAL_MANUAL: "Manuale tecnico",
+  OTHER: "Altro documento",
+};
+
+export const ENFORCEMENT_DOCUMENT_STATUS_LABELS: Record<EnforcementDocumentStatus, string> = {
+  PRESENT: "Presente",
+  MISSING: "Mancante",
+  REQUESTED: "Richiesto",
+};
+
+/** Solo confronto documentale con il registro MIT (docs/SPEC-AUTOVELOX-DRAFT.md §10): un
+ * MISMATCH significa "il dato dichiarato non corrisponde al registro consultato in data X", mai
+ * "la multa è invalida" — nessuna etichetta esprime una conclusione di validità. */
+export const ENFORCEMENT_REGISTRY_MATCH_LABELS: Record<EnforcementRegistryMatchState, string> = {
+  MATCH: "Corrisponde al registro",
+  MISMATCH: "Non corrisponde al registro",
+  NOT_FOUND: "Non trovato nel registro",
+  NOT_CONSULTED: "Registro non consultato",
 };

@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { requireUserOrRedirect } from "@/lib/auth/guard";
-import { CASE_STATUS_LABELS } from "@/lib/i18n/labels";
+import { hasPermission } from "@/lib/auth/rbac";
+import { CASE_STATUS_LABELS, ENFORCEMENT_DOCUMENT_TYPE_LABELS } from "@/lib/i18n/labels";
 import { formatCurrency } from "@/lib/format";
 import { AMOUNT_FIELD_BY_CATEGORY, parseFieldNumber } from "@/lib/dashboard/field-keys";
 import { isExtractableCategory } from "@/lib/adapters/llm/schemas/extraction-index";
@@ -25,6 +26,7 @@ import { deriveCaseBlockers } from "@/lib/cases/blockers";
 import { getRuleSettings } from "@/lib/rules/settings-repository";
 import { resolveAppealIndicatorForCase } from "@/lib/appeal-indicator/resolve-for-case";
 import { AppealIndicatorCard } from "./_components/AppealIndicatorCard";
+import { EnforcementVerificationCard } from "./_components/EnforcementVerificationCard";
 
 /** Documenti implementati in questa fase (SPEC.md §12), uno per categoria prioritaria. Le
  * altre categorie non mostrano alcun selettore: nulla è ancora implementato per loro. */
@@ -55,6 +57,14 @@ async function loadCase(id: string) {
       relationsAsSource: { include: { relatedCase: { select: { reference: true, title: true } } } },
       relationsAsTarget: { include: { case: { select: { reference: true, title: true } } } },
       appealDecision: { include: { decidedBy: { select: { name: true } } } },
+      enforcementDeviceCheck: {
+        include: {
+          fields: { include: { sourceMessage: { select: { subject: true } }, confirmedBy: { select: { name: true } } } },
+          documentChecks: { include: { attachment: { select: { fileName: true } } } },
+          registrySnapshot: { select: { fetchedAt: true, sourceUrl: true } },
+          confirmedBy: { select: { name: true } },
+        },
+      },
     },
   });
 }
@@ -90,6 +100,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     ),
   ];
 
+  const caseAttachments = caseRecord.messages.flatMap((m) => m.attachments.map((a) => ({ id: a.id, fileName: a.fileName })));
+
   const draftsChronological = [...caseRecord.emailDrafts].reverse();
   const draftNumberById = new Map(draftsChronological.map((d, i) => [d.id, i + 1]));
   const activeDraft = caseRecord.emailDrafts.find((d) => d.status === "PENDING_APPROVAL") ?? caseRecord.emailDrafts[0] ?? null;
@@ -116,6 +128,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   // duplicato. Presentazione soltanto, nessuna nuova logica di business rispetto a prima.
   // anomaly_reason è già un campo ordinario in "Dati estratti" (vedi CATEGORY_FIELD_ORDER), qui
   // serve solo a comporre il messaggio del blocker.
+  const enforcementDocumentTypeCount = Object.keys(ENFORCEMENT_DOCUMENT_TYPE_LABELS).length;
   const blockerReasons = deriveCaseBlockers({
     problematicCount,
     needsHumanReview: caseRecord.needsHumanReview,
@@ -124,6 +137,14 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     anomalyReason,
     securityFlagsCount: securityFlags.length,
     pendingRelationsCount: pendingRelations.length,
+    enforcement: caseRecord.enforcementDeviceCheck
+      ? {
+          applicability: caseRecord.enforcementDeviceCheck.applicability,
+          needsHumanReview: caseRecord.enforcementDeviceCheck.needsHumanReview,
+          missingDocumentCount:
+            enforcementDocumentTypeCount - caseRecord.enforcementDeviceCheck.documentChecks.filter((d) => d.status === "PRESENT").length,
+        }
+      : null,
   });
 
   const recommendedAction = deriveRecommendedAction({
@@ -166,6 +187,39 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             otherDeadlines={otherDeadlines}
             amountFormatted={formatCurrency(amount)}
           />
+
+          {caseRecord.category === "FINE_OR_PENALTY" && (
+            <EnforcementVerificationCard
+              caseId={caseRecord.id}
+              check={
+                caseRecord.enforcementDeviceCheck
+                  ? {
+                      applicability: caseRecord.enforcementDeviceCheck.applicability,
+                      state: caseRecord.enforcementDeviceCheck.state,
+                      needsHumanReview: caseRecord.enforcementDeviceCheck.needsHumanReview,
+                      needsLegalReview: caseRecord.enforcementDeviceCheck.needsLegalReview,
+                      registryMatch: caseRecord.enforcementDeviceCheck.registryMatch,
+                      registrySnapshot: caseRecord.enforcementDeviceCheck.registrySnapshot,
+                      confirmedByName: caseRecord.enforcementDeviceCheck.confirmedBy?.name ?? null,
+                      fields: caseRecord.enforcementDeviceCheck.fields,
+                      documentChecks: caseRecord.enforcementDeviceCheck.documentChecks.map((d) => ({
+                        documentType: d.documentType,
+                        status: d.status,
+                        note: d.note,
+                        attachmentId: d.attachmentId,
+                        attachmentFileName: d.attachment?.fileName ?? null,
+                      })),
+                    }
+                  : null
+              }
+              attachments={caseAttachments}
+              permissions={{
+                canConfirm: hasPermission(user.role, "enforcement:confirm"),
+                canRequestDocuments: hasPermission(user.role, "enforcement:request-documents"),
+                canLegalEscalate: hasPermission(user.role, "enforcement:legal-escalate"),
+              }}
+            />
+          )}
 
           {appealIndicatorResult && (
             <AppealIndicatorCard

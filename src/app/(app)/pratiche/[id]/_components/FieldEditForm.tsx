@@ -6,19 +6,32 @@ import { Pencil } from "lucide-react";
 import { buttonClassName } from "@/components/ui/Button";
 import { fieldControlClassName } from "@/components/ui/Field";
 
-export function FieldEditForm({ caseId, fieldKey, initialValue }: { caseId: string; fieldKey: string; initialValue: string }) {
+export function FieldEditForm({
+  caseId,
+  fieldKey,
+  initialValue,
+  endpointBase,
+}: {
+  caseId: string;
+  fieldKey: string;
+  initialValue: string;
+  /** Radice dell'endpoint da usare al posto del default `/api/cases/${caseId}/fields`, per
+   * riusare questo form anche su EnforcementDeviceField (Tappa 6). */
+  endpointBase?: string;
+}) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(initialValue);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const base = endpointBase ?? `/api/cases/${caseId}/fields`;
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     setPending(true);
     setError(null);
     try {
-      const res = await fetch(`/api/cases/${caseId}/fields/${fieldKey}`, {
+      const res = await fetch(`${base}/${fieldKey}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ value }),

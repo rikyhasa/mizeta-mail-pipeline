@@ -9,6 +9,7 @@ const BASE: CaseBlockerInput = {
   anomalyReason: null,
   securityFlagsCount: 0,
   pendingRelationsCount: 0,
+  enforcement: null,
 };
 
 describe("deriveCaseBlockers", () => {
@@ -64,7 +65,52 @@ describe("deriveCaseBlockers", () => {
       anomalyReason: "importo discordante",
       securityFlagsCount: 1,
       pendingRelationsCount: 1,
+      enforcement: null,
     });
     expect(blockers).toHaveLength(7);
+  });
+
+  it("returns no enforcement blocker when the module is not applicable (null)", () => {
+    expect(deriveCaseBlockers(BASE)).toEqual([]);
+  });
+
+  it("flags a device still to be identified", () => {
+    const blockers = deriveCaseBlockers({
+      ...BASE,
+      enforcement: { applicability: "TO_BE_IDENTIFIED", needsHumanReview: true, missingDocumentCount: 0 },
+    });
+    expect(blockers).toEqual([{ text: "Dispositivo di rilevamento da identificare", href: "#verifica-autovelox", kind: "enforcement_identify" }]);
+  });
+
+  it("flags device data still needing confirmation once identified", () => {
+    const blockers = deriveCaseBlockers({
+      ...BASE,
+      enforcement: { applicability: "SPEED_CAMERA_FIXED", needsHumanReview: true, missingDocumentCount: 0 },
+    });
+    expect(blockers).toEqual([{ text: "Dati del dispositivo da confermare", href: "#verifica-autovelox", kind: "enforcement_missing_fields" }]);
+  });
+
+  it("does not flag missing-fields once the device check has been confirmed", () => {
+    const blockers = deriveCaseBlockers({
+      ...BASE,
+      enforcement: { applicability: "SPEED_CAMERA_FIXED", needsHumanReview: false, missingDocumentCount: 0 },
+    });
+    expect(blockers).toEqual([]);
+  });
+
+  it("flags missing technical documents once the device is identified", () => {
+    const blockers = deriveCaseBlockers({
+      ...BASE,
+      enforcement: { applicability: "SPEED_CAMERA_FIXED", needsHumanReview: false, missingDocumentCount: 3 },
+    });
+    expect(blockers).toEqual([{ text: "3 documento/i tecnico/i mancante/i", href: "#verifica-autovelox", kind: "enforcement_missing_docs" }]);
+  });
+
+  it("does not flag missing documents while the device is still unidentified (identify blocker takes priority)", () => {
+    const blockers = deriveCaseBlockers({
+      ...BASE,
+      enforcement: { applicability: "TO_BE_IDENTIFIED", needsHumanReview: true, missingDocumentCount: 5 },
+    });
+    expect(blockers).toEqual([{ text: "Dispositivo di rilevamento da identificare", href: "#verifica-autovelox", kind: "enforcement_identify" }]);
   });
 });

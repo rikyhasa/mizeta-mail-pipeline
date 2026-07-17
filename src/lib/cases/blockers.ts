@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/db/prisma";
 import { classifyFieldTier } from "@/app/(app)/pratiche/[id]/_components/field-tiers";
+import { ENFORCEMENT_DOCUMENT_TYPE_LABELS } from "@/lib/i18n/labels";
+import type { EnforcementCheckApplicability } from "@/generated/prisma/enums";
+
+const ENFORCEMENT_DOCUMENT_TYPE_COUNT = Object.keys(ENFORCEMENT_DOCUMENT_TYPE_LABELS).length;
 
 /** Stesso valore già usato in ExtractedFieldCell.tsx (70%), non un nuovo numero inventato. */
 const LOW_CONFIDENCE_THRESHOLD = 0.7;
@@ -14,7 +18,10 @@ export type CaseBlockerKind =
   | "no_assignee"
   | "anomaly"
   | "security_flags"
-  | "pending_relations";
+  | "pending_relations"
+  | "enforcement_identify"
+  | "enforcement_missing_fields"
+  | "enforcement_missing_docs";
 
 export interface CaseBlockerReason {
   text: string;
@@ -30,6 +37,13 @@ export interface CaseBlockerInput {
   anomalyReason: string | null;
   securityFlagsCount: number;
   pendingRelationsCount: number;
+  /** null quando nessun EnforcementDeviceCheck esiste per questa pratica (modulo non applicabile
+   * o mai analizzato) — nessun blocker enforcement in quel caso (docs/SPEC-AUTOVELOX-DRAFT.md §8). */
+  enforcement: {
+    applicability: EnforcementCheckApplicability;
+    needsHumanReview: boolean;
+    missingDocumentCount: number;
+  } | null;
 }
 
 /**
@@ -73,6 +87,22 @@ export function deriveCaseBlockers(input: CaseBlockerInput): CaseBlockerReason[]
       kind: "pending_relations",
     });
   }
+  if (input.enforcement) {
+    if (input.enforcement.applicability === "TO_BE_IDENTIFIED") {
+      blockers.push({ text: "Dispositivo di rilevamento da identificare", href: "#verifica-autovelox", kind: "enforcement_identify" });
+    } else {
+      if (input.enforcement.needsHumanReview) {
+        blockers.push({ text: "Dati del dispositivo da confermare", href: "#verifica-autovelox", kind: "enforcement_missing_fields" });
+      }
+      if (input.enforcement.missingDocumentCount > 0) {
+        blockers.push({
+          text: `${input.enforcement.missingDocumentCount} documento/i tecnico/i mancante/i`,
+          href: "#verifica-autovelox",
+          kind: "enforcement_missing_docs",
+        });
+      }
+    }
+  }
   return blockers;
 }
 
@@ -92,6 +122,13 @@ export async function getCaseBlockers(caseId: string): Promise<CaseBlockerReason
       fields: { select: { fieldKey: true, value: true, needsHumanReview: true, confirmedBy: { select: { name: true } } } },
       messages: { select: { securityFlags: true } },
       relationsAsSource: { where: { status: "PENDING" }, select: { id: true } },
+      enforcementDeviceCheck: {
+        select: {
+          applicability: true,
+          needsHumanReview: true,
+          documentChecks: { select: { status: true } },
+        },
+      },
     },
   });
   if (!caseRecord) return [];
@@ -110,5 +147,13 @@ export async function getCaseBlockers(caseId: string): Promise<CaseBlockerReason
     anomalyReason,
     securityFlagsCount,
     pendingRelationsCount: caseRecord.relationsAsSource.length,
+    enforcement: caseRecord.enforcementDeviceCheck
+      ? {
+          applicability: caseRecord.enforcementDeviceCheck.applicability,
+          needsHumanReview: caseRecord.enforcementDeviceCheck.needsHumanReview,
+          missingDocumentCount:
+            ENFORCEMENT_DOCUMENT_TYPE_COUNT - caseRecord.enforcementDeviceCheck.documentChecks.filter((d) => d.status === "PRESENT").length,
+        }
+      : null,
   });
 }

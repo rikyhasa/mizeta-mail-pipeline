@@ -30,6 +30,7 @@ export function ExtractedFieldCell({
   field,
   tier,
   spanFull = false,
+  endpointBase,
 }: {
   caseId: string;
   fieldKey: string;
@@ -40,7 +41,11 @@ export function ExtractedFieldCell({
   /** Fa occupare al campo entrambe le colonne della griglia compatta (usato per l'ultimo
    * campo quando il totale è dispari, cosi la griglia non lascia mai una cella vuota). */
   spanFull?: boolean;
+  /** Radice dell'endpoint da usare al posto del default `/api/cases/${caseId}/fields`, per
+   * riusare questa cella anche su EnforcementDeviceField (Tappa 6). */
+  endpointBase?: string;
 }) {
+  const base = endpointBase ?? `/api/cases/${caseId}/fields`;
   const pct = field.confidence !== null ? Math.round(field.confidence * 100) : null;
   const showLowConfidence = tier === "middle" && !field.needsHumanReview && pct !== null && pct < 70;
 
@@ -69,7 +74,7 @@ export function ExtractedFieldCell({
           {!field.confirmedBy && (
             <ActionButton
               method="PATCH"
-              url={`/api/cases/${caseId}/fields/${fieldKey}`}
+              url={`${base}/${fieldKey}`}
               body={{}}
               variant={tier === "problematic" ? "secondary" : "tertiary"}
               size="sm"
@@ -80,7 +85,7 @@ export function ExtractedFieldCell({
         </div>
       </div>
       <div className="flex items-center gap-1">
-        <FieldEditForm caseId={caseId} fieldKey={fieldKey} initialValue={field.value ?? ""} />
+        <FieldEditForm caseId={caseId} fieldKey={fieldKey} initialValue={field.value ?? ""} endpointBase={endpointBase} />
         <FieldSourceInfo
           sourceType={field.sourceType}
           sourceMessageId={field.sourceMessageId}

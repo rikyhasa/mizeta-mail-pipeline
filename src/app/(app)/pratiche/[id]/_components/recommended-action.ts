@@ -19,6 +19,9 @@ const CTA_LABEL_BY_BLOCKER_KIND: Record<CaseBlockerKind, string> = {
   anomaly: "Controlla l'anomalia",
   security_flags: "Controlla le email",
   pending_relations: "Verifica i collegamenti",
+  enforcement_identify: "Identifica il dispositivo",
+  enforcement_missing_fields: "Conferma i dati del dispositivo",
+  enforcement_missing_docs: "Richiedi i documenti mancanti",
 };
 
 /** Pura, nessuna nuova logica di business: deriva un solo suggerimento dalla stessa lista di
