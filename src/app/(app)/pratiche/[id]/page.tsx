@@ -22,6 +22,9 @@ import { tierFields } from "./_components/field-tiers";
 import { deriveRecommendedAction } from "./_components/recommended-action";
 import type { RelationSummary } from "./_components/relation-types";
 import { deriveCaseBlockers } from "@/lib/cases/blockers";
+import { getRuleSettings } from "@/lib/rules/settings-repository";
+import { resolveAppealIndicatorForCase } from "@/lib/appeal-indicator/resolve-for-case";
+import { AppealIndicatorCard } from "./_components/AppealIndicatorCard";
 
 /** Documenti implementati in questa fase (SPEC.md §12), uno per categoria prioritaria. Le
  * altre categorie non mostrano alcun selettore: nulla è ancora implementato per loro. */
@@ -51,6 +54,7 @@ async function loadCase(id: string) {
       auditLogs: { include: { actor: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 30 },
       relationsAsSource: { include: { relatedCase: { select: { reference: true, title: true } } } },
       relationsAsTarget: { include: { case: { select: { reference: true, title: true } } } },
+      appealDecision: { include: { decidedBy: { select: { name: true } } } },
     },
   });
 }
@@ -130,6 +134,13 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const firstMessage = caseRecord.messages[0] ?? null;
   const lastMessage = caseRecord.messages[caseRecord.messages.length - 1] ?? null;
 
+  // Indicatore ricorso (docs/SPEC.md §10bis): solo per multe, calcolato a lettura — mai
+  // persistito (solo l'eventuale decisione dell'operatore lo è, in AppealDecision).
+  const appealIndicatorResult =
+    caseRecord.category === "FINE_OR_PENALTY"
+      ? resolveAppealIndicatorForCase(caseRecord.fields, await getRuleSettings(), new Date())
+      : null;
+
   return (
     <div className="flex flex-col gap-6">
       <DetailHeader
@@ -155,6 +166,23 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             otherDeadlines={otherDeadlines}
             amountFormatted={formatCurrency(amount)}
           />
+
+          {appealIndicatorResult && (
+            <AppealIndicatorCard
+              caseId={caseRecord.id}
+              result={appealIndicatorResult}
+              decision={
+                caseRecord.appealDecision
+                  ? {
+                      decision: caseRecord.appealDecision.decision,
+                      note: caseRecord.appealDecision.note,
+                      decidedByName: caseRecord.appealDecision.decidedBy?.name ?? null,
+                      decidedAt: caseRecord.appealDecision.decidedAt,
+                    }
+                  : null
+              }
+            />
+          )}
 
           <ExtractedFieldsSection
             caseId={caseRecord.id}

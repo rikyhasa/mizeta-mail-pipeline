@@ -1,4 +1,8 @@
 import type {
+  AppealDecisionKind,
+  AppealDocumentaryStrength,
+  AppealEconomicConvenience,
+  AppealIndication,
   AuditAction,
   CaseCategory,
   CasePriority,
@@ -148,4 +152,35 @@ export const GENERATED_DOCUMENT_TYPE_LABELS: Record<GeneratedDocumentType, strin
   DAILY_BRIEFING: "Briefing operativo giornaliero",
   OVERDUE_RECEIVABLES_REPORT: "Report crediti scaduti",
   SUPPLIER_INVOICES_REPORT: "Report fatture fornitori",
+};
+
+/** Indicatore ricorso (docs/SPEC.md §10bis) — linguaggio prudente vincolato, mai una
+ * probabilità di accoglimento (CLAUDE.md invariante 9). */
+export const APPEAL_DOCUMENTARY_STRENGTH_LABELS: Record<AppealDocumentaryStrength, string> = {
+  NONE: "Assenti",
+  WEAK: "Deboli",
+  RELEVANT: "Rilevanti",
+  STRONG: "Forti",
+};
+
+export const APPEAL_ECONOMIC_CONVENIENCE_LABELS: Record<AppealEconomicConvenience, string> = {
+  UNFAVORABLE: "Sfavorevole",
+  LIMITED: "Limitata",
+  FAVORABLE: "Favorevole",
+};
+
+export const APPEAL_INDICATION_LABELS: Record<AppealIndication, string> = {
+  CONSIDER_GDP_APPEAL: "Valutare ricorso al Giudice di Pace",
+  CONSIDER_PREFETTO_APPEAL: "Considerare ricorso al Prefetto",
+  RELEVANT_BUT_UNECONOMICAL: "Elementi presenti ma antieconomico",
+  NO_RELEVANT_ELEMENT: "Nessun elemento rilevante",
+  DEADLINES_EXPIRED: "Termini scaduti",
+  INSUFFICIENT_DATA: "Dati insufficienti",
+};
+
+export const APPEAL_DECISION_LABELS: Record<AppealDecisionKind, string> = {
+  NOT_DECIDED: "Da decidere",
+  GDP_FILED: "Ricorso Giudice di Pace avviato",
+  PREFETTO_FILED: "Ricorso Prefetto avviato",
+  NO_APPEAL: "Nessun ricorso",
 };
