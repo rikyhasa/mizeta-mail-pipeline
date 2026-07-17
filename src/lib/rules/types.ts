@@ -19,6 +19,19 @@ export interface RuleSettingsData {
   auditLogRetentionDays: number | null;
   /** Mittenti/cartelle esclusi dalla sincronizzazione (SPEC.md §14). Non ancora applicato: nessun adapter email reale in questa fase. */
   excludedSenderPatterns: string[];
+  /** Parametri dell'indicatore ricorso (SPEC.md §10bis). I due contributi unificato/marca da
+   * bollo sono fatti normativi tabellati per legge — appealCostParamsSource/VerifiedAt ne
+   * documentano fonte e ultima verifica manuale. Costo interno e valore punto sono stime di
+   * prodotto da tarare con l'uso reale. */
+  appealGdpUnifiedContributionLowValue: number;
+  appealGdpUnifiedContributionHighValue: number;
+  appealGdpUnifiedContributionThreshold: number;
+  appealGdpStampDutyAmount: number;
+  appealInternalHandlingCost: number;
+  appealLicensePointValueEquivalent: number;
+  appealFavorableMultiplier: number;
+  appealCostParamsSource: string | null;
+  appealCostParamsVerifiedAt: Date | null;
 }
 
 export interface RuleDeadline {

@@ -14,6 +14,10 @@ describe("rbac", () => {
     expect(hasPermission("ADMIN", "case:write")).toBe(true);
     expect(hasPermission("ADMIN", "user:manage")).toBe(true);
     expect(hasPermission("ADMIN", "settings:manage")).toBe(true);
+    expect(hasPermission("ADMIN", "enforcement:confirm")).toBe(true);
+    expect(hasPermission("ADMIN", "enforcement:request-documents")).toBe(true);
+    expect(hasPermission("ADMIN", "enforcement:legal-escalate")).toBe(true);
+    expect(hasPermission("ADMIN", "enforcement:manage-registry-sync")).toBe(true);
   });
 
   it("grants OPERATIONS, ACCOUNTING and COMMERCIAL read+write but not user/settings management", () => {
@@ -22,6 +26,22 @@ describe("rbac", () => {
       expect(hasPermission(role, "case:write")).toBe(true);
       expect(hasPermission(role, "user:manage")).toBe(false);
       expect(hasPermission(role, "settings:manage")).toBe(false);
+    }
+  });
+
+  it("grants OPERATIONS enforcement:confirm/request-documents but not legal-escalate/registry-sync (docs/SPEC.md §10bis)", () => {
+    expect(hasPermission("OPERATIONS", "enforcement:confirm")).toBe(true);
+    expect(hasPermission("OPERATIONS", "enforcement:request-documents")).toBe(true);
+    expect(hasPermission("OPERATIONS", "enforcement:legal-escalate")).toBe(false);
+    expect(hasPermission("OPERATIONS", "enforcement:manage-registry-sync")).toBe(false);
+  });
+
+  it("denies all enforcement permissions to ACCOUNTING, COMMERCIAL and READ_ONLY", () => {
+    for (const role of ["ACCOUNTING", "COMMERCIAL", "READ_ONLY"] as const) {
+      expect(hasPermission(role, "enforcement:confirm")).toBe(false);
+      expect(hasPermission(role, "enforcement:request-documents")).toBe(false);
+      expect(hasPermission(role, "enforcement:legal-escalate")).toBe(false);
+      expect(hasPermission(role, "enforcement:manage-registry-sync")).toBe(false);
     }
   });
 });

@@ -16,4 +16,13 @@ export const DEFAULT_RULE_SETTINGS: RuleSettingsData = {
   attachmentRetentionDays: null,
   auditLogRetentionDays: null,
   excludedSenderPatterns: [],
+  appealGdpUnifiedContributionLowValue: 43,
+  appealGdpUnifiedContributionHighValue: 98,
+  appealGdpUnifiedContributionThreshold: 1100,
+  appealGdpStampDutyAmount: 27,
+  appealInternalHandlingCost: 80,
+  appealLicensePointValueEquivalent: 50,
+  appealFavorableMultiplier: 2.0,
+  appealCostParamsSource: null,
+  appealCostParamsVerifiedAt: null,
 };

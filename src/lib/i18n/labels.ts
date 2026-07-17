@@ -74,6 +74,8 @@ export const DEADLINE_KIND_LABELS: Record<DeadlineKind, string> = {
   PAYMENT_DUE: "Scadenza pagamento",
   PAYMENT_REDUCED_DUE: "Scadenza pagamento ridotto",
   APPEAL_DUE: "Termine per il ricorso",
+  APPEAL_DUE_GDP: "Termine ricorso Giudice di Pace",
+  APPEAL_DUE_PREFETTO: "Termine ricorso Prefetto",
   PICKUP_DUE: "Data ritiro",
   DELIVERY_DUE: "Data consegna",
   OTHER: "Scadenza",
@@ -127,6 +129,12 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   DRAFT_APPROVED: "Bozza approvata",
   DRAFT_DISCARDED: "Bozza scartata",
   JOB_DEAD_LETTERED: "Job scartato (dead-letter)",
+  ENFORCEMENT_DEVICE_CONFIRMED: "Dato dispositivo confermato",
+  ENFORCEMENT_DOCUMENT_LINKED: "Documento tecnico collegato",
+  ENFORCEMENT_LEGAL_ESCALATED: "Segnalato per verifica legale",
+  SPEED_REGISTRY_SYNCED: "Registro MIT sincronizzato",
+  SPEED_REGISTRY_MANUAL_UPLOAD: "Registro MIT caricato manualmente",
+  APPEAL_DECISION_RECORDED: "Decisione ricorso registrata",
 };
 
 /** Gli 8 modelli di SPEC.md §12 — mancava una traduzione: DocumentsCard mostrava il valore

@@ -23,6 +23,15 @@ export const ruleSettingsInputSchema = z.object({
   attachmentRetentionDays: z.number().int().positive().nullable(),
   auditLogRetentionDays: z.number().int().positive().nullable(),
   excludedSenderPatterns: z.array(z.string()),
+  appealGdpUnifiedContributionLowValue: z.number().nonnegative(),
+  appealGdpUnifiedContributionHighValue: z.number().nonnegative(),
+  appealGdpUnifiedContributionThreshold: z.number().nonnegative(),
+  appealGdpStampDutyAmount: z.number().nonnegative(),
+  appealInternalHandlingCost: z.number().nonnegative(),
+  appealLicensePointValueEquivalent: z.number().nonnegative(),
+  appealFavorableMultiplier: z.number().positive(),
+  appealCostParamsSource: z.string().nullable(),
+  appealCostParamsVerifiedAt: z.coerce.date().nullable(),
 });
 
 interface RuleSettingsRow {
@@ -41,6 +50,19 @@ interface RuleSettingsRow {
   attachmentRetentionDays: number | null;
   auditLogRetentionDays: number | null;
   excludedSenderPatterns: string[];
+  appealGdpUnifiedContributionLowValue: { toNumber(): number } | number;
+  appealGdpUnifiedContributionHighValue: { toNumber(): number } | number;
+  appealGdpUnifiedContributionThreshold: { toNumber(): number } | number;
+  appealGdpStampDutyAmount: { toNumber(): number } | number;
+  appealInternalHandlingCost: { toNumber(): number } | number;
+  appealLicensePointValueEquivalent: { toNumber(): number } | number;
+  appealFavorableMultiplier: { toNumber(): number } | number;
+  appealCostParamsSource: string | null;
+  appealCostParamsVerifiedAt: Date | null;
+}
+
+function toNumber(value: { toNumber(): number } | number): number {
+  return typeof value === "number" ? value : value.toNumber();
 }
 
 function toData(row: RuleSettingsRow): RuleSettingsData {
@@ -59,6 +81,15 @@ function toData(row: RuleSettingsRow): RuleSettingsData {
     attachmentRetentionDays: row.attachmentRetentionDays,
     auditLogRetentionDays: row.auditLogRetentionDays,
     excludedSenderPatterns: row.excludedSenderPatterns,
+    appealGdpUnifiedContributionLowValue: toNumber(row.appealGdpUnifiedContributionLowValue),
+    appealGdpUnifiedContributionHighValue: toNumber(row.appealGdpUnifiedContributionHighValue),
+    appealGdpUnifiedContributionThreshold: toNumber(row.appealGdpUnifiedContributionThreshold),
+    appealGdpStampDutyAmount: toNumber(row.appealGdpStampDutyAmount),
+    appealInternalHandlingCost: toNumber(row.appealInternalHandlingCost),
+    appealLicensePointValueEquivalent: toNumber(row.appealLicensePointValueEquivalent),
+    appealFavorableMultiplier: toNumber(row.appealFavorableMultiplier),
+    appealCostParamsSource: row.appealCostParamsSource,
+    appealCostParamsVerifiedAt: row.appealCostParamsVerifiedAt,
   };
 }
 

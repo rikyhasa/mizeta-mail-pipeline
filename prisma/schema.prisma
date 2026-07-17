@@ -98,6 +98,8 @@ enum DeadlineKind {
   PAYMENT_DUE
   PAYMENT_REDUCED_DUE
   APPEAL_DUE
+  APPEAL_DUE_GDP
+  APPEAL_DUE_PREFETTO
   PICKUP_DUE
   DELIVERY_DUE
   OTHER
@@ -169,6 +171,12 @@ enum AuditAction {
   DRAFT_APPROVED
   DRAFT_DISCARDED
   JOB_DEAD_LETTERED
+  ENFORCEMENT_DEVICE_CONFIRMED
+  ENFORCEMENT_DOCUMENT_LINKED
+  ENFORCEMENT_LEGAL_ESCALATED
+  SPEED_REGISTRY_SYNCED
+  SPEED_REGISTRY_MANUAL_UPLOAD
+  APPEAL_DECISION_RECORDED
 }
 
 enum CaseRelationKind {
@@ -202,6 +210,85 @@ enum JobStatus {
   DEAD_LETTER
 }
 
+// ---------- Enforcement (autovelox verification) + appeal indicator — docs/SPEC.md §10bis ----------
+
+enum EnforcementCheckApplicability {
+  NOT_APPLICABLE
+  TO_BE_IDENTIFIED
+  SPEED_CAMERA_FIXED
+  SPEED_CAMERA_MOBILE
+  AVERAGE_SPEED_CONTROL
+  TELELASER
+  OTHER_SPEED_DEVICE
+}
+
+enum EnforcementVerificationState {
+  NOT_APPLICABLE
+  TO_BE_IDENTIFIED
+  IDENTIFIED
+  DOCUMENTATION_TO_ACQUIRE
+  DOCUMENTATION_INCOMPLETE
+  DATA_CONFLICT
+  TO_BE_VERIFIED
+  DOCUMENTED_VERIFICATION_COMPLETE
+  REQUIRES_LEGAL_REVIEW
+}
+
+enum EnforcementDocumentType {
+  APPROVAL_OR_HOMOLOGATION_DECREE
+  CALIBRATION_CERTIFICATE
+  FUNCTIONALITY_CERTIFICATE
+  TECHNICAL_MANUAL
+  OTHER
+}
+
+enum EnforcementDocumentStatus {
+  PRESENT
+  MISSING
+  REQUESTED
+}
+
+enum SpeedRegistryFetchMethod {
+  SCHEDULED_FETCH
+  MANUAL_UPLOAD
+}
+
+enum EnforcementRegistryMatchState {
+  MATCH
+  MISMATCH
+  NOT_FOUND
+  NOT_CONSULTED
+}
+
+enum AppealDocumentaryStrength {
+  NONE
+  WEAK
+  RELEVANT
+  STRONG
+}
+
+enum AppealEconomicConvenience {
+  UNFAVORABLE
+  LIMITED
+  FAVORABLE
+}
+
+enum AppealIndication {
+  CONSIDER_GDP_APPEAL
+  CONSIDER_PREFETTO_APPEAL
+  RELEVANT_BUT_UNECONOMICAL
+  NO_RELEVANT_ELEMENT
+  DEADLINES_EXPIRED
+  INSUFFICIENT_DATA
+}
+
+enum AppealDecisionKind {
+  NOT_DECIDED
+  GDP_FILED
+  PREFETTO_FILED
+  NO_APPEAL
+}
+
 // ---------- Auth ----------
 
 model User {
@@ -218,20 +305,24 @@ model User {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  sessions                  Session[]
-  assignedCases             Case[]              @relation("CaseAssignee")
-  assignedTasks             Task[]              @relation("TaskAssignee")
-  createdTasks              Task[]              @relation("TaskCreator")
-  comments                  Comment[]
-  auditLogs                 AuditLog[]
-  notifications             Notification[]
-  confirmedFields           CaseField[]         @relation("FieldConfirmedBy")
-  generatedDocuments        GeneratedDocument[]
-  createdMailboxConnections MailboxConnection[]
-  reviewedCaseRelations     CaseRelation[]      @relation("CaseRelationReviewedBy")
-  updatedRuleSettings       RuleSettings[]
-  generatedEmailDrafts      EmailDraft[]        @relation("EmailDraftGeneratedBy")
-  approvedEmailDrafts       EmailDraft[]        @relation("EmailDraftApprovedBy")
+  sessions                         Session[]
+  assignedCases                    Case[]                   @relation("CaseAssignee")
+  assignedTasks                    Task[]                   @relation("TaskAssignee")
+  createdTasks                     Task[]                   @relation("TaskCreator")
+  comments                         Comment[]
+  auditLogs                        AuditLog[]
+  notifications                    Notification[]
+  confirmedFields                  CaseField[]              @relation("FieldConfirmedBy")
+  generatedDocuments               GeneratedDocument[]
+  createdMailboxConnections        MailboxConnection[]
+  reviewedCaseRelations            CaseRelation[]           @relation("CaseRelationReviewedBy")
+  updatedRuleSettings              RuleSettings[]
+  generatedEmailDrafts             EmailDraft[]             @relation("EmailDraftGeneratedBy")
+  approvedEmailDrafts              EmailDraft[]             @relation("EmailDraftApprovedBy")
+  confirmedEnforcementDeviceChecks EnforcementDeviceCheck[]
+  confirmedEnforcementDeviceFields EnforcementDeviceField[]
+  uploadedSpeedRegistrySnapshots   SpeedRegistrySnapshot[]
+  decidedAppealDecisions           AppealDecision[]
 }
 
 model Session {
@@ -326,9 +417,10 @@ model EmailMessage {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  attachments        Attachment[]
-  classificationRuns ClassificationRun[]
-  sourcedFields      CaseField[]         @relation("FieldSourceMessage")
+  attachments              Attachment[]
+  classificationRuns       ClassificationRun[]
+  sourcedFields            CaseField[]              @relation("FieldSourceMessage")
+  sourcedEnforcementFields EnforcementDeviceField[]
 
   @@unique([mailboxConnectionId, providerMessageId])
   @@index([caseId])
@@ -347,7 +439,9 @@ model Attachment {
   isReadable     Boolean      @default(true)
   createdAt      DateTime     @default(now())
 
-  sourcedFields CaseField[] @relation("FieldSourceAttachment")
+  sourcedFields             CaseField[]                @relation("FieldSourceAttachment")
+  sourcedEnforcementFields  EnforcementDeviceField[]
+  enforcementDocumentChecks EnforcementDocumentCheck[]
 
   @@index([emailMessageId])
 }
@@ -382,22 +476,24 @@ model Case {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  messages           EmailMessage[]
-  fields             CaseField[]
-  deadlines          CaseDeadline[]
-  tasks              Task[]
-  comments           Comment[]
-  shipmentReferences ShipmentReference[]
-  invoiceReferences  InvoiceReference[]
-  classificationRuns ClassificationRun[]
-  extractionRuns     ExtractionRun[]
-  actionProposalRuns ActionProposalRun[]
-  notifications      Notification[]
-  generatedDocuments GeneratedDocument[]
-  auditLogs          AuditLog[]
-  relationsAsSource  CaseRelation[]      @relation("CaseRelationSource")
-  relationsAsTarget  CaseRelation[]      @relation("CaseRelationTarget")
-  emailDrafts        EmailDraft[]
+  messages               EmailMessage[]
+  fields                 CaseField[]
+  deadlines              CaseDeadline[]
+  tasks                  Task[]
+  comments               Comment[]
+  shipmentReferences     ShipmentReference[]
+  invoiceReferences      InvoiceReference[]
+  classificationRuns     ClassificationRun[]
+  extractionRuns         ExtractionRun[]
+  actionProposalRuns     ActionProposalRun[]
+  notifications          Notification[]
+  generatedDocuments     GeneratedDocument[]
+  auditLogs              AuditLog[]
+  relationsAsSource      CaseRelation[]          @relation("CaseRelationSource")
+  relationsAsTarget      CaseRelation[]          @relation("CaseRelationTarget")
+  emailDrafts            EmailDraft[]
+  enforcementDeviceCheck EnforcementDeviceCheck?
+  appealDecision         AppealDecision?
 
   @@index([status, priority])
   @@index([category])
@@ -605,6 +701,8 @@ model ExtractionRun {
   startedAt    DateTime?
   finishedAt   DateTime?
   createdAt    DateTime  @default(now())
+
+  enforcementDeviceChecks EnforcementDeviceCheck[]
 }
 
 model ActionProposalRun {
@@ -645,6 +743,120 @@ model CaseRelation {
   @@index([status])
 }
 
+// ---------- Enforcement (autovelox verification) + appeal indicator — docs/SPEC.md §10bis ----------
+
+model EnforcementDeviceCheck {
+  id               String                        @id @default(cuid())
+  caseId           String                        @unique
+  case             Case                          @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  applicability    EnforcementCheckApplicability
+  state            EnforcementVerificationState  @default(TO_BE_IDENTIFIED)
+  needsHumanReview Boolean                       @default(true)
+  needsLegalReview Boolean                       @default(false)
+
+  extractionRunId String?
+  extractionRun   ExtractionRun? @relation(fields: [extractionRunId], references: [id])
+
+  registrySnapshotId String?
+  registrySnapshot   SpeedRegistrySnapshot?         @relation(fields: [registrySnapshotId], references: [id])
+  registryMatch      EnforcementRegistryMatchState?
+
+  confirmedById String?
+  confirmedBy   User?     @relation(fields: [confirmedById], references: [id])
+  confirmedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  fields         EnforcementDeviceField[]
+  documentChecks EnforcementDocumentCheck[]
+}
+
+model EnforcementDeviceField {
+  id      String                 @id @default(cuid())
+  checkId String
+  check   EnforcementDeviceCheck @relation(fields: [checkId], references: [id], onDelete: Cascade)
+
+  fieldKey        String
+  value           String?
+  normalizedValue String?
+  confidence      Float?
+
+  sourceType         FieldSourceType?
+  sourceMessageId    String?
+  sourceMessage      EmailMessage?    @relation(fields: [sourceMessageId], references: [id])
+  sourceAttachmentId String?
+  sourceAttachment   Attachment?      @relation(fields: [sourceAttachmentId], references: [id])
+  sourcePage         Int?
+  sourceExcerpt      String?
+
+  needsHumanReview Boolean   @default(false)
+  confirmedById    String?
+  confirmedBy      User?     @relation(fields: [confirmedById], references: [id])
+  confirmedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([checkId, fieldKey])
+}
+
+model EnforcementDocumentCheck {
+  id      String                 @id @default(cuid())
+  checkId String
+  check   EnforcementDeviceCheck @relation(fields: [checkId], references: [id], onDelete: Cascade)
+
+  documentType EnforcementDocumentType
+  status       EnforcementDocumentStatus @default(MISSING)
+  attachmentId String?
+  attachment   Attachment?               @relation(fields: [attachmentId], references: [id])
+  note         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([checkId, documentType])
+}
+
+model SpeedRegistrySnapshot {
+  id          String                   @id @default(cuid())
+  sourceUrl   String
+  fetchMethod SpeedRegistryFetchMethod @default(SCHEDULED_FETCH)
+
+  uploadedById String?
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id])
+
+  fetchedAt     DateTime @default(now())
+  payloadHash   String
+  deviceCount   Int
+  rawStorageKey String
+
+  diffFromPreviousId String?
+  diffFromPrevious   SpeedRegistrySnapshot?  @relation("SnapshotDiff", fields: [diffFromPreviousId], references: [id])
+  diffSummary        Json?
+  previousDiffs      SpeedRegistrySnapshot[] @relation("SnapshotDiff")
+
+  createdAt DateTime @default(now())
+
+  deviceChecks EnforcementDeviceCheck[]
+}
+
+model AppealDecision {
+  id     String @id @default(cuid())
+  caseId String @unique
+  case   Case   @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  decision AppealDecisionKind @default(NOT_DECIDED)
+  note     String?
+
+  decidedById String?
+  decidedBy   User?     @relation(fields: [decidedById], references: [id])
+  decidedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 model RuleSettings {
   id                                           String         @id @default(cuid())
   key                                          String         @unique @default("default")
@@ -662,10 +874,26 @@ model RuleSettings {
   attachmentRetentionDays                      Int?
   auditLogRetentionDays                        Int?
   excludedSenderPatterns                       String[]
-  updatedById                                  String?
-  updatedBy                                    User?          @relation(fields: [updatedById], references: [id])
-  updatedAt                                    DateTime       @updatedAt
-  createdAt                                    DateTime       @default(now())
+
+  // Indicatore ricorso (docs/SPEC.md §10bis) — appealGdpUnifiedContribution* e
+  // appealGdpStampDutyAmount sono fatti normativi (tabellati per legge), non scelte di
+  // prodotto: appealCostParamsSource/appealCostParamsVerifiedAt ne documentano la fonte e
+  // l'ultima verifica manuale. appealInternalHandlingCost e
+  // appealLicensePointValueEquivalent sono stime di prodotto, da tarare con l'uso reale.
+  appealGdpUnifiedContributionLowValue  Decimal   @default(43) @db.Decimal(8, 2)
+  appealGdpUnifiedContributionHighValue Decimal   @default(98) @db.Decimal(8, 2)
+  appealGdpUnifiedContributionThreshold Decimal   @default(1100) @db.Decimal(10, 2)
+  appealGdpStampDutyAmount              Decimal   @default(27) @db.Decimal(8, 2)
+  appealInternalHandlingCost            Decimal   @default(80) @db.Decimal(8, 2)
+  appealLicensePointValueEquivalent     Decimal   @default(50) @db.Decimal(8, 2)
+  appealFavorableMultiplier             Decimal   @default(2.0) @db.Decimal(4, 2)
+  appealCostParamsSource                String?
+  appealCostParamsVerifiedAt            DateTime?
+
+  updatedById String?
+  updatedBy   User?    @relation(fields: [updatedById], references: [id])
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
 }
 
 model EmailDraft {
