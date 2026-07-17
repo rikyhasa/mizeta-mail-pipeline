@@ -108,4 +108,31 @@ describe("extractHeuristically — FINE_OR_PENALTY", () => {
     expect(result.reduced_amount.value).toBeCloseTo(121, 1);
     expect(result.reduced_payment_due_at.value).toContain("2026-07-17");
   });
+
+  it("estrae la data di notifica e i punti decurtati quando esplicitamente presenti nel testo (EML-050)", () => {
+    const result = extractHeuristically(
+      "FINE_OR_PENALTY",
+      messages({
+        subject: "Verbale di accertamento n. VR-2026-445876",
+        bodyText:
+          "Si notifica il verbale di accertamento n. VR-2026-445876, notificato in data 08/07/2026, per " +
+          "violazione art. 142 C.d.S. Importo ordinario: 173,00 EUR. Punti decurtati: 6. " +
+          "Termine per il ricorso al Prefetto: 60 giorni.",
+      }),
+    );
+    expect(result.notification_date.value).toContain("2026-07-08");
+    expect(result.points.value).toBe(6);
+  });
+
+  it("non inventa mai una data di notifica dalla generica 'Si notifica il verbale...' senza una data esplicita", () => {
+    const result = extractHeuristically(
+      "FINE_OR_PENALTY",
+      messages({
+        subject: "Verbale di accertamento n. TO-2026-556012",
+        bodyText: "Si notifica il verbale n. TO-2026-556012 per violazione art. 142 C.d.S. Importo ordinario: 195,00 EUR.",
+      }),
+    );
+    expect(result.notification_date.value).toBeNull();
+    expect(result.points.value).toBeNull();
+  });
 });

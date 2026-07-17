@@ -1124,4 +1124,166 @@ export const SEED_EMAILS: SeedEmailFixture[] = [
       "EML-037/038/039 (non è una domanda diretta né un saluto di cortesia esplicito) — verifica " +
       "generalizzazione, non memorizzazione dei few-shot",
   },
+
+  // --- Scenari modulo autovelox (EML-045..EML-050, FASE E Tappa 7): coprono i rami principali
+  // dell'euristica di analyzeEnforcementDeviceHeuristically (docs/SPEC-AUTOVELOX-DRAFT.md §4, §6)
+  // — dispositivo fisso con dati tecnici completi, mobile con dati parziali, tutor senza alcun
+  // dettaglio tecnico, telelaser, violazione di velocità senza dispositivo nominato
+  // (TO_BE_IDENTIFIED), e un caso ricco per la dimostrazione integrata con l'indicatore ricorso.
+  {
+    id: "EML-045",
+    mailbox: "pec",
+    threadKey: "thread-045",
+    caseKey: "case-045",
+    internetMessageId: "<045@pec.comune.bologna.it>",
+    direction: "INBOUND",
+    from: { name: "Comune di Bologna - Polizia Locale", address: "sanzioni@pec.comune.bologna.it" },
+    to: ["pec@mizeta.legalmail.it"],
+    subject: "Verbale di accertamento n. BO-2026-220145",
+    bodyText:
+      "Si notifica il verbale di accertamento n. BO-2026-220145 per violazione art. 142 C.d.S. (superamento dei " +
+      "limiti di velocità), rilevata tramite autovelox fisso Gatso, matricola n. AV-2021-3312, installato sulla " +
+      "Tangenziale di Bologna km 5. Decreto di approvazione numero 88214/2021 del 12/04/2021. Veicolo targato " +
+      "AB123CD, conducente Mario Bianchi. Importo ordinario: 220,00 EUR. Importo ridotto (pagamento entro 5 " +
+      "giorni dalla notifica): 154,00 EUR. Termine per il ricorso: 60 giorni.",
+    receivedAt: "2026-07-10T09:00:00+02:00",
+    isPec: true,
+    pecMessageType: "MESSAGE",
+    category: "FINE_OR_PENALTY",
+    priority: "HIGH",
+    hardCase: "autovelox fisso con dati tecnici completi (produttore, matricola, decreto) — scenario ricco per il pannello di verifica",
+    attachments: [
+      {
+        id: "EML-045-ATT-1",
+        fileName: "verbale-BO-2026-220145.pdf",
+        mimeType: "application/pdf",
+        isReadable: true,
+        contentPreviewText:
+          "VERBALE BO-2026-220145 - Targa AB123CD - Art. 142 CdS - Autovelox Gatso matricola AV-2021-3312 - Importo ordinario 220.00 EUR - Importo ridotto 154.00 EUR",
+        sizeBytes: 58000,
+      },
+    ],
+  },
+  {
+    id: "EML-046",
+    mailbox: "pec",
+    threadKey: "thread-046",
+    caseKey: "case-046",
+    internetMessageId: "<046@pec.comune.torino.it>",
+    direction: "INBOUND",
+    from: { name: "Comune di Torino - Polizia Municipale", address: "contravvenzioni@pec.comune.torino.it" },
+    to: ["pec@mizeta.legalmail.it"],
+    subject: "Verbale di accertamento n. TO-2026-556012",
+    bodyText:
+      "Si notifica il verbale n. TO-2026-556012 per violazione art. 142 C.d.S., rilevata tramite autovelox mobile " +
+      "installato su pattuglia in postazione mobile lungo la SS24. Veicolo targato EF456GH, conducente Luca Verdi. " +
+      "Importo ordinario: 195,00 EUR. Importo ridotto: 136,50 EUR entro 5 giorni. Data infrazione: 05/07/2026.",
+    receivedAt: "2026-07-11T14:30:00+02:00",
+    isPec: true,
+    pecMessageType: "MESSAGE",
+    category: "FINE_OR_PENALTY",
+    priority: "NORMAL",
+    hardCase: "autovelox mobile senza produttore/matricola/decreto nel testo — nessun dato tecnico inventato, tutti i campi restano vuoti",
+  },
+  {
+    id: "EML-047",
+    mailbox: "pec",
+    threadKey: "thread-047",
+    caseKey: "case-047",
+    internetMessageId: "<047@pec.comune.firenze.it>",
+    direction: "INBOUND",
+    from: { name: "Comune di Firenze - Polizia Municipale", address: "sanzioni@pec.comune.firenze.it" },
+    to: ["pec@mizeta.legalmail.it"],
+    subject: "Verbale di accertamento n. FI-2026-778901",
+    bodyText:
+      "Si notifica il verbale n. FI-2026-778901 per violazione art. 142 C.d.S., rilevata dal sistema Tutor di " +
+      "controllo della velocità media sul tratto autostradale A1 km 265-280. Importo ordinario: 175,00 EUR. " +
+      "Importo ridotto: 122,50 EUR entro 5 giorni.",
+    receivedAt: "2026-07-09T08:15:00+02:00",
+    isPec: true,
+    pecMessageType: "MESSAGE",
+    category: "FINE_OR_PENALTY",
+    priority: "NORMAL",
+    hardCase: "controllo velocità media (Tutor) senza alcun dato tecnico — solo applicabilità, tutti gli altri campi vuoti",
+  },
+  {
+    id: "EML-048",
+    mailbox: "pec",
+    threadKey: "thread-048",
+    caseKey: "case-048",
+    internetMessageId: "<048@pec.comune.napoli.it>",
+    direction: "INBOUND",
+    from: { name: "Comune di Napoli - Polizia Locale", address: "contravvenzioni@pec.comune.napoli.it" },
+    to: ["pec@mizeta.legalmail.it"],
+    subject: "Verbale di accertamento n. NA-2026-334190",
+    bodyText:
+      "Si notifica il verbale n. NA-2026-334190 per violazione art. 142 C.d.S., accertata con telelaser in " +
+      "dotazione alla pattuglia sulla Tangenziale di Napoli. Importo ordinario: 165,00 EUR. Importo ridotto: " +
+      "115,50 EUR entro 5 giorni.",
+    receivedAt: "2026-07-13T16:45:00+02:00",
+    isPec: true,
+    pecMessageType: "MESSAGE",
+    category: "FINE_OR_PENALTY",
+    priority: "NORMAL",
+    hardCase: "telelaser, ramo dell'euristica non ancora coperto da altri scenari seed",
+  },
+  {
+    id: "EML-049",
+    mailbox: "pec",
+    threadKey: "thread-049",
+    caseKey: "case-049",
+    internetMessageId: "<049@pec.comune.genova.it>",
+    direction: "INBOUND",
+    from: { name: "Comune di Genova - Polizia Locale", address: "sanzioni@pec.comune.genova.it" },
+    to: ["pec@mizeta.legalmail.it"],
+    subject: "Verbale di accertamento n. GE-2026-991002",
+    bodyText:
+      "Si notifica il verbale n. GE-2026-991002 per superamento dei limiti di velocità (art. 142 C.d.S.). " +
+      "Importo ordinario: 150,00 EUR. Importo ridotto: 105,00 EUR entro 5 giorni.",
+    receivedAt: "2026-07-14T10:00:00+02:00",
+    isPec: true,
+    pecMessageType: "MESSAGE",
+    category: "FINE_OR_PENALTY",
+    priority: "NORMAL",
+    hardCase:
+      "violazione di velocità senza alcun dispositivo nominato: applicabilità ricade su TO_BE_IDENTIFIED, " +
+      "esercita dal vivo il blocker \"Identifica il dispositivo\" e l'azione di correzione manuale",
+  },
+  {
+    id: "EML-050",
+    mailbox: "pec",
+    threadKey: "thread-050",
+    caseKey: "case-050",
+    internetMessageId: "<050@pec.comune.verona.it>",
+    direction: "INBOUND",
+    from: { name: "Comune di Verona - Polizia Locale", address: "sanzioni@pec.comune.verona.it" },
+    to: ["pec@mizeta.legalmail.it"],
+    subject: "Verbale di accertamento n. VR-2026-445876",
+    bodyText:
+      "Si notifica il verbale di accertamento n. VR-2026-445876, notificato in data 08/07/2026, per violazione " +
+      "art. 142 C.d.S., rilevata tramite autovelox fisso Sicve, matricola n. AV-2019-0821, installato sulla A22 " +
+      "km 158. Decreto di approvazione numero 40218/2019 del 22/02/2019. Veicolo targato AB123CD, conducente " +
+      "Mario Bianchi. Importo ordinario: 173,00 EUR. Importo ridotto: 121,00 EUR entro 5 giorni. Punti decurtati: 6. " +
+      "Termine per il ricorso al Prefetto: 60 giorni. Termine per il ricorso al Giudice di Pace: 30 giorni.",
+    receivedAt: "2026-07-09T11:20:00+02:00",
+    isPec: true,
+    pecMessageType: "MESSAGE",
+    category: "FINE_OR_PENALTY",
+    priority: "HIGH",
+    hardCase:
+      "scenario integrato completo (dispositivo identificato + notification_date + punti) per la " +
+      "dimostrazione end-to-end del pannello autovelox insieme all'indicatore ricorso — autista professionale " +
+      "confermato manualmente in seed-enrich.ts, mai dedotto dal modello (CLAUDE.md invariante 6)",
+    attachments: [
+      {
+        id: "EML-050-ATT-1",
+        fileName: "verbale-VR-2026-445876.pdf",
+        mimeType: "application/pdf",
+        isReadable: true,
+        contentPreviewText:
+          "VERBALE VR-2026-445876 - Targa AB123CD - Art. 142 CdS - Autovelox Sicve matricola AV-2019-0821 - Punti 6 - Importo ordinario 173.00 EUR - Importo ridotto 121.00 EUR",
+        sizeBytes: 59500,
+      },
+    ],
+  },
 ];

@@ -92,7 +92,7 @@ const DATE_FIELDS_BY_CATEGORY: Record<ExtractableCategory, string[]> = {
   TRANSPORT_ORDER: ["pickup_datetime", "delivery_datetime"],
   SUPPLIER_INVOICE: ["invoice_date", "due_date"],
   CUSTOMER_RECEIVABLE: ["invoice_date", "due_date", "payment_promise_date"],
-  FINE_OR_PENALTY: ["violation_datetime", "reduced_payment_due_at", "ordinary_payment_due_at", "appeal_due_at"],
+  FINE_OR_PENALTY: ["violation_datetime", "reduced_payment_due_at", "ordinary_payment_due_at", "appeal_due_at", "notification_date"],
   CLAIM_OR_DAMAGE: ["event_date", "response_due_at"],
 };
 

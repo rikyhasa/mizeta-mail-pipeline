@@ -11,10 +11,17 @@ import {
 } from "../src/lib/pipeline/process-incoming-message";
 import { persistExtraction } from "../src/lib/pipeline/persist-extraction";
 import { persistActions } from "../src/lib/pipeline/persist-actions";
+import { persistEnforcementDeviceAnalysis } from "../src/lib/pipeline/persist-enforcement-device-analysis";
 import { createDraftForCase } from "../src/lib/pipeline/create-draft-for-case";
 import type { LLMProvider } from "../src/lib/adapters/llm/types";
 import type { RuleBaseline, RuleContext, RuleSettingsData } from "../src/lib/rules/types";
 import type { ExtractionOutcome } from "../src/lib/pipeline/types";
+
+/** Verbale con dati completi (EML-050, case-050) scelto per dimostrare il ciclo integrato
+ * pannello autovelox + indicatore ricorso. `driver_professional_cqc` NON può mai essere dedotto
+ * dal modello (CLAUDE.md invariante 6): qui è confermato manualmente, esattamente come farebbe
+ * un operatore dalle Impostazioni/anagrafica autisti — mai generato dalla pipeline AI. */
+const CQC_CONFIRMED_CASE_KEY = "case-050";
 
 /** Coppia fattura duplicata già usata da tests/integration/seed-integrity.test.ts (EML-009/EML-010). */
 const KNOWN_DUPLICATE_PAIR = { firstCaseKey: "case-009", duplicateCaseKey: "case-010" };
@@ -107,6 +114,23 @@ async function enrichCase(caseId: string, llmProvider: LLMProvider, settings: Ru
     await persistExtraction(tx, llmProvider.providerName, caseId, { extraction, deadlines, now });
   });
 
+  // Analisi dispositivo autovelox (docs/SPEC-AUTOVELOX-DRAFT.md §4, §6, FASE E Tappa 4): stesso
+  // passaggio non critico (soft-fail) dell'orchestratore reale (process-incoming-message.ts) —
+  // solo per FINE_OR_PENALTY con estrazione riuscita. Il seed "ingenuo" pre-Tappa-4 non lo
+  // eseguiva mai: senza questo passaggio nessuna pratica dimostrativa avrebbe mai un
+  // EnforcementDeviceCheck popolato.
+  let enforcementDeviceAnalysis: Awaited<ReturnType<LLMProvider["analyzeEnforcementDevice"]>> | null = null;
+  if (category === "FINE_OR_PENALTY" && extraction) {
+    try {
+      enforcementDeviceAnalysis = await llmProvider.analyzeEnforcementDevice({ caseId, messages });
+    } catch {
+      enforcementDeviceAnalysis = null;
+    }
+  }
+  await prisma.$transaction(async (tx) => {
+    await persistEnforcementDeviceAnalysis(tx, llmProvider.providerName, caseId, { enforcementDeviceAnalysis, now });
+  });
+
   const hasUnreadableAttachment = messages.some((m) => m.attachments.some((a) => !a.isReadable));
   const pendingDuplicate = await prisma.caseRelation.findFirst({ where: { caseId, kind: "DUPLICATE_CANDIDATE", status: "PENDING" } });
   const amountMismatchDetected = category === "SUPPLIER_INVOICE" ? detectAmountMismatch(messages, settings.amountMismatchTolerancePercent) : false;
@@ -188,6 +212,32 @@ async function enrichCase(caseId: string, llmProvider: LLMProvider, settings: Ru
  * CaseDeadline, i vari *Run e le bozze — SENZA mai ridecidere categoria o matching, che
  * restano quelli già fissati dai fixture in prisma/seed-data/emails.ts.
  */
+/** Simula la conferma di un operatore sull'anagrafica autista (docs/SPEC.md §10bis): mai
+ * scrivibile dalla pipeline AI (`driver_professional_cqc` non fa parte di alcuno schema di
+ * estrazione), qui creata direttamente come farebbe in futuro un endpoint dedicato — lo stesso
+ * gap di UI già segnalato in Tappa 3 (nessun percorso client per crearla oggi). */
+async function confirmDriverProfessionalCqcForDemo(caseMap: Map<string, string>): Promise<void> {
+  const caseId = caseMap.get(CQC_CONFIRMED_CASE_KEY);
+  if (!caseId) return;
+
+  const admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
+  if (!admin) return;
+
+  await prisma.caseField.upsert({
+    where: { caseId_fieldKey: { caseId, fieldKey: "driver_professional_cqc" } },
+    create: {
+      caseId,
+      fieldKey: "driver_professional_cqc",
+      value: "true",
+      sourceType: "MANUAL",
+      needsHumanReview: false,
+      confirmedById: admin.id,
+      confirmedAt: new Date(),
+    },
+    update: { value: "true", needsHumanReview: false, confirmedById: admin.id, confirmedAt: new Date() },
+  });
+}
+
 export async function enrichCasesWithPipelineArtifacts(caseMap: Map<string, string>): Promise<void> {
   const llmProvider = getCachedLLMProvider();
   const settings = await getRuleSettings();
@@ -199,5 +249,8 @@ export async function enrichCasesWithPipelineArtifacts(caseMap: Map<string, stri
     await enrichCase(caseId, llmProvider, settings);
     done += 1;
   }
+
+  await confirmDriverProfessionalCqcForDemo(caseMap);
+
   console.log(`Arricchimento pipeline completato per ${done} pratiche (campi, scadenze, regole, bozze).`);
 }

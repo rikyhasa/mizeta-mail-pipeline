@@ -362,6 +362,10 @@ function extractFinePenalty(segments: Segment[]): FinePenaltyExtraction {
   const reducedDue = findDateNear(segments, ["termine per il pagamento in misura ridotta", "scadenza ridotto", "entro il"]);
   const appealDue = findDateNear(segments, ["ricorso"]);
   const violationDate = findDateNear(segments, ["elevato in data", "data infrazione", "infrazione"]);
+  // "notificato" (participio) evita il match precoce sul generico "Si notifica il verbale..."
+  // a inizio testo, che spesso non ha alcuna data nella finestra successiva (docs/SPEC.md §10bis).
+  const notificationDate = findDateNear(segments, ["notificato"]);
+  const points = findAmountNear(segments, ["punti decurtati", "punti:"]);
 
   return {
     issuing_authority: emptyField(),
@@ -376,7 +380,8 @@ function extractFinePenalty(segments: Segment[]): FinePenaltyExtraction {
     reduced_payment_due_at: fieldFrom(reducedDue),
     ordinary_payment_due_at: emptyField(),
     appeal_due_at: fieldFrom(appealDue),
-    points: emptyField(),
+    notification_date: fieldFrom(notificationDate),
+    points: fieldFrom(points),
     missing_documents: { ...emptyField(), value: [], needs_human_review: false },
     received_channel: emptyField(),
   };

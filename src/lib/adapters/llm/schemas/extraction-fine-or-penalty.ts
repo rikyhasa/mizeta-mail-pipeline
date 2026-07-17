@@ -17,6 +17,9 @@ export const finePenaltyExtractionSchema = z.object({
   reduced_payment_due_at: extractedStringField,
   ordinary_payment_due_at: extractedStringField,
   appeal_due_at: extractedStringField,
+  /** Data di notifica del verbale (docs/SPEC.md §10bis, indicatore ricorso): base dei termini
+   * calcolati GdP/Prefetto in src/lib/appeal-indicator/deadlines.ts — mai la data di infrazione. */
+  notification_date: extractedStringField,
   points: extractedNumberField,
   missing_documents: extractedField(z.array(z.string())),
   received_channel: extractedField(z.enum(RECEIVED_CHANNEL_VALUES)),
@@ -41,6 +44,7 @@ export const finePenaltyExtractionSchemaPart1 = finePenaltyExtractionSchema.pick
   reduced_payment_due_at: true,
   ordinary_payment_due_at: true,
   appeal_due_at: true,
+  notification_date: true,
 });
 
 export const finePenaltyExtractionSchemaPart2 = finePenaltyExtractionSchema.pick({
