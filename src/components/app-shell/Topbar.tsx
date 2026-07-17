@@ -1,13 +1,12 @@
-import { Menu, Search } from "lucide-react";
+import { Menu } from "lucide-react";
 import type { ProviderStatusSummary } from "@/lib/observability/provider-status";
 import { ProviderStatusPill } from "@/components/ProviderStatusPill";
+import { GlobalSearch } from "./GlobalSearch";
 
 /**
- * Topbar client-only per il drawer mobile (`onOpenDrawer`); ricerca globale come
- * form GET reale verso `/pratiche` (riusa il campo `q` già esistente in
- * `getFilteredCases`, nessun risultato simulato). Il campo non è precompilato
- * col valore corrente (evita di richiedere `useSearchParams`/Suspense in un
- * componente montato su ogni pagina — vedi docs/UI-PORTING-PLAN.md).
+ * Topbar client-only per il drawer mobile (`onOpenDrawer`); ricerca globale in dropdown
+ * (`GlobalSearch.tsx`, FASE 3 rifinitura finale) reale verso `/api/cases/search`, che riusa
+ * `getFilteredCases` — nessun risultato simulato.
  */
 export function Topbar({
   providerStatus,
@@ -17,7 +16,7 @@ export function Topbar({
   onOpenDrawer: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-20 flex h-[68px] items-center gap-3 border-b border-[var(--color-border)] bg-white px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-20 flex h-[68px] items-center gap-3 border-b border-[var(--color-border)] bg-white px-4 sm:px-6 print:hidden lg:px-8">
       <button
         type="button"
         onClick={onOpenDrawer}
@@ -28,21 +27,7 @@ export function Topbar({
       </button>
       <span className="text-sm font-semibold text-[var(--color-anthracite)] lg:hidden">Mizeta Mail Pipeline</span>
 
-      <form method="GET" action="/pratiche" className="hidden min-w-0 max-w-[420px] flex-1 lg:block">
-        <label className="relative block">
-          <span className="sr-only">Cerca pratiche</span>
-          <Search
-            className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-muted)]"
-            aria-hidden="true"
-          />
-          <input
-            type="search"
-            name="q"
-            placeholder="Cerca pratica, cliente, fornitore..."
-            className="h-9 w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-muted)] pr-3 pl-9 text-sm text-[var(--color-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)]"
-          />
-        </label>
-      </form>
+      <GlobalSearch />
 
       <div className="ml-auto flex items-center gap-3">
         <ProviderStatusPill status={providerStatus} />

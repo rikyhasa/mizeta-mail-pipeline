@@ -3,6 +3,7 @@ import type { ClassificationResult } from "@/lib/adapters/llm/schemas";
 import type { ClassificationInput } from "@/lib/adapters/llm/types";
 import { detectSecurityFlags } from "./security-flags";
 import { findDatesIt, findInvoiceNumber, findOrderNumber, findFineNoticeNumber } from "@/lib/text/patterns";
+import { truncateAtWordBoundary } from "@/lib/format";
 
 interface CategoryKeywords {
   it: string[];
@@ -210,7 +211,7 @@ export function classifyHeuristically(input: ClassificationInput, threshold: num
     primary_category: primaryCategory,
     secondary_categories: secondaryCategories,
     short_title: input.emailSubject.slice(0, 120) || "(nessun oggetto)",
-    summary: input.emailBody.trim().slice(0, 240) || "(nessun contenuto)",
+    summary: truncateAtWordBoundary(input.emailBody.trim(), 240) || "(nessun contenuto)",
     action_required: primaryCategory !== "OTHER",
     suggested_actions: SUGGESTED_ACTIONS_BY_CATEGORY[primaryCategory],
     priority,

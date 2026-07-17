@@ -50,21 +50,30 @@ function mapMessageToListItem(m: MessageWithListRelations): IncomingMessageListI
 
 /**
  * "Posta acquisita": messaggi realmente acquisiti (`EmailMessage`, direzione INBOUND),
- * più recenti prima. Nessun filtro nella reference (tabella statica su 26 email mock) — qui
- * solo paginazione, necessaria perché il volume reale cresce nel tempo a differenza del seed
- * fisso della reference.
+ * più recenti prima. La reference non ha filtri (tabella statica su 26 email mock) — qui,
+ * oltre alla paginazione (necessaria perché il volume reale cresce nel tempo), un filtro per
+ * categoria (FASE 3, rifinitura finale): riusa `Case.category`, lo stesso dato già mostrato
+ * nella colonna "Categoria" della tabella, nessuna nuova query di dominio.
  */
-export async function getIncomingMessages(page = 1): Promise<{ items: IncomingMessageListItem[]; total: number; confidenceThreshold: number }> {
+export async function getIncomingMessages(
+  page = 1,
+  category?: CaseCategory,
+): Promise<{ items: IncomingMessageListItem[]; total: number; confidenceThreshold: number }> {
+  const where: Prisma.EmailMessageWhereInput = {
+    direction: "INBOUND",
+    ...(category ? { case: { category } } : {}),
+  };
+
   const [settings, messages, total] = await Promise.all([
     getRuleSettings(),
     prisma.emailMessage.findMany({
-      where: { direction: "INBOUND" },
+      where,
       include: MESSAGE_LIST_INCLUDE,
       orderBy: { receivedAt: "desc" },
       skip: (Math.max(1, page) - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
     }),
-    prisma.emailMessage.count({ where: { direction: "INBOUND" } }),
+    prisma.emailMessage.count({ where }),
   ]);
 
   return {

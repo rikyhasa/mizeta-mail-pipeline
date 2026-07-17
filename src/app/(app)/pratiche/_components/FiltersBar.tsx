@@ -1,8 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, type ChangeEvent, type FormEvent } from "react";
 import { Search, SlidersHorizontal } from "lucide-react";
 import { CASE_CATEGORY_LABELS, CASE_PRIORITY_LABELS, CASE_STATUS_LABELS } from "@/lib/i18n/labels";
 import type { CaseCategory, CasePriority, CaseStatus } from "@/generated/prisma/enums";
-import { Button } from "@/components/ui/Button";
 import { CheckboxField, fieldControlClassName } from "@/components/ui/Field";
 
 interface Option {
@@ -23,9 +26,19 @@ const ADVANCED_KEYS = [
   "overdue",
 ];
 
+/** Campi con digitazione libera (FASE 3, rifinitura finale): applicati con un debounce invece
+ * che a ogni tasto — select/checkbox/date restano immediati, sono scelte discrete. */
+const DEBOUNCED_FIELDS = new Set(["q", "amountMin", "amountMax"]);
+const DEBOUNCE_MS = 400;
+
 const toolbarSelectClassName =
   "min-h-[44px] rounded-lg border border-[var(--color-border)] bg-white px-3 text-sm text-[var(--color-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)]";
 
+/** Filtri di "Pratiche" (FASE 3, rifinitura finale): applicati automaticamente al cambio,
+ * senza bottone "Applica" — select/checkbox/date submittano subito, i campi di digitazione
+ * libera (`q`, importi) con un debounce. Nessuna API nuova o cambiata: stesso `GET /pratiche`
+ * con query string già usato dal form precedente, solo sincronizzato via `router.push` invece
+ * che da una submit nativa. "Azzera filtri" resta un link reale verso `/pratiche`. */
 export function FiltersBar({
   filters,
   users,
@@ -38,10 +51,46 @@ export function FiltersBar({
   suppliers: Option[];
 }) {
   const hasAdvancedActive = ADVANCED_KEYS.some((key) => filters[key]);
+  const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, []);
+
+  function submitFilters() {
+    if (!formRef.current) return;
+    const formData = new FormData(formRef.current);
+    const params = new URLSearchParams();
+    for (const [key, value] of formData.entries()) {
+      if (typeof value === "string" && value !== "") params.set(key, value);
+    }
+    router.push(`/pratiche?${params.toString()}`, { scroll: false });
+  }
+
+  function handleFormChange(event: ChangeEvent<HTMLFormElement>) {
+    const { name } = event.target as unknown as HTMLInputElement | HTMLSelectElement;
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    if (DEBOUNCED_FIELDS.has(name)) {
+      debounceTimer.current = setTimeout(submitFilters, DEBOUNCE_MS);
+    } else {
+      submitFilters();
+    }
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    // invio da tastiera sul campo di ricerca: applica subito, senza aspettare il debounce.
+    event.preventDefault();
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    submitFilters();
+  }
 
   return (
     <section aria-label="Filtri" className="rounded-xl border border-[var(--color-border)] bg-white p-2.5">
-      <form method="GET" className="flex flex-wrap items-center gap-2">
+      <form ref={formRef} onChange={handleFormChange} onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[200px] flex-1">
           <Search
             className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[var(--color-ink-muted)]"
@@ -164,9 +213,6 @@ export function FiltersBar({
           </div>
         </details>
 
-        <Button type="submit" variant="primary" size="md">
-          Applica
-        </Button>
         <Link href="/pratiche" className="text-sm font-medium text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] hover:underline">
           Azzera filtri
         </Link>

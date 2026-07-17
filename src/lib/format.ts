@@ -58,3 +58,13 @@ export function formatTime(value: Date | string): string {
 export function formatWeekdayDate(value: Date): string {
   return weekdayDateFormatter.format(value);
 }
+
+/** Tronca `text` a `maxLength` caratteri sull'ultimo spazio, con ellissi — evita di tagliare
+ * una parola a metà (usato per le sintesi generate dal provider LLM mock). */
+export function truncateAtWordBoundary(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  const cut = text.slice(0, maxLength);
+  const lastSpace = cut.lastIndexOf(" ");
+  const trimmed = (lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trimEnd();
+  return `${trimmed}…`;
+}

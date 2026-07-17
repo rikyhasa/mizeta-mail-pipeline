@@ -913,3 +913,125 @@ per rendere la verifica ripetibile in futuro.
 Resta solo la rifinitura finale (troncamento sintesi a fine parola,
 Stampa/Genera PDF in testata, ricerca globale con dropdown, filtri live su
 Pratiche e Posta acquisita).
+
+## FASE 3, tappa 10 — Rifinitura finale
+
+Le 4 annotazioni raccolte durante FASE 8B/FASE 3 (`docs/UI-PORTING-PLAN.md`,
+sezione "Annotazioni per Rifinitura finale"). Ultima tappa: dopo questa, tutte
+e 10 le tappe pianificate in `FASE-8-UI-PORTING.md` sono completate.
+
+### 1. Sintesi operativa troncata a metà parola
+
+Il bug non era nel rendering (`SummaryCard.tsx`, `.detail-summary-text` — nessun
+`line-clamp` CSS lì) ma nel generatore del provider LLM mock:
+`llm/mock/classify-heuristics.ts` produceva `summary` con
+`emailBody.trim().slice(0, 240)`, un taglio grezzo che spesso cade a metà
+parola (visibile nello screenshot di FASE 8B: "Importo ridotto (pagamento
+en").
+
+Corretto con una nuova `truncateAtWordBoundary(text, maxLength)` in
+`lib/format.ts` (accanto alle altre funzioni di formattazione testo/data):
+taglia sull'ultimo spazio entro il limite e aggiunge un'ellissi. Applicata
+solo a `summary` (l'unico campo annotato dall'utente); `short_title` (120
+caratteri) usa ancora lo slice grezzo — i soggetti email restano quasi sempre
+sotto quel limite, il rischio pratico è nullo e non era nello scope
+dell'annotazione.
+
+Verificato a livello di funzione pura (stesso testo del case seminato in FASE
+8B, "Importo ridotto (pagamento…" invece di "...pagamento en") e
+indirettamente dalla suite unit (`tests/unit/llm/mock-classify.test.ts` e
+`mock-extract.test.ts`, 228/228 verdi). **Non è stato eseguito un reseed del
+database di sviluppo condiviso** (usato dal dev server preesistente su
+`:3001`): un reseed avrebbe scartato dati non miei senza necessità — il fix è
+nel generatore, si applica automaticamente a ogni nuovo messaggio processato
+da questo momento in poi; i case già seminati mantengono il vecchio summary
+finché non vengono ri-processati.
+
+### 2. Stampa/Genera PDF assenti nella testata
+
+Nella reference (`case-detail.tsx`): `<button onClick={()=>window.print()}>`
+e `<a href="/api/cases/.../pdf">`. Il secondo è fittizio nella reference
+(mock, nessuna generazione reale dietro) — copiarlo identico avrebbe violato
+il principio di veridicità.
+
+Implementato:
+- **Stampa**: nuovo `PrintButton.tsx` (client component minimo, solo
+  `window.print()`), reale al 100%, nessun nuovo endpoint. Aggiunto
+  `print:hidden` a `Sidebar.tsx`, `Topbar.tsx` e `DetailSidebar.tsx` (Tailwind
+  v4 supporta la variante `print:` nativamente, nessuna nuova regola in
+  `globals.css`) così la stampa produce una pagina pulita (solo contenuto
+  principale), come `@media print` nella reference.
+- **Genera PDF**: link a `#documenti` (l'azione di generazione reale già in
+  `DocumentsCard.tsx`, che fa `POST /api/cases/[id]/documents`), mostrato
+  **solo** quando `DOCUMENT_TYPE_BY_CATEGORY[categoria]` esiste (le 3
+  categorie con un modello reale, già note dalla tappa 5 — Report e
+  documenti). Per le altre 5 categorie il bottone non compare affatto, non
+  viene disabilitato con un testo — verificato con uno screenshot su una
+  pratica `TRANSPORT_ORDER` (nessun modello): solo "Stampa" presente.
+
+### 3. Ricerca globale della topbar (dropdown live)
+
+Sostituito il form GET statico (`Topbar.tsx`) con `GlobalSearch.tsx` (client
+component) + nuovo `GET /api/cases/search` (route sola lettura che riusa
+`getFilteredCases`, la stessa query già usata da `/pratiche` — nessuna nuova
+logica di ricerca, solo un'esposizione JSON per il dropdown).
+
+Comportamento: debounce 300ms, minimo 2 caratteri prima di interrogare,
+risultati reali (icona categoria, titolo, riferimento, cliente/fornitore),
+navigabile da tastiera (frecce su/giù con wraparound, Invio per aprire la
+pratica evidenziata o — se nessuna è evidenziata — per andare alla ricerca
+completa, Esc per chiudere), stato vuoto ("Nessun risultato per..."), voce
+"Vedi tutti i N risultati" che porta a `/pratiche?q=...` (la stessa
+route/comportamento del vecchio form, non rimossa: solo affiancata dal
+dropdown). Combobox accessibile (`role="combobox"`/`listbox`/`option`,
+`aria-activedescendant`, `aria-expanded`).
+
+Nota tecnica: la prima versione dell'effetto di fetch falliva
+`react-hooks/set-state-in-effect` (chiamate `setState` sincrone nel corpo
+dell'effetto) — risolta calcolando `queryTooShort`/`effectiveResults` come
+valori derivati a render-time invece che con `useEffect` dedicati, e
+spostando `setLoading(true)` dentro il callback del debounce invece che
+prima di programmarlo.
+
+Verificato interattivamente: digitando "fattura" compaiono 8 risultati reali
+con link "Vedi tutti i 8 risultati", la navigazione da tastiera evidenzia
+correttamente il secondo risultato dopo due `ArrowDown`.
+
+### 4. Filtri live su "Pratiche" e "Posta acquisita"
+
+**Pratiche** (`FiltersBar.tsx`, convertito a client component): submit
+automatico via `router.push(..., {scroll:false})` — select/checkbox/date
+immediati al cambio, i campi di digitazione libera (`q`, importo minimo/
+massimo) con un debounce di 400ms per non sottomettere a ogni tasto. Bottone
+"Applica" rimosso, "Azzera filtri" invariato (link reale verso `/pratiche`).
+Nessun cambio alle API: stessa route/query `GET /pratiche?...` di prima,
+solo innescata da `onChange` invece che da un submit nativo. Verificato:
+cambiare "Categoria" aggiorna l'URL a `?category=FINE_OR_PENALTY`
+immediatamente; digitare in "Cerca" non naviga finché il debounce non si
+esaurisce, poi naviga preservando gli altri filtri già attivi.
+
+**Posta acquisita**: qui la premessa dell'annotazione non era esatta — né la
+reference né il target avevano mai avuto filtri su questa schermata (tabella
+statica, decisione esplicita della tappa 2). Chiesto esplicitamente all'utente
+come procedere (`AskUserQuestion`): scelto di aggiungere un filtro minimo per
+categoria (nuovo `MailFilters.tsx` + `getIncomingMessages(page, category)`
+esteso), riusando `Case.category` — lo stesso dato già mostrato nella colonna
+"Categoria" di `IncomingMailTable`, nessuna nuova query di dominio — poi reso
+auto-apply con lo stesso pattern. Verificato: selezionare "Multa" filtra la
+tabella da 39 a 3 messaggi e aggiorna l'URL a `?category=FINE_OR_PENALTY`.
+
+### Verifica
+
+| Verifica | Esito |
+|---|---|
+| `npm run typecheck` | pulito |
+| `npm run lint` | pulito (inclusa la regola `react-hooks/set-state-in-effect`) |
+| `npm run test` (228 test) | tutti passano |
+| `npm run build` | completata (nuova route `/api/cases/search` presente) |
+| Verifica interattiva | Stampa/Genera PDF (con e senza modello documento), dropdown ricerca (risultati + tastiera), filtri Pratiche (select immediato + debounce ricerca), filtro categoria Posta |
+
+### Stato FASE 3
+
+Tutte le 10 tappe pianificate sono complete: dettaglio pratica, posta
+acquisita, coda di revisione, bozze e documenti, report, registro attività,
+impostazioni, login, responsive completo, rifinitura finale.

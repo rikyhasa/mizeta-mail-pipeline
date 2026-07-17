@@ -231,30 +231,22 @@ breakpoint `.detail-*` di FASE 8B) regge su tutte le 9 schermate portate. Dettag
 | griglie KPI/statistiche/filtri (`.cards-seven`, `.stats-strip`) | `globals.css` | `DashboardKpiCards`, `StatsStrip`, `FiltersBar`, form Impostazioni (Tailwind `grid-cols-N sm:grid-cols-M`) | screenshot a 390px | già collassano senza overflow | nessuna modifica | basso | verificato |
 | tabelle (nessun equivalente diretto: reference non ha tabelle dense multi-colonna fuori da `.cards-seven`) | — | `CasesTable`, `IncomingMailTable`, `AuditLogTable` (`overflow-x-auto` + `whitespace-nowrap`) | screenshot a 390px (colonne di destra tagliate al bordo, scroll orizzontale non catturabile in uno screenshot statico) | pattern scelto deliberatamente in tappa 2, coerente con `.nav{overflow:auto}` della reference | nessuna modifica | basso | verificato |
 
-## Righe non ancora compilate (fuori scope, verranno aggiunte via via in FASE 3)
+## Matrice — FASE 3, tappa 10: Rifinitura finale
 
-Rifinitura finale.
+Le 4 annotazioni raccolte durante FASE 8B/FASE 3. Dettagli completi in
+`docs/UI-PORTING-REPORT.md`, sezione "FASE 3, tappa 10".
 
-### Annotazioni per "Rifinitura finale" (raccolte durante FASE 8B, non ancora fatte)
+| Annotazione | File origine | Target | Fonte reale | Azione reale | Permessi | Audit | Decisione | Rischi | Stato |
+|---|---|---|---|---|---|---|---|---|---|
+| Sintesi operativa troncata a metà parola | `_components/SummaryCard.tsx` (rendering, invariato) | `llm/mock/classify-heuristics.ts` (`summary`) | il bug era nel generatore mock, non nel rendering: `emailBody.slice(0,240)` grezzo | nuova `truncateAtWordBoundary()` in `lib/format.ts`, troncamento sull'ultimo spazio + ellissi | — | — | fix nel provider mock, non un nuovo algoritmo di riassunto (fuori scope) | basso | fatto (verificato a livello di funzione; i case già seminati restano col vecchio summary finché non vengono ri-processati — nessun reseed del DB di sviluppo condiviso, per non alterare stato non mio) |
+| Stampa/Genera PDF assenti in testata | `case-detail.tsx` (`window.print()` + `<a href=".../pdf">`) | `_components/DetailHeader.tsx`, nuovo `PrintButton.tsx` | — | Stampa: `window.print()` nativo (nuovo `print:hidden` su Sidebar/Topbar/DetailSidebar per un'stampa pulita). Genera PDF: link a `#documenti`, mostrato solo se `DOCUMENT_TYPE_BY_CATEGORY` ha un modello per la categoria — porta all'azione di generazione reale già in `DocumentsCard`, non la duplica | — | — | nessun endpoint PDF generico creato (la reference lo finge, il target no) — "Genera PDF" assente per le 5 categorie senza modello, non disabilitato con un falso testo | basso | fatto |
+| Ricerca globale statica (form GET, nessun risultato inline) | `topbar` con ricerca live | nuovo `GlobalSearch.tsx` + `GET /api/cases/search` | riusa `getFilteredCases` (stessa query di `/pratiche`, campi titolo/riferimento/cliente/fornitore) | dropdown con debounce 300ms, minimo 2 caratteri, navigabile da tastiera (frecce/Invio/Esc), "Vedi tutti i N risultati" verso `/pratiche?q=...` | `requireUser()` (stesso livello di `/api/cases`) | — | nuovo endpoint di sola lettura, riuso della query esistente — non una nuova API di business, solo l'esposizione JSON necessaria per il dropdown | basso | fatto |
+| Filtri di "Pratiche" con bottone "Applica" | `FiltersBar.tsx` | `FiltersBar.tsx` (client component) | stessa query `getFilteredCases` via `GET /pratiche`, invariata | submit automatico al cambio (`router.push`, `scroll:false`) — select/checkbox/date immediati, `q`/importi con debounce 400ms; bottone "Applica" rimosso, "Azzera filtri" invariato | — | — | nessun cambio alle API: stesso `GET /pratiche?...` di prima, solo innescato da `onChange` invece che da un submit nativo | basso | fatto |
+| "Posta acquisita" senza alcun filtro | nessun equivalente (la reference non ha filtri neanche lei) | nuovo `MailFilters.tsx` + `getIncomingMessages(page, category)` | `Case.category`, già mostrata nella colonna "Categoria" di `IncomingMailTable` — nessuna nuova query di dominio | select categoria, submit automatico al cambio, "Azzera filtri" quando attivo, paginazione preserva il filtro | — | — | decisione utente esplicita (AskUserQuestion, 2026-07-17): aggiungere un filtro minimo a Posta invece di lasciarla senza, per rendere l'annotazione "Pratiche e Posta acquisita" applicabile a entrambe | basso | fatto |
 
-- **Sintesi operativa**: il testo del summary va troncato a fine parola con
-  ellissi (oggi taglia a metà parola quando supera le righe disponibili — vedi
-  `_components/SummaryCard.tsx`).
-- **Testata pratica**: aggiungere Stampa/Genera PDF anche in `DetailHeader.tsx`,
-  come nella reference (oggi assenti — erano fuori dal perimetro esplicito di
-  FASE 8B, che partiva "dalla testata in poi" senza modificarla).
-- **Ricerca e filtri live** (richiesta dall'utente, 2026-07-16):
-  - Ricerca globale della topbar: risultati in dropdown, con debounce
-    ~300ms e minimo 2 caratteri prima di interrogare, navigabile da
-    tastiera (frecce + invio) — oggi è solo un form GET verso
-    `/pratiche?q=...` (`Topbar.tsx`), senza risultati inline.
-  - Filtri di "Pratiche" (`FiltersBar.tsx`) e "Posta acquisita"
-    (nessun filtro oggi implementato lì): applicati automaticamente al
-    cambio di valore, senza un bottone "Applica" esplicito — mantenendo
-    "Azzera filtri" e la sincronizzazione con l'URL (`searchParams`)
-    già presente.
-  - Nessun cambio alle API in nessuno dei due punti: solo comportamento
-    client-side sopra le query/rotte già esistenti.
+## Righe non ancora compilate
+
+Nessuna — tutte le tappe di FASE 3 (1-10) sono state completate.
 
 ## Differenze strutturali tra i modelli dati (riepilogo)
 

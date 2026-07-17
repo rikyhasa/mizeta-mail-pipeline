@@ -29,7 +29,7 @@ export function Sidebar({
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col bg-[var(--color-anthracite)] transition-transform lg:static lg:translate-x-0 ${
+      className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col bg-[var(--color-anthracite)] transition-transform print:hidden lg:static lg:translate-x-0 ${
         drawerOpen ? "translate-x-0" : "-translate-x-full"
       }`}
       aria-label="Navigazione principale"
