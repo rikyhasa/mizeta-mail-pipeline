@@ -324,25 +324,28 @@ della reference sono una riga sintetica — entrambe differenze di contenuto, no
 di porting. Non sono state introdotte troncature aggiuntive del testo email non
 richieste esplicitamente da questo giro di feedback, per non eccedere lo scope.
 
-### Confronto finale (screenshot in `docs/screenshots/final/`, versionati)
+### Confronto finale (screenshot in `docs/screenshots/case-detail/final/`, versionati —
+superseduto il vecchio percorso piatto `docs/screenshots/final/` una volta che anche
+"dettaglio pratica" è passata alla stessa convenzione a 3 viewport delle altre schermate,
+tappa 9/10)
 
 1440×900, sopra la piega:
 
 | Target | Reference |
 |---|---|
-| ![target 1440x900 fold](screenshots/final/target-1440x900-fold.png) | ![reference 1440x900 fold](screenshots/final/reference-1440x900-fold.png) |
+| ![target 1440x900 fold](screenshots/case-detail/final/target-1440x900-fold.png) | ![reference 1440x900 fold](screenshots/case-detail/final/reference-1440x900-fold.png) |
 
 1920×1080, sopra la piega:
 
 | Target | Reference |
 |---|---|
-| ![target 1920x1080 fold](screenshots/final/target-1920x1080-fold.png) | ![reference 1920x1080 fold](screenshots/final/reference-1920x1080-fold.png) |
+| ![target 1920x1080 fold](screenshots/case-detail/final/target-1920x1080-fold.png) | ![reference 1920x1080 fold](screenshots/case-detail/final/reference-1920x1080-fold.png) |
 
 Pagina intera del target (1440×900, per riferimento — la reference a piena pagina
 per questa pratica è più corta perché priva di Attività/Commenti/Documenti generati,
 capacità del target senza equivalente nella reference):
-`docs/screenshots/final/target-1440x900-full.png`,
-`docs/screenshots/final/reference-1440x900-full.png`.
+`docs/screenshots/case-detail/final/target-1440x900-full.png`,
+`docs/screenshots/case-detail/final/reference-1440x900-full.png`.
 
 ### Differenze residue e perché sono inevitabili
 
@@ -1051,6 +1054,47 @@ Verificato interattivamente: "multa" nel dropdown della topbar restituisce le
 titolo); "reclamo" restituisce le 3 pratiche `CLAIM_OR_DAMAGE`.
 
 typecheck/lint/test(228)/build puliti.
+
+### Ciclo ui-compare completo (verifica finale post-tappa 10)
+
+Richiesto esplicitamente dall'utente dopo le due rifiniture sopra: un giro
+completo di `scripts/ui-compare.ts` (3 viewport desktop, target vs reference)
+su tutte le 9 schermate, per verificare che Stampa/Genera PDF, ricerca live,
+filtri automatici e ricerca per categoria non abbiano introdotto regressioni
+altrove. Prima volta che "dashboard" e "pratiche" (elenco) — portate nel
+pilota FASE 2, mai verificate con screenshot per assenza del tool in quella
+sessione — ricevono una cattura/confronto reale.
+
+Ispezionati tutti e 9 (fold 1440×900), nessuna regressione: Stampa/Genera PDF
+ben posizionati in testata, `FiltersBar` senza il vecchio bottone "Applica",
+filtro categoria su Posta acquisita presente e funzionante, nessuna rottura
+di layout altrove.
+
+Rapporto altezza pagina intera (target/reference, 1440×900 — la soglia
+"≤1,5x accettabile" di FASE 8B resta un'indicazione per schermate a densità
+comparabile, non un vincolo assoluto quando il target ha più funzioni reali):
+
+| Schermata | Target | Reference | Rapporto | Nota |
+|---|---|---|---|---|
+| Dashboard | 1661px | 1628px | 1.02x | — |
+| Pratiche | 2647px | 2325px | 1.13x | — |
+| Dettaglio pratica | 3257px | 1919px | 1.69x | invariato rispetto a FASE 8B (1,72x, già accettato: pratica con 15 campi estratti contro i 4 della reference — differenza di contenuto, non di porting) |
+| Posta acquisita | 2471px | 1797px | 1.37x | entro la soglia già accettata in tappa 2 |
+| Report e documenti | 960px | 1014px | 0.94x | — |
+| Registro attività | 1103px | 1424px | 0.77x | target più corto (raggruppamento accessi consecutivi) |
+| Impostazioni | 900px | 1311px | 0.68x | target più corto (tab verticali invece di tutto in pagina) |
+| Login | 900px | 900px | 1.00x | parità pixel esatta, invariata |
+
+Screenshot finali aggiornati in `docs/screenshots/<schermata>/final/` per
+tutte e 9 le schermate (12 file ciascuna con reference, 6 per `revisione`
+senza reference) — inclusa la prima coppia mai versionata per `dashboard` e
+`pratiche`. Rimosso il vecchio percorso piatto `docs/screenshots/final/`
+(solo 2 viewport, precedente all'introduzione dello standard a 3 viewport):
+superseduto da `docs/screenshots/case-detail/final/`, stessa convenzione
+delle altre 8 schermate.
+
+typecheck/lint/test(228)/build puliti (nessun codice applicativo toccato in
+questo passaggio, solo verifica + screenshot).
 
 ### Stato FASE 3
 
