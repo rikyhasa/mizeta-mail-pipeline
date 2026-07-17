@@ -87,6 +87,32 @@ describe("Case detail action routes (SPEC.md §10)", () => {
     expect(audit?.actorId).toBe(adminId);
   });
 
+  it("rejects confirming or correcting a field with no value (P0 #1, docs/UX-AUDIT-2026-07.md)", async () => {
+    await createSession(adminId);
+    // Pratica dedicata e ripulita a fine test: evita di lasciare un campo non confermato sulla
+    // `caseId` condivisa dal resto del file, che altrimenti farebbe fallire i test di chiusura
+    // più sotto (P0 #3 conta esattamente questi campi come blocker).
+    const isolatedCase = await prisma.case.create({
+      data: { reference: `TEST-FIELD-P0-${Date.now()}`, title: "Pratica isolata per test campo", category: "QUOTE_REQUEST", status: "NEW", priority: "NORMAL" },
+    });
+    await prisma.caseField.create({
+      data: { caseId: isolatedCase.id, fieldKey: "missing_field", value: null, needsHumanReview: true },
+    });
+
+    const confirmEmpty = await patchField(jsonRequest({}), { params: Promise.resolve({ id: isolatedCase.id, fieldKey: "missing_field" }) });
+    expect(confirmEmpty.status).toBe(422);
+    expect((await confirmEmpty.json()).error).toContain("senza valore");
+
+    const correctToBlank = await patchField(jsonRequest({ value: "   " }), { params: Promise.resolve({ id: isolatedCase.id, fieldKey: "missing_field" }) });
+    expect(correctToBlank.status).toBe(422);
+
+    const field = await prisma.caseField.findUniqueOrThrow({ where: { caseId_fieldKey: { caseId: isolatedCase.id, fieldKey: "missing_field" } } });
+    expect(field.confirmedById).toBeNull();
+    expect(field.needsHumanReview).toBe(true);
+
+    await prisma.case.delete({ where: { id: isolatedCase.id } });
+  });
+
   it("corrects a field value and writes FIELD_UPDATED audit", async () => {
     await createSession(adminId);
     const response = await patchField(jsonRequest({ value: "Cliente Corretto" }), {
@@ -127,6 +153,33 @@ describe("Case detail action routes (SPEC.md §10)", () => {
     await createSession(adminId);
     const response = await patchStatus(jsonRequest({ status: "NOT_A_STATUS" }), { params: Promise.resolve({ id: caseId }) });
     expect(response.status).toBe(400);
+  });
+
+  it("rejects completing a case with outstanding blockers, even calling the endpoint directly (P0 #3, docs/UX-AUDIT-2026-07.md)", async () => {
+    await createSession(adminId);
+    const blockedCase = await prisma.case.create({
+      data: {
+        reference: `TEST-BLOCKED-${Date.now()}`,
+        title: "Pratica bloccata di test",
+        category: "QUOTE_REQUEST",
+        status: "NEW",
+        priority: "NORMAL",
+        // needsHumanReview di default: nessun responsabile assegnato → almeno un blocker anche
+        // senza campi mancanti, sufficiente a verificare che il pulsante disabilitato lato
+        // client (ClosurePanel) non sia l'unica barriera.
+      },
+    });
+
+    const response = await patchStatus(jsonRequest({ status: "COMPLETED" }), { params: Promise.resolve({ id: blockedCase.id }) });
+    expect(response.status).toBe(422);
+    const body = await response.json();
+    expect(body.error).toContain("responsabile");
+
+    const reloaded = await prisma.case.findUniqueOrThrow({ where: { id: blockedCase.id } });
+    expect(reloaded.status).toBe("NEW");
+    expect(reloaded.completedAt).toBeNull();
+
+    await prisma.case.delete({ where: { id: blockedCase.id } });
   });
 
   it("clears needsHumanReview via the review queue action", async () => {

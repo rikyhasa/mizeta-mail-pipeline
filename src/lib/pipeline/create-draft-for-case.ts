@@ -44,7 +44,19 @@ export async function createDraftForCase(
   void usage;
   void model;
 
-  const toAddresses = caseRecord.customer?.email ? [caseRecord.customer.email] : caseRecord.supplier?.email ? [caseRecord.supplier.email] : [];
+  let toAddresses = caseRecord.customer?.email ? [caseRecord.customer.email] : caseRecord.supplier?.email ? [caseRecord.supplier.email] : [];
+  if (toAddresses.length === 0) {
+    // Nessun cliente/fornitore collegato (tipico di una multa/PEC: la controparte è l'ente
+    // mittente, non ancora modellato come Customer/Supplier) — la bozza di risposta va
+    // indirizzata al mittente dell'ultimo messaggio in ingresso, come farebbe un umano.
+    // Necessario perché senza un destinatario la bozza non è più approvabile
+    // (docs/UX-AUDIT-2026-07.md, P0 #2) — mai un invio, solo un destinatario proposto.
+    const lastInboundMessage = await tx.emailMessage.findFirst({
+      where: { caseId, direction: "INBOUND" },
+      orderBy: { receivedAt: "desc" },
+    });
+    if (lastInboundMessage?.fromAddress) toAddresses = [lastInboundMessage.fromAddress];
+  }
 
   const draft = await tx.emailDraft.create({
     data: {

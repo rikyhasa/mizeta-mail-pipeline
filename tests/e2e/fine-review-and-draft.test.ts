@@ -141,6 +141,10 @@ describe("E2E — multa via PEC con termine ridotto → priorità CRITICAL → b
     const { draft } = await draftResponse.json();
     expect(draft.status).toBe("PENDING_APPROVAL");
     expect(draft).not.toHaveProperty("sentAt");
+    // Nessun customer/supplier collegato a una multa PEC: il destinatario proposto ricade sul
+    // mittente dell'ultimo messaggio in ingresso (create-draft-for-case.ts), altrimenti la bozza
+    // resterebbe permanentemente senza destinatario e mai approvabile (P0 #2 sotto).
+    expect(draft.toAddresses).toEqual(["notifiche@pec.comune-test.it"]);
 
     const draftAudit = await prisma.auditLog.findFirst({ where: { caseId, action: "DRAFT_GENERATED" } });
     expect(draftAudit).toBeTruthy();

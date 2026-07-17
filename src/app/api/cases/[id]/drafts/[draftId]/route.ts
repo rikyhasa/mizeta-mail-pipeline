@@ -8,7 +8,8 @@ const patchSchema = z.object({ action: z.enum(["approve", "discard"]) });
 /**
  * Approva o scarta una bozza (SPEC.md §11, invariante 3): approvazione umana esplicita
  * obbligatoria. Nessuna di queste azioni invia l'email — l'invio non esiste nell'MVP
- * (CLAUDE.md invariante 2).
+ * (CLAUDE.md invariante 2). Una bozza senza destinatario, oggetto, corpo, o con placeholder
+ * non risolti non può risultare "Approvata" (docs/UX-AUDIT-2026-07.md, P0 #2).
  */
 export async function PATCH(request: Request, context: { params: Promise<{ id: string; draftId: string }> }) {
   return withPermission("case:write", async (user) => {
@@ -24,6 +25,17 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     }
     if (draft.status !== "PENDING_APPROVAL") {
       return Response.json({ error: "La bozza è già stata approvata o scartata" }, { status: 409 });
+    }
+
+    if (parsed.data.action === "approve") {
+      const reasons: string[] = [];
+      if (draft.toAddresses.length === 0) reasons.push("destinatario mancante");
+      if (!draft.subject.trim()) reasons.push("oggetto mancante");
+      if (!draft.bodyText.trim()) reasons.push("corpo mancante");
+      if (draft.placeholders.length > 0) reasons.push("placeholder non risolti");
+      if (reasons.length > 0) {
+        return Response.json({ error: `Impossibile approvare: ${reasons.join(", ")}` }, { status: 422 });
+      }
     }
 
     const now = new Date();

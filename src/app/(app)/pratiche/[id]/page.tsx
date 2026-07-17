@@ -21,6 +21,7 @@ import { AuditLogCard } from "./_components/AuditLogCard";
 import { tierFields } from "./_components/field-tiers";
 import { deriveRecommendedAction } from "./_components/recommended-action";
 import type { RelationSummary } from "./_components/relation-types";
+import { deriveCaseBlockers } from "@/lib/cases/blockers";
 
 /** Documenti implementati in questa fase (SPEC.md §12), uno per categoria prioritaria. Le
  * altre categorie non mostrano alcun selettore: nulla è ancora implementato per loro. */
@@ -29,10 +30,6 @@ const DOCUMENT_TYPE_BY_CATEGORY: Partial<Record<CaseCategory, { type: GeneratedD
   CLAIM_OR_DAMAGE: { type: "CLAIM_DOSSIER", label: "Genera dossier reclamo" },
   FINE_OR_PENALTY: { type: "FINE_SHEET", label: "Genera scheda multa" },
 };
-
-/** Soglia di confidenza bassa: stesso valore già usato in ExtractedFieldCell.tsx (70%), non un
- * nuovo numero inventato per FASE 8B. */
-const LOW_CONFIDENCE_THRESHOLD = 0.7;
 
 async function loadCase(id: string) {
   return prisma.case.findUnique({
@@ -110,39 +107,20 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const anomalyReason = fieldsByKey.get("anomaly_reason")?.value ?? null;
 
   // Lista unica di blocker, condivisa da RecommendedAction (sidebar) e dal pulsante "Segna
-  // completata" (ClosurePanel) — presentazione soltanto, nessuna nuova logica di business.
-  // È anche l'unico posto dove questi segnali compaiono nella colonna principale: niente più
-  // blocco "Attenzione richiesta" separato che ripeteva la stessa informazione (FASE 8B,
-  // iterazione 3) — anomaly_reason è già un campo ordinario in "Dati estratti" (vedi
-  // CATEGORY_FIELD_ORDER), qui serve solo a comporre il messaggio del blocker.
-  const blockerReasons: { text: string; href: string }[] = [];
-  if (problematicCount > 0) {
-    blockerReasons.push({
-      text: `${problematicCount} dato/i mancante/i o da verificare`,
-      href: "#dati-estratti",
-    });
-  }
-  if (caseRecord.needsHumanReview) {
-    blockerReasons.push({ text: "La pratica richiede revisione umana", href: "#dati-estratti" });
-  }
-  if (caseRecord.confidence !== null && caseRecord.confidence < LOW_CONFIDENCE_THRESHOLD) {
-    blockerReasons.push({
-      text: `Confidenza classificazione bassa (${Math.round(caseRecord.confidence * 100)}%)`,
-      href: "#sintesi",
-    });
-  }
-  if (!caseRecord.assignedToId) {
-    blockerReasons.push({ text: "Nessun responsabile assegnato", href: "#sintesi" });
-  }
-  if (anomalyReason) {
-    blockerReasons.push({ text: `Anomalia fattura: ${anomalyReason}`, href: "#dati-estratti" });
-  }
-  if (securityFlags.length > 0) {
-    blockerReasons.push({ text: `${securityFlags.length} segnale/i di sicurezza rilevato/i nelle email`, href: "#email" });
-  }
-  if (pendingRelations.length > 0) {
-    blockerReasons.push({ text: `${pendingRelations.length} collegamento/i pratica da verificare`, href: "#relazioni" });
-  }
+  // completata" (ClosurePanel) — e ora anche da PATCH /api/cases/[id]/status lato server
+  // (docs/UX-AUDIT-2026-07.md, P0 #3): stesso calcolo in src/lib/cases/blockers.ts, non più
+  // duplicato. Presentazione soltanto, nessuna nuova logica di business rispetto a prima.
+  // anomaly_reason è già un campo ordinario in "Dati estratti" (vedi CATEGORY_FIELD_ORDER), qui
+  // serve solo a comporre il messaggio del blocker.
+  const blockerReasons = deriveCaseBlockers({
+    problematicCount,
+    needsHumanReview: caseRecord.needsHumanReview,
+    confidence: caseRecord.confidence,
+    assignedToId: caseRecord.assignedToId,
+    anomalyReason,
+    securityFlagsCount: securityFlags.length,
+    pendingRelationsCount: pendingRelations.length,
+  });
 
   const recommendedAction = deriveRecommendedAction({
     blockers: blockerReasons.map((b) => b.text),

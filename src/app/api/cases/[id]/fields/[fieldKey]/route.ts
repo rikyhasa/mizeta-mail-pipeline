@@ -10,7 +10,9 @@ const patchSchema = z.object({
 /**
  * Conferma o correggi un campo estratto (SPEC.md §10). Senza `value`: conferma il valore
  * esistente così com'è. Con `value`: lo corregge — in entrambi i casi il campo è considerato
- * verificato da un umano e `needsHumanReview` si azzera.
+ * verificato da un umano e `needsHumanReview` si azzera. Un campo senza alcun valore (né
+ * esistente né fornito nella richiesta) non può risultare "confermato" (docs/UX-AUDIT-2026-07.md,
+ * P0 #1) — va prima valorizzato.
  */
 export async function PATCH(request: Request, context: { params: Promise<{ id: string; fieldKey: string }> }) {
   return withPermission("case:write", async (user) => {
@@ -26,6 +28,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     }
 
     const hasNewValue = parsed.data.value !== undefined;
+    const effectiveValue = hasNewValue ? parsed.data.value : existing.value;
+    if (!effectiveValue?.trim()) {
+      return Response.json(
+        { error: "Impossibile confermare un campo senza valore: inserire prima un valore" },
+        { status: 422 },
+      );
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const field = await tx.caseField.update({
