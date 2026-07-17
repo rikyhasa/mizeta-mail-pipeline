@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getRuleSettings } from "@/lib/rules/settings-repository";
 import { AMOUNT_FIELD_BY_CATEGORY, parseFieldNumber } from "./field-keys";
 import { PAGE_SIZE } from "./constants";
+import { CASE_CATEGORY_LABELS } from "@/lib/i18n/labels";
 import type { Prisma } from "@/generated/prisma/client";
 import type { CaseCategory, CasePriority, CaseStatus } from "@/generated/prisma/enums";
 
@@ -245,6 +246,12 @@ export async function getFilteredCases(filters: DashboardFilters, now: Date = ne
   let where: Prisma.CaseWhereInput = {};
   const q = filters.q?.trim();
   if (q) {
+    // "multa" -> tutte le pratiche di categoria FINE_OR_PENALTY, "reclamo" -> CLAIM_OR_DAMAGE,
+    // ecc. — confronto sulle etichette italiane già esistenti (CASE_CATEGORY_LABELS), nessun
+    // nuovo elenco da mantenere in sincronia.
+    const matchedCategories = (Object.keys(CASE_CATEGORY_LABELS) as CaseCategory[]).filter((c) =>
+      CASE_CATEGORY_LABELS[c].toLowerCase().includes(q.toLowerCase()),
+    );
     where.AND = [
       {
         OR: [
@@ -252,6 +259,7 @@ export async function getFilteredCases(filters: DashboardFilters, now: Date = ne
           { reference: { contains: q, mode: "insensitive" } },
           { customer: { name: { contains: q, mode: "insensitive" } } },
           { supplier: { name: { contains: q, mode: "insensitive" } } },
+          ...(matchedCategories.length > 0 ? [{ category: { in: matchedCategories } }] : []),
         ],
       },
     ];

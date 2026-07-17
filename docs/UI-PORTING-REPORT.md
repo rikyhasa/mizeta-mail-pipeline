@@ -1030,6 +1030,28 @@ tabella da 39 a 3 messaggi e aggiorna l'URL a `?category=FINE_OR_PENALTY`.
 | `npm run build` | completata (nuova route `/api/cases/search` presente) |
 | Verifica interattiva | Stampa/Genera PDF (con e senza modello documento), dropdown ricerca (risultati + tastiera), filtri Pratiche (select immediato + debounce ricerca), filtro categoria Posta |
 
+### 5. Ricerca globale anche per nome di categoria (rifinitura sulla rifinitura)
+
+Richiesta dell'utente dopo la prima consegna della tappa 10: digitare "multa"
+deve trovare tutte le pratiche di categoria Multa (`FINE_OR_PENALTY`), anche
+quando la parola "multa" non compare nel titolo (es. "Verbale di
+accertamento..."); stesso discorso per "reclamo" → Reclamo o danno, ecc.
+
+`getFilteredCases` (`lib/dashboard/queries.ts`) confronta ora `q` anche con
+`CASE_CATEGORY_LABELS` (le etichette italiane già esistenti, stesso elenco
+usato ovunque nell'app — nessuna nuova lista da mantenere in sincronia): se
+`q` è contenuto in una o più etichette di categoria (case-insensitive), quelle
+categorie vengono aggiunte all'`OR` esistente (titolo/riferimento/cliente/
+fornitore). Un'unica funzione condivisa da `/pratiche` e da
+`/api/cases/search` — corretta in entrambi i punti d'ingresso con una sola
+modifica, nessuna duplicazione.
+
+Verificato interattivamente: "multa" nel dropdown della topbar restituisce le
+2 pratiche `FINE_OR_PENALTY` (nessuna delle quali contiene "multa" nel
+titolo); "reclamo" restituisce le 3 pratiche `CLAIM_OR_DAMAGE`.
+
+typecheck/lint/test(228)/build puliti.
+
 ### Stato FASE 3
 
 Tutte le 10 tappe pianificate sono complete: dettaglio pratica, posta
