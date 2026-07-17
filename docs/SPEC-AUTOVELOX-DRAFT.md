@@ -2,8 +2,10 @@
 
 > **Bozza da discutere e approvare esplicitamente prima della Fase E
 > (implementazione).** Nessun codice, migrazione, seed o test è stato creato in
-> questa sessione. Branch: `audit/ux-e-autovelox`. L'implementazione, se
-> approvata, andrà su un branch dedicato `feature/autovelox`.
+> questa sessione. Branch: `audit/ux-e-autovelox`, rebasato su `main` dopo il
+> merge delle Fasi B/C. L'implementazione, se approvata, andrà su un branch
+> dedicato `feature/autovelox`. Estesa in FASE 9B (§15) con l'indicatore
+> ricorso — anch'esso solo specifica, nessuna implementazione.
 
 ## 1. Perché questo modulo e cosa NON deve fare
 
@@ -687,3 +689,419 @@ esistenti nel repo (Vitest, `tests/unit`/`tests/integration`/`tests/e2e`,
 - **Tenant isolation**: esplicitamente **non applicabile** nel modello
   attuale (si veda §2/§11) — non testabile perché il concetto non esiste
   nell'app; da riconsiderare solo se l'architettura diventasse multi-tenant.
+
+## 15. Indicatore ricorso (multe)
+
+Sezione aggiunta su richiesta esplicita dell'utente (FASE 9B), come estensione
+di questa specifica **prima** dell'approvazione complessiva — nessuna
+implementazione in questa sessione. Stesso rigore delle sezioni precedenti:
+ogni riuso di modello/pattern è verificato contro il codice attuale, non
+assunto.
+
+### 15.1 Obiettivo e vincoli di linguaggio
+
+Per le pratiche di categoria `FINE_OR_PENALTY`, l'app calcola un'indicazione
+**operativa** — mai una previsione di esito — che aiuta l'operatore a
+decidere se valutare un ricorso, combinando elementi documentali disponibili
+e convenienza economica. La decisione resta sempre dell'operatore, che vede
+sempre i dati e il ragionamento completo (mai un numero o un'etichetta senza
+la sua scomposizione). Linguaggio vincolato, mai "probabilità di
+vittoria/accoglimento" — coerente con l'invariante del §1 di questa
+specifica e con CLAUDE.md.
+
+### 15.2 Verifica contro il codice esistente — cosa c'è, cosa manca
+
+- **`points` esiste già** come `CaseField` nell'ordine campi di
+  `FINE_OR_PENALTY` (`src/lib/i18n/field-labels.ts:198`, label "Punti
+  decurtati" — `src/lib/i18n/field-labels.ts:89`), formattato come numero
+  semplice (`PLAIN_NUMBER_FIELD_KEYS`, riga 265) — riusabile direttamente per
+  la componente punti della formula economica, nessun nuovo campo per il
+  valore in sé.
+- **Nessun campo "autista professionale/CQC" esiste**: `model Driver`
+  (`prisma/schema.prisma`, righe con `licenseNumber`/`phone`) non ha alcun
+  flag di professionalità, ed è comunque legato a `ShipmentReference`
+  (trasporti), non alle multe — le multe usano solo `driver_name` come
+  `CaseField` libero (confermato dal vivo su `PRT-2026-0025`). **Proposta**:
+  nuovo `CaseField` `driver_professional_cqc` (booleano), aggiunto a
+  `BOOLEAN_FIELD_KEYS` (`src/lib/i18n/field-labels.ts:240-250`, stesso
+  pattern già usato per `insurance_involved`/`payment_promise` — value
+  `"true"`/`"false"`, formattato "Sì"/"No"), `needsHumanReview: true` finché
+  non confermato da un operatore (mai assunto dal modello, invariante 6).
+- **Nessun campo "data di notifica" esiste**: l'unico campo di scadenza
+  ricorso oggi è `appeal_due_at` (`src/lib/i18n/field-labels.ts`, incluso in
+  `DATE_FIELD_KEYS`), **estratto direttamente dal documento** — non calcolato
+  dalla legge — e mappato a un'unica `CaseDeadline` generica di tipo
+  `APPEAL_DUE` (`src/lib/pipeline/process-incoming-message.ts:109`:
+  `addFromField("appeal_due_at", "APPEAL_DUE", "Termine per il ricorso")`).
+  Questo è un **gap verificato, non un'assunzione**: il sistema attuale non
+  distingue i due termini (30gg Giudice di Pace, 60gg Prefetto) — dipende da
+  cosa il verbale dichiara esplicitamente, quando lo dichiara. Per calcolare
+  **entrambi** i termini in modo deterministico (come richiesto) serve
+  un'ancora temporale affidabile: **proposto un nuovo `CaseField`
+  `notification_date`** (estratto dal verbale se dichiarato, o dedotto dalla
+  data dell'"AVVISO DI CONSEGNA" PEC quando presente — verificato dal vivo:
+  la pratica `PRT-2026-0025` ha esattamente questo messaggio di consegna
+  nella cronologia email, con timestamp `2026-07-12 09:01`). Se
+  `notification_date` manca, l'indicatore per i termini ricade su
+  `DATI_INSUFFICIENTI` (§15.5) — mai una stima approssimata silenziosa.
+- **`RuleSettings` è il pattern giusto per i parametri configurabili**
+  (`prisma/schema.prisma`, modello a riga singola, validato da
+  `ruleSettingsInputSchema` in `src/lib/rules/settings-repository.ts:11-25`,
+  aggiornato via `src/app/api/settings/rules/route.ts` con audit
+  `RULE_SETTINGS_UPDATED`) — stesso meccanismo da estendere con i nuovi
+  parametri economici, non un modello a parte.
+- **Il motore regole esistente (`src/lib/rules/engine.ts`) non è il posto
+  giusto per questo calcolo**: `applyRules()` altera `priority`/
+  `needsHumanReview` di una pratica in pipeline (side effect persistito);
+  l'indicatore ricorso è **calcolato a lettura**, come `deriveCaseBlockers`
+  (`src/lib/cases/blockers.ts`, Fase B/C di questa stessa iniziativa) — stesso
+  principio di funzione pura richiamata da `page.tsx`, non una regola di
+  pipeline. Nessuna nuova infrastruttura di esecuzione, solo un nuovo modulo
+  di calcolo con la stessa forma.
+
+### 15.3 Struttura a due assi
+
+```
+enum AppealDocumentaryStrength {
+  ASSENTI
+  DEBOLI
+  RILEVANTI
+  FORTI
+}
+
+enum AppealEconomicConvenience {
+  SFAVOREVOLE
+  LIMITATA
+  FAVOREVOLE
+}
+```
+
+**Asse documentale**: quando esiste un `EnforcementDeviceCheck` applicabile
+(§4-§7bis), deriva da segnali già previsti lì — `registryMatch: NOT_FOUND` →
+`FORTI` (dispositivo non presente nel censimento MIT alla data di
+consultazione dello snapshot, §7bis); certificato di taratura mancante o
+scaduto (`EnforcementDocumentCheck` con `documentType` pertinente in stato
+`MISSING`) → `RILEVANTI`; documentazione completa e coerente
+(`state: DOCUMENTED_VERIFICATION_COMPLETE`) → `ASSENTI`. **Per multe non da
+autovelox** (nessun `EnforcementDeviceCheck`, richiesto esplicitamente dal
+brief: "visibile anche per multe non-velox"): fallback generico riusando il
+`CaseField` `missing_documents` già esistente nell'ordine campi
+`FINE_OR_PENALTY` — non vuoto → `DEBOLI`, vuoto/assente → `ASSENTI` (nessun
+segnale forte disponibile senza il modulo autovelox, per costruzione — non è
+una limitazione introdotta qui, è la conseguenza onesta di non avere il
+controllo tecnico per quel tipo di violazione). Ogni segnale usato mantiene
+fonte e provenienza tracciate (stesso principio di `CaseField.sourceExcerpt`/
+`EnforcementDeviceField`), mai un giudizio senza riferimento verificabile.
+
+**Asse economico**: formula deterministica, nessun LLM. Valore equivalente in
+gioco:
+
+```
+valoreInGioco = (importoRidotto ?? importoOrdinario)
+              + (autistaProfessionaleConCQC ? puntiDecurtati × valoreEquivalentePerPunto : 0)
+```
+
+Costo del ricorso al Giudice di Pace:
+
+```
+costoGdP = (valoreInGioco <= sogliaContributoUnificato
+              ? contributoUnificatoBasso   // default 43 €
+              : contributoUnificatoAlto)   // default 98 €
+         + marcaDaBollo                    // default 27 €
+         + costoInternoGestionePratica     // parametro, default da proporre (v. 15.4)
+```
+
+Il ricorso al Prefetto ha **costo di deposito zero** ma rischio di raddoppio
+dell'importo in caso di rigetto — il rischio entra nella scelta tra le due
+vie (§15.5), non nel costo di `costoGdP`.
+
+Convenienza economica (per la via GdP, unica con un costo di deposito reale):
+
+```
+se valoreInGioco >= costoGdP × moltiplicatoreFavorevole   (default 2.0) → FAVOREVOLE
+altrimenti se valoreInGioco >  costoGdP                                  → LIMITATA
+altrimenti                                                                → SFAVOREVOLE
+```
+
+### 15.4 Parametri configurabili — estensione di `RuleSettings`
+
+Estensione additiva del modello esistente (nessuna nuova tabella per i
+parametri — stesso principio già seguito per gli altri parametri del motore
+regole):
+
+```prisma
+model RuleSettings {
+  // ... campi esistenti invariati ...
+
+  appealGdpUnifiedContributionLowValue  Decimal  @default(43)   @db.Decimal(8, 2)
+  appealGdpUnifiedContributionHighValue Decimal  @default(98)   @db.Decimal(8, 2)
+  appealGdpUnifiedContributionThreshold Decimal  @default(1100) @db.Decimal(10, 2)
+  appealGdpStampDutyAmount              Decimal  @default(27)   @db.Decimal(8, 2)
+  appealInternalHandlingCost            Decimal  @default(80)   @db.Decimal(8, 2)  // proposta da confermare, v. sotto
+  appealLicensePointValueEquivalent     Decimal  @default(50)   @db.Decimal(8, 2)  // proposta da confermare, v. sotto
+  appealFavorableMultiplier             Decimal  @default(2.0)  @db.Decimal(4, 2)
+  appealCostParamsSource                String?  // fonte dei valori normativi (es. "art. 13 D.P.R. 115/2002, tabella contributo unificato")
+  appealCostParamsVerifiedAt            DateTime? // data di ultima verifica manuale dei valori normativi
+}
+```
+
+**Perché parametri e non costanti nel codice**: gli importi di contributo
+unificato e marca da bollo sono **fatti normativi**, non scelte di prodotto —
+esattamente come richiesto dal brief, vivono come dati modificabili nelle
+Impostazioni (`src/app/api/settings/rules/route.ts`, stesso endpoint, stessa
+validazione Zod da estendere in `ruleSettingsInputSchema`), con
+`appealCostParamsSource`/`appealCostParamsVerifiedAt` a documentare
+esplicitamente la fonte e quando è stata controllata l'ultima volta — mai un
+valore silenzioso senza tracciabilità, stesso principio di provenienza usato
+ovunque in questa specifica.
+
+**Proposte da confermare esplicitamente con l'utente** (valori arbitrari,
+non verificati contro una fonte esterna in questa sessione):
+`appealInternalHandlingCost` (80 €, stima di un'ora di lavoro amministrativo
+— **non verificato**, va confermato o corretto) e
+`appealLicensePointValueEquivalent` (50 € per punto, stima approssimativa
+del valore per un autista professionale con CQC — **non verificato**, il
+brief stesso lo segnala come "valore equivalente per punto" da proporre, non
+da assumere come fatto). Questi due, a differenza del contributo unificato e
+della marca da bollo, **non sono fatti normativi verificabili** — sono scelte
+di prodotto che l'utente deve validare o correggere prima della Fase E.
+
+### 15.5 Indicazione operativa e scadenze
+
+```
+enum AppealIndication {
+  VALUTARE_RICORSO_GDP
+  CONSIDERARE_RICORSO_PREFETTO
+  ELEMENTI_PRESENTI_MA_ANTIECONOMICO
+  NESSUN_ELEMENTO_RILEVANTE
+  TERMINI_SCADUTI
+  DATI_INSUFFICIENTI
+}
+```
+
+**Scadenze**: due nuovi `DeadlineKind` (additivi, l'`APPEAL_DUE` generico
+esistente resta invariato per compatibilità con l'estrazione diretta dal
+verbale dove non applichiamo questo calcolo):
+
+```
+enum DeadlineKind {
+  // ... valori esistenti invariati ...
+  APPEAL_DUE_GDP        // notification_date + 30 giorni (art. 204-bis C.d.S.)
+  APPEAL_DUE_PREFETTO   // notification_date + 60 giorni (art. 203 C.d.S.)
+}
+```
+
+Calcolate deterministicamente da `notification_date` quando presente — non
+estratte dal documento, per costruzione (a differenza di `APPEAL_DUE`
+esistente), dato che sono termini di legge fissi e non soggetti
+all'interpretazione di cosa il verbale dichiara. **Nota di prudenza
+normativa**: i due termini (30/60 giorni) sono presentati qui come riferimento
+operativo comune per violazioni del Codice della Strada — non una verifica
+legale esaustiva per ogni possibile eccezione procedurale; se in Fase E
+emergono casi con termini diversi (es. violazioni non-CdS), il calcolo deve
+poter degradare a `DATI_INSUFFICIENTI` invece di applicare 30/60 come regola
+universale.
+
+**Tabella di combinazione — proposta esplicita, da validare con l'utente**
+(il brief fornisce tre esempi guida, non l'intera logica; questa tabella è
+stata verificata contro tutti e tre — dettaglio sotto):
+
+| Condizione (in ordine di priorità) | Indicazione |
+|---|---|
+| `notification_date` o importo mancante | `DATI_INSUFFICIENTI` |
+| Entrambi i termini scaduti (giorni residui ≤ 0 per GdP e Prefetto) | `TERMINI_SCADUTI` |
+| Asse documentale `ASSENTI` | `NESSUN_ELEMENTO_RILEVANTE` |
+| Asse economico `FAVOREVOLE` **e** termine GdP ancora aperto | `VALUTARE_RICORSO_GDP` |
+| Asse documentale `RILEVANTI`/`FORTI` **e** termine Prefetto ancora aperto (via gratuita) | `CONSIDERARE_RICORSO_PREFETTO` |
+| Asse documentale `DEBOLI`, o nessuna delle condizioni sopra si applica | `ELEMENTI_PRESENTI_MA_ANTIECONOMICO` |
+
+Verifica contro gli esempi del brief: *"multa alta + elementi forti"* → importo
+alto spinge `valoreInGioco` oltre `costoGdP × 2.0` → economico `FAVOREVOLE` →
+riga 4 → `VALUTARE_RICORSO_GDP` ✓. *"multa bassa + elementi forti"* → importo
+basso non supera `costoGdP` → economico non `FAVOREVOLE` → riga 4 non si
+applica → riga 5 (documentale `FORTI`, Prefetto gratuito e aperto) →
+`CONSIDERARE_RICORSO_PREFETTO` ✓. *"multa bassa + punti su autista
+professionale + elementi forti"* → `valoreInGioco` include ora
+`punti × valoreEquivalentePerPunto`, può superare `costoGdP × 2.0` anche con
+importo basso → economico diventa `FAVOREVOLE` → riga 4 si applica invece
+della riga 5 → `VALUTARE_RICORSO_GDP` — **la componente punti sposta
+l'indicazione**, esattamente come richiesto ✓.
+
+**Rischio raddoppio Prefetto**: non modella un costo nella formula (il
+deposito resta gratuito), ma è il motivo per cui `CONSIDERARE_RICORSO_PREFETTO`
+richiede documentale `RILEVANTI`/`FORTI`, non un generico "è gratis quindi
+proviamo sempre" — coerente con l'obiettivo di non essere un consiglio
+azzardato, senza mai esprimerlo come probabilità di esito (invariante di
+linguaggio, §1/§15.1).
+
+### 15.6 Persistenza — calcolato a lettura, decisione operatore persistita
+
+**Il calcolo stesso non è mai persistito** (stesso principio di
+`deriveCaseBlockers`, §15.2): nessuna tabella "risultato indicatore", nessun
+rischio di dato calcolato che invecchia silenziosamente rispetto ai parametri
+correnti — ricalcolato a ogni caricamento della pagina dal `RuleSettings`
+corrente e dai dati vivi della pratica.
+
+**Solo la decisione dell'operatore è persistita**, con audit:
+
+```prisma
+model AppealDecision {
+  id          String            @id @default(cuid())
+  caseId      String            @unique
+  case        Case              @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  decision    AppealDecisionKind @default(NOT_DECIDED)
+  note        String?
+  decidedById String?
+  decidedBy   User?             @relation(fields: [decidedById], references: [id])
+  decidedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+enum AppealDecisionKind {
+  NOT_DECIDED
+  GDP_FILED
+  PREFETTO_FILED
+  NO_APPEAL
+}
+```
+
+1:1 con `Case` (stesso pattern di `EnforcementDeviceCheck`, §7) — un
+aggiornamento sovrascrive la decisione precedente, ma **ogni cambiamento
+scrive una riga `AuditLog`** (nuovo `AuditAction.APPEAL_DECISION_RECORDED`,
+`metadata: { from, to, note }`) — quindi lo storico delle decisioni resta
+ricostruibile dall'audit log immutabile anche se la riga corrente cambia,
+stesso principio già usato per `STATUS_CHANGED`/`ASSIGNEE_CHANGED`
+(`prisma/schema.prisma`, `AuditAction`).
+
+### 15.7 Proposta UI
+
+Nel dettaglio pratica, per categoria `FINE_OR_PENALTY`: pannello "Indicatore
+ricorso", posizionato **vicino al pannello autovelox quando presente**
+(§8), altrimenti da solo (visibile anche per multe non-velox, come richiesto
+— l'asse economico resta sempre calcolabile, quello documentale limitato al
+fallback generico di §15.3).
+
+Contenuto: i due assi mostrati **separatamente** (badge, stesso sistema già
+in uso — mai un unico numero composito che nasconde la scomposizione);
+indicazione operativa finale; scomposizione visibile del "perché" come lista
+compatta di frasi brevi, es. *"Dispositivo non presente nel censimento MIT ·
+Importo 173,00 € · 2 punti (autista non professionale, non conteggiati) · 28
+giorni residui per il Giudice di Pace · 58 giorni residui per il Prefetto"*
+— ogni elemento della lista tracciabile alla sua fonte (stesso principio di
+`FieldSourceInfo` già esistente); disclaimer **obbligatorio e sempre
+visibile**, stesso trattamento del pannello autovelox (§8): *"Indicazione
+basata su dati documentali ed economici. Non costituisce parere legale né
+previsione sull'esito di un ricorso."*
+
+Azione: un controllo per registrare la decisione dell'operatore (select o
+pulsanti "Ricorso GdP avviato" / "Ricorso Prefetto avviato" / "Nessun
+ricorso", più un campo nota libero) — reale, chiama un endpoint
+(`PATCH /api/cases/[id]/appeal-decision`, protetto — v. §15.8), non un link
+di scorrimento (stesso principio già applicato in Fase C, `docs/UX-AUDIT-2026-07.md`).
+
+La "Prossima azione" del pannello laterale (`recommended-action.ts`, già
+esteso in Fase C con un `kind` per blocker — `src/lib/cases/blockers.ts`) può
+opzionalmente includere un blocker quando l'indicazione è
+`VALUTARE_RICORSO_GDP`/`CONSIDERARE_RICORSO_PREFETTO` e la decisione è ancora
+`NOT_DECIDED` e i termini non sono scaduti (es. "Valuta il ricorso — 12
+giorni residui") — **da confermare come scelta di prodotto**: potrebbe
+risultare invadente per pratiche a bassa priorità: proposta, non
+implementata.
+
+### 15.8 Permessi
+
+Visualizzazione: chiunque veda la pratica (`case:read`, invariato — nessuna
+restrizione aggiuntiva, l'indicatore è solo informativo finché non si
+registra una decisione). Registrazione della decisione: **proposta —
+riusare `case:write`** (già negato a `READ_ONLY`, già concesso a
+`ADMIN`/`OPERATIONS`/`ACCOUNTING`/`COMMERCIAL`), non un nuovo permesso
+dedicato né `enforcement:confirm` — quest'ultimo è specifico al modulo
+autovelox (§9) e l'indicatore ricorso si applica anche a multe senza quel
+modulo, quindi non è il gate concettualmente corretto. **Alternativa
+indicata dal brief**: un permesso dedicato (es. `case:appeal-decide`) se si
+vuole poter negare la registrazione della decisione a chi ha comunque
+`case:write` generico (es. `ACCOUNTING`/`COMMERCIAL`) — da confermare
+esplicitamente con l'utente, stessa cautela già espressa per la tabella
+permessi del modulo autovelox (§9).
+
+### 15.9 Rischi
+
+1. **Formula economica percepita come consiglio definitivo**: mitigato dal
+   disclaimer sempre visibile (§15.7) e dalla scomposizione sempre mostrata
+   (mai un'etichetta senza il suo "perché") — ma resta un rischio intrinseco
+   di qualunque numero unico presentato a un operatore non tecnico: da
+   monitorare in uso reale, non solo in fase di specifica.
+2. **Parametri economici non verificati usati come se fossero normativi**:
+   `appealInternalHandlingCost`/`appealLicensePointValueEquivalent` sono
+   stime proposte, non fatti verificati (§15.4) — rischio che restino ai
+   valori di default senza mai essere confermati dall'utente. Mitigazione:
+   `appealCostParamsVerifiedAt` resta `null` finché non confermati
+   esplicitamente in Impostazioni — l'assenza di una data di verifica è essa
+   stessa un segnale (proposta: mostrarlo in UI se mai verificato).
+3. **Termini calcolati (30/60 giorni) applicati a eccezioni procedurali non
+   coperte**: mitigato dal fallback a `DATI_INSUFFICIENTI` quando i dati
+   d'ingresso mancano, ma non copre il caso di un termine diverso applicato
+   silenziosamente come se fosse quello standard — da validare con una
+   revisione legale prima della Fase E, non assunto qui come esaustivo.
+4. **Eredità dei P0 esistenti**: la registrazione della decisione è una
+   mutazione (`PATCH`) — se implementata, deve validare lato server (stato
+   pratica, permesso, valore `decision` da allowlist Zod) fin dall'inizio,
+   non aggiungere validazione dopo — stessa lezione di
+   `docs/UX-AUDIT-2026-07.md` P0 #1/#2/#3, qui applicata da subito invece che
+   corretta in un secondo momento.
+
+### 15.10 Estensione futura (fuori scope v1)
+
+Registrare l'esito reale dei ricorsi effettuati (accolto/respinto/parziale,
+costi effettivi sostenuti) per calibrare nel tempo i parametri della formula
+sui dati storici dell'azienda — richiederebbe estendere `AppealDecision` con
+un esito successivo e un costo effettivo, e un processo di analisi storica
+separato (non un LLM che "impara" i parametri — resterebbe un aggiornamento
+esplicito e verificato dei parametri in Impostazioni, coerente con
+l'invariante di nessuna conclusione automatica).
+
+### 15.11 Test da prevedere (per la Fase E)
+
+- **Unit**: i tre esempi del brief (§15.5) come test espliciti della tabella
+  di combinazione; `DATI_INSUFFICIENTI` quando `notification_date` o importo
+  mancano; `TERMINI_SCADUTI` quando entrambi i termini sono scaduti (con
+  priorità corretta rispetto a `DATI_INSUFFICIENTI`); parametri
+  `RuleSettings` modificati riflessi nel calcolo (stesso pattern di
+  `tests/unit/rules/engine.test.ts`); nessuna stringa libera generata da un
+  LLM in nessun campo di output.
+- **Integration**: `PATCH /api/cases/[id]/appeal-decision` — permesso
+  negato a `READ_ONLY`; transizione valida registra `decidedById`/`decidedAt`
+  e scrive `AuditAction.APPEAL_DECISION_RECORDED`; valore `decision` non in
+  allowlist rifiutato (400); estensione di `ruleSettingsInputSchema` per i
+  nuovi parametri economici (analogo a `tests/integration/rule-settings-repository.test.ts`
+  se esiste, o al pattern usato per gli altri parametri).
+- **E2E**: multa da autovelox con dispositivo non censito (`registryMatch:
+  NOT_FOUND`) + importo alto → `VALUTARE_RICORSO_GDP`; stessa multa con
+  importo basso → `CONSIDERARE_RICORSO_PREFETTO`; stessa multa con punti su
+  autista professionale confermato → l'indicazione cambia rispetto al caso
+  senza CQC (dimostra che la componente punti sposta davvero il calcolo, non
+  solo in unit test isolato); multa non-velox con `missing_documents`
+  popolato → asse documentale `DEBOLI` dal fallback generico; termini
+  scaduti → `TERMINI_SCADUTI` indipendentemente dagli assi; decisione
+  registrata e poi corretta → entrambe le righe `AuditLog` presenti,
+  ricostruibili nello storico.
+
+Aggiornamenti alle sezioni esistenti di questa specifica per coerenza con
+questa estensione: **§9** (permessi) — nessuna tabella nuova, solo la nota
+di §15.8 sul riuso di `case:write`; **§10** (rischi) — i rischi 1-4 di §15.9
+si aggiungono ai 5 già presenti, stessa gravità relativa (nessuno è un P0,
+tutti richiedono conferma prodotto prima della Fase E); **§13** (file
+impattati) — aggiungere `model AppealDecision` + 2 enum + estensione
+`RuleSettings` a `prisma/schema.prisma`; nuovo `src/lib/appeal-indicator/calculate.ts`
+(funzione pura, stesso principio di `src/lib/cases/blockers.ts`); estensione
+di `ruleSettingsInputSchema` in `src/lib/rules/settings-repository.ts`; nuova
+route `src/app/api/cases/[id]/appeal-decision/route.ts`; nuovo pannello UI nel
+dettaglio pratica; nuova `AuditAction.APPEAL_DECISION_RECORDED`.
+
+---
+
+**Fine dell'estensione FASE 9B.** Come richiesto: nessuna implementazione in
+questa sessione. In attesa di approvazione complessiva dei tre elementi della
+specifica (modulo autovelox §1-§14, integrazione registro MIT §7bis,
+indicatore ricorso §15) prima di procedere alla Fase E su un branch dedicato.
