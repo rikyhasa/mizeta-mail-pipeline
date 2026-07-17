@@ -105,6 +105,26 @@ dispositivo hardcoded, URL governativo reale nel commento ma mai realmente
 interrogato — `refreshLocalCache()` richiede un `approvedBy` non vuoto (unico
 "gate" di approvazione presente nel mock).
 
+**Nota aggiuntiva verificata dopo la stesura iniziale di questa bozza**: l'URL
+usato nel commento del mock, `https://velox.mit.gov.it/dispositivi`, **non è
+inventato** — è il portale reale del Ministero delle Infrastrutture e dei
+Trasporti, online dal 30/11/2025, che pubblica l'elenco nazionale dei
+dispositivi di rilevamento velocità (~3625 dispositivi al momento della
+verifica), base legale **Decreto Direttoriale MIT prot. 305 del 18/08/2025**,
+attuativo dell'art. 5, comma 3-bis, del D.L. 73/2025 (conv. L. 105/2025) — le
+sanzioni elevate con dispositivi non presenti in questo elenco sono nulle dal
+30/11/2025 (fonti: [mit.gov.it](https://www.mit.gov.it/comunicazione/news/pubblicata-la-lista-nazionale-degli-autovelox),
+[Altalex](https://www.altalex.com/documents/news/2025/12/14/autovelox-sanzioni-legittime-apparecchio-lista-ministero)).
+Questo **non cambia la valutazione di rischio sul mock**: i *dati* del
+dispositivo demo, il *registro* (`MockSpeedDeviceRegistryAdapter`, un solo
+elemento hardcoded) e le *regole legali* (`annexBDecrees`, data di efficacia
+`2026-07-12`) restano completamente fittizi — solo l'URL nel commento si è
+rivelato, per coincidenza o previsione, corrispondere a un servizio reale
+diventato operativo dopo la scrittura del mock. Il §13 di questa specifica usa
+ora questo registro reale come base per una proposta di integrazione concreta,
+sostituendo l'ipotesi iniziale "nessuna fonte esterna reale esiste" — si veda
+sotto.
+
 **Generatore bozza di richiesta accesso agli atti** (`lib/fines/access-request.ts`,
 3 righe): stringa pura con placeholder (`[NOME E COGNOME]` ecc.), mostrata in un
 **modal read-only** con avviso esplicito *"L'app non invia PEC"* — mai
@@ -182,8 +202,8 @@ nessuna aggiunta di stati che implichino un giudizio di merito.
 | Fase brief | Pattern del target da riusare |
 |---|---|
 | P1 Rilevamento | Stesso hook della pipeline che oggi popola `CaseField` da `ExtractionRun` — nessuna nuova infrastruttura di ingestione. |
-| P2 Estrazione | Nuovo `EnforcementDeviceField` (stessa forma di `CaseField`, vedi §7), popolato da un run tracciato analogo a `ExtractionRun`. |
-| P3 Valutazione preliminare | Funzione deterministica pura (niente LLM per la valutazione, solo per l'estrazione) — analoga a `rules.ts` della reference ma **senza** costanti legali hardcoded: deriva `EnforcementVerificationState` solo da conteggi di campi/documenti mancanti/in conflitto, mai da una data o un decreto specifico scritto nel codice. |
+| P2 Estrazione | Nuovo `EnforcementDeviceField` (stessa forma di `CaseField`, vedi §7), popolato da un run tracciato analogo a `ExtractionRun`. Se applicabile, il confronto con il registro MIT (§13) avviene qui: si consulta l'ultimo `SpeedRegistrySnapshot` disponibile (nessuna chiamata di rete sincrona durante l'estrazione — solo lettura dello snapshot già scaricato). |
+| P3 Valutazione preliminare | Funzione deterministica pura (niente LLM per la valutazione, solo per l'estrazione né per la consultazione del registro — §13) — analoga a `rules.ts` della reference ma **senza** costanti legali hardcoded: deriva `EnforcementVerificationState` solo da conteggi di campi/documenti mancanti/in conflitto e dall'esito del confronto con lo snapshot registro (corrisponde/non corrisponde/non trovato), mai da una data o un decreto specifico scritto nel codice. |
 | P4 Revisione umana | Stesso pattern di conferma di `CaseField` (endpoint `confirmedById`/`confirmedAt`) — **ma con il fix di validazione di P0 #1 già applicato** (si veda `docs/UX-AUDIT-2026-07.md`), per non ereditare lo stesso bug. |
 | P5 Richiesta documenti | Genera una stringa di bozza (come `access-request.ts` della reference) mostrata in read-only per revisione — **oppure**, se si vuole tracciarla come le altre bozze del target, crea un vero `EmailDraft` (riuso totale dell'infrastruttura esistente: stesso flusso di approvazione umana, stesso invariante "mai inviato"). Consigliato: **riusare `EmailDraft`** invece di duplicare un meccanismo di bozza parallelo — un solo posto dove si applica il fix di P0 #2. |
 | P6 Esito operativo | `EnforcementVerificationState` finale + audit log — nessuna nuova infrastruttura di stato oltre l'enum. |
@@ -207,6 +227,9 @@ model EnforcementDeviceCheck {
   needsLegalReview Boolean                          @default(false)
   extractionRunId  String?
   extractionRun    ExtractionRun?                   @relation(fields: [extractionRunId], references: [id])
+  registrySnapshotId String?                        // snapshot del registro MIT consultato per questa pratica (§13) — nullable: non ogni check consulta il registro (es. NOT_APPLICABLE lo salta)
+  registrySnapshot   SpeedRegistrySnapshot?          @relation(fields: [registrySnapshotId], references: [id])
+  registryMatch      EnforcementRegistryMatchState?  // MATCH | MISMATCH | NOT_FOUND | NOT_CONSULTED — esito del confronto, mai una conclusione di validità
   confirmedById    String?
   confirmedBy      User?                            @relation(fields: [confirmedById], references: [id])
   confirmedAt      DateTime?
@@ -256,6 +279,37 @@ model EnforcementDocumentCheck {
 
   @@unique([checkId, documentType])
 }
+
+model SpeedRegistrySnapshot {
+  id                 String                    @id @default(cuid())
+  sourceUrl          String                    // "https://velox.mit.gov.it/dispositivi" — §13
+  fetchMethod        SpeedRegistryFetchMethod  @default(SCHEDULED_FETCH)
+  uploadedById       String?                   // valorizzato solo per MANUAL_UPLOAD (§13, fallback)
+  uploadedBy         User?                     @relation(fields: [uploadedById], references: [id])
+  fetchedAt          DateTime                  @default(now())
+  payloadHash        String                    // hash del contenuto scaricato/caricato, per il diff e per rilevare "nessuna modifica"
+  deviceCount        Int
+  rawStorageKey      String                    // HTML/CSV grezzo salvato in storage S3-compatible (GeneratedDocumentService o storage equivalente) — evidenza ispezionabile, non solo il parsing
+  diffFromPreviousId String?
+  diffFromPrevious   SpeedRegistrySnapshot?    @relation("SnapshotDiff", fields: [diffFromPreviousId], references: [id])
+  diffSummary        Json?                     // { added: number, removed: number, changed: number } rispetto allo snapshot precedente
+  createdAt          DateTime                  @default(now())
+
+  previousDiffs      SpeedRegistrySnapshot[]   @relation("SnapshotDiff")
+  deviceChecks       EnforcementDeviceCheck[]
+}
+
+enum SpeedRegistryFetchMethod {
+  SCHEDULED_FETCH
+  MANUAL_UPLOAD
+}
+
+enum EnforcementRegistryMatchState {
+  MATCH
+  MISMATCH
+  NOT_FOUND
+  NOT_CONSULTED
+}
 ```
 
 Perché questa forma e non altre:
@@ -276,16 +330,127 @@ Perché questa forma e non altre:
   sufficienti né un caso d'uso chiaro per deduplicare dispositivi tra verbali
   diversi (richiederebbe anche decidere identità/matching tra dispositivi, un
   problema separato). Proposto come estensione futura esplicita, non v1.
-- **Niente equivalente di `LegalRuleRecord`/`SpeedRegistrySnapshot` della
-  reference in v1**: per costruzione (§13 del brief) non esiste ancora una
-  fonte esterna reale da interrogare — introdurre un modello per una fonte
-  che non esiste sarebbe overengineering. Se in futuro si integrasse un
-  registro esterno reale, andrà introdotto allora, con provenienza/hash/data
-  di consultazione esplicite (stesso principio di `SpeedRegistrySnapshot`
-  della reference, adattato).
+- **`SpeedRegistrySnapshot` è incluso in v1** (a differenza della prima stesura
+  di questa bozza, che lo escludeva assumendo l'assenza di una fonte esterna
+  reale): il registro MIT `velox.mit.gov.it/dispositivi` esiste davvero ed è
+  operativo dal 30/11/2025 (verificato, si veda §3 e §13) — un modello di
+  provenienza/hash/data di consultazione è quindi giustificato, non
+  overengineering. **Resta escluso `LegalRuleRecord`**: non introduciamo un
+  motore di regole legali versionate — il confronto con il registro produce
+  solo `MATCH`/`MISMATCH`/`NOT_FOUND`, mai una conclusione di validità (si
+  veda §13 per il perché questa distinzione è importante).
 
 Migrazione Prisma singola, additiva (nessun `ALTER` su tabelle esistenti oltre
 alle nuove relazioni inverse su `Case`/`ExtractionRun`/`User`/`Attachment`).
+
+## 7bis. Fonti esterne — integrazione registro MIT (`velox.mit.gov.it/dispositivi`)
+
+Sezione aggiunta dopo la stesura iniziale di questa bozza, su indicazione
+esplicita dell'utente, con dettagli operativi verificati (ricerca web, lettura
+`robots.txt`, lettura della pagina del registro e del comunicato ufficiale
+MIT) prima di scriverli qui come fatti — coerente con la cautela richiesta dal
+brief originale sul non trattare fonti/regole legali come verificate senza
+riscontro.
+
+**Cosa è stato verificato**:
+
+- **Fonte**: `https://velox.mit.gov.it/dispositivi` — portale reale del
+  Ministero delle Infrastrutture e dei Trasporti, online dal 30/11/2025,
+  ~3625 dispositivi al momento della verifica (fonte:
+  [mit.gov.it](https://www.mit.gov.it/comunicazione/news/pubblicata-la-lista-nazionale-degli-autovelox)).
+  Base legale: **Decreto Direttoriale MIT prot. 305 del 18/08/2025**,
+  attuativo dell'art. 5, comma 3-bis, del D.L. 73/2025 (conv. L. 105/2025) —
+  citazione più precisa di "Decreto 305/2025 art. 5": è un decreto
+  *direttoriale* del MIT che attua un articolo di un *diverso* provvedimento
+  (il D.L. 73/2025), non un decreto legge numerato 305/2025 in sé. Questa
+  distinzione va rispettata quando il riferimento normativo compare in UI o
+  in audit log — mai abbreviata in modo impreciso, per lo stesso principio di
+  prudenza linguistica del §1.
+- **Formato dei dati esposti** (verificato leggendo la pagina): per ogni
+  dispositivo — codice ente accertatore, nome dispositivo, codice catastale,
+  decreto normativo, data decreto, tipo dispositivo, produttore, modello,
+  versione, matricola, note, data ultima comunicazione, data primo
+  inserimento. Mappa bene sui campi già proposti per `EnforcementDeviceField`
+  (`manufacturer`/`model`/`version`/`serialNumber`/`decreeNumber`/`decreeDate`/`authority`).
+- **Nessun export strutturato trovato**: nessun link a CSV/JSON/API — solo una
+  tabella HTML consultabile a video. **Implicazione operativa importante**:
+  il "download della lista" richiede il parsing di una tabella HTML (con
+  paginazione, dato il volume — ~3625 righe), non una chiamata a un endpoint
+  dati pulito. Questo rende l'integrazione strutturalmente più fragile di
+  un'API versionata — coerente con la richiesta dell'utente di prevedere un
+  fallback per cambio di formato (vedi sotto), che qui non è un'eventualità
+  remota ma un rischio concreto e prevedibile.
+- **Termini d'uso**: nessuna licenza dati esplicita (es. Creative Commons/open
+  data) né termini di riuso trovati sulla pagina del registro o nel
+  comunicato ufficiale MIT. `robots.txt` del dominio (`velox.mit.gov.it/robots.txt`)
+  è permissivo (`User-agent: *`, nessun `Disallow`) — indicazione tecnica
+  favorevole ma non un'autorizzazione legale esplicita. Il comunicato
+  ufficiale descrive i dati come "automaticamente pubblicati e liberamente
+  consultabili" — linguaggio informale, non una licenza. **Raccomandazione
+  conservativa**: trattare l'accesso come pura consultazione pubblica
+  in sola lettura per uso interno (confronto documentale su singole pratiche),
+  **mai** ripubblicare o ridistribuire i dati grezzi scaricati al di fuori
+  dell'app, sempre conservare l'attribuzione (URL sorgente + data di
+  consultazione) accanto a ogni snapshot — esattamente lo stesso principio di
+  provenienza già richiesto per `CaseField`/`EnforcementDeviceField.sourceExcerpt`.
+  Se l'utente vuole un'automazione più aggressiva di quanto qui raccomandato,
+  è un punto da confermare esplicitamente prima della Fase E, non da assumere.
+- **Frequenza di accesso**: un solo accesso giornaliero, come richiesto — e
+  comunque coerente con quanto verificato: nessuna frequenza di aggiornamento
+  dichiarata dal MIT (il comunicato dice solo che gli aggiornamenti
+  "continueranno... secondo le modalità stabilite dal decreto", senza cadenza
+  precisa), quindi un fetch più frequente non porterebbe dati più freschi in
+  modo garantito — un accesso al giorno è già proporzionato.
+
+**Meccanismo di sync proposto**:
+
+Il job queue esistente (`prisma/schema.prisma:735-753`, modello `Job`/`JobAttempt`
+su Postgres, non Redis/BullMQ — deviazione già documentata nel repo,
+`src/lib/jobs/queue.ts`) è oggi **reattivo**: i job esistenti
+(`INGEST_MAILBOX_CHANGES`, `PROCESS_INCOMING_MESSAGE`, `RENEW_SUBSCRIPTION`)
+vengono accodati da un evento (webhook, sync manuale), non da una
+schedulazione ricorrente autonoma — non esiste oggi un meccanismo di "cron"
+interno. **Per una sincronizzazione davvero giornaliera serve un piccolo
+pezzo di infrastruttura in più**, non qualcosa che "esiste già gratis":
+
+- Nuovo `JobType.SYNC_SPEED_DEVICE_REGISTRY`.
+- Pattern di **auto-rischedulazione**: al completamento (successo o
+  esaurimento tentativi), il job accoda se stesso con
+  `enqueueJob({ type: "SYNC_SPEED_DEVICE_REGISTRY", idempotencyKey:
+  "speed-registry-sync", runAt: new Date(Date.now() + 24h) })` — riusa
+  esattamente il meccanismo di dedup per `idempotencyKey` già esistente in
+  `enqueueJob()` (`src/lib/jobs/queue.ts:19-46`: se lo stato è terminale,
+  "viene riarmato da zero"), nessuna nuova libreria di scheduling.
+- Il job: scarica/effettua il parsing della tabella HTML, calcola
+  `payloadHash` (per rilevare "nessuna modifica" e non creare uno snapshot
+  identico ogni giorno — o comunque crearlo ma con `diffSummary` a zero, da
+  decidere in Fase E), salva il file grezzo in storage (per audit/ispezione
+  futura, non solo il risultato del parsing), calcola il diff rispetto
+  all'ultimo snapshot (`added`/`removed`/`changed`), crea la riga
+  `SpeedRegistrySnapshot` con `fetchMethod: SCHEDULED_FETCH`.
+  **Nessuna chiamata LLM coinvolta** — parsing deterministico di una tabella
+  HTML nota, non un compito da affidare a un modello.
+- Ogni pratica che consulta il registro per un confronto dispositivo registra
+  quale `SpeedRegistrySnapshot` è stato consultato
+  (`EnforcementDeviceCheck.registrySnapshotId`) — provenienza opponibile: si
+  può sempre rispondere "quale versione del registro MIT è stata usata per
+  questa verifica, e quando".
+- **Fallback**: se il portale non è raggiungibile programmaticamente o il
+  formato della tabella cambia (parsing fallisce), il job termina in
+  `FAILED`/`DEAD_LETTER` (stesso meccanismo di retry/backoff già esistente in
+  `src/lib/jobs/worker.ts`) e l'ADMIN viene messo in condizione di caricare
+  manualmente un file (stesso modello `SpeedRegistrySnapshot`, ma
+  `fetchMethod: MANUAL_UPLOAD`, `uploadedById` valorizzato) — stessa forma
+  dati, stesso meccanismo di diff, solo l'origine cambia. Nessuna verifica
+  automatica di correttezza del file caricato oltre al parsing (mai fidarsi
+  ciecamente di un file caricato senza validazione di formato, ma la
+  responsabilità del contenuto resta umana in questo percorso).
+- **Permessi**: proposto un nuovo permesso granulare
+  `enforcement:manage-registry-sync` (solo `ADMIN`, coerente con la
+  sensibilità dell'azione — un caricamento manuale errato altererebbe la base
+  di confronto per tutte le pratiche) per il caricamento manuale e la
+  consultazione dello storico snapshot/diff — aggiunta alla tabella permessi
+  del §9.
 
 ## 8. Proposta UI
 
@@ -337,21 +502,27 @@ approvazione) **non mappa 1:1** sui ruoli esistenti — non esiste oggi un ruolo
 con tre nuovi permessi dedicati, invece di introdurre nuovi ruoli:
 
 ```
-"enforcement:confirm"           // confermare/correggere dati e documenti del modulo
-"enforcement:request-documents" // generare/approvare una richiesta documentazione (EmailDraft)
-"enforcement:legal-escalate"    // segnare per verifica legale
+"enforcement:confirm"              // confermare/correggere dati e documenti del modulo
+"enforcement:request-documents"    // generare/approvare una richiesta documentazione (EmailDraft)
+"enforcement:legal-escalate"       // segnare per verifica legale
+"enforcement:manage-registry-sync" // caricamento manuale di fallback + consultazione storico snapshot registro MIT (§7bis)
 ```
 
 Proposta di assegnazione (**da confermare esplicitamente con l'utente, non
 implementata**):
 
-| Ruolo | `enforcement:confirm` | `enforcement:request-documents` | `enforcement:legal-escalate` |
-|---|---|---|---|
-| `ADMIN` | sì | sì | sì |
-| `OPERATIONS` | sì | sì | no |
-| `ACCOUNTING` | no | no | no |
-| `COMMERCIAL` | no | no | no |
-| `READ_ONLY` | no | no | no |
+| Ruolo | `enforcement:confirm` | `enforcement:request-documents` | `enforcement:legal-escalate` | `enforcement:manage-registry-sync` |
+|---|---|---|---|---|
+| `ADMIN` | sì | sì | sì | sì |
+| `OPERATIONS` | sì | sì | no | no |
+| `ACCOUNTING` | no | no | no | no |
+| `COMMERCIAL` | no | no | no | no |
+| `READ_ONLY` | no | no | no | no |
+
+`enforcement:manage-registry-sync` è limitato ad `ADMIN`: un caricamento
+manuale errato del fallback altererebbe la base di confronto usata per
+**tutte** le pratiche (non solo una), quindi merita la stessa cautela già
+riservata alle azioni amministrative generali (`settings:manage`).
 
 Nessun invio automatico di email in nessun caso (invariante 2/3 di CLAUDE.md,
 non negoziabile) — "richiesta documenti" resta sempre una bozza `EmailDraft`
@@ -369,11 +540,25 @@ più ampio, che avrebbe conseguenze anche fuori da questo modulo.
    (mai testo libero per gli stati), Zod server-side, e assenza totale di
    regole/fonti legali hardcoded nel codice (a differenza del mock reference,
    si veda §3).
-2. **Fonti esterne inesistenti percepite come verificate**: mitigato da uno
-   stato sempre disponibile (`TO_BE_VERIFIED`) e dal fatto che, per costruzione
-   (§13 del brief), la v1 non integra alcuna banca dati esterna reale — solo
-   verbale, email, allegati, documenti caricati, dati confermati
-   dall'operatore.
+2. **Confusione tra "trovato nel registro" e "sanzione valida"**: ora che il
+   registro MIT è una fonte reale integrata (§7bis), il rischio si sposta da
+   "fonte inesistente spacciata per verificata" a "risultato del confronto
+   interpretato come giudizio di validità". Mitigazione: `registryMatch` è
+   tipizzato solo come `MATCH`/`MISMATCH`/`NOT_FOUND`/`NOT_CONSULTED`, mai
+   collegato automaticamente a `EnforcementVerificationState` senza revisione
+   umana — un `MISMATCH` significa "il dato dichiarato non corrisponde al
+   registro consultato in data X", non "la multa è invalida" (potrebbe essere
+   un errore di trascrizione, un aggiornamento non ancora registrato, o un
+   dispositivo genuinamente non conforme — solo un umano/legale può concludere
+   quale). Resta comunque uno stato sempre disponibile (`TO_BE_VERIFIED`) per
+   i casi non ancora consultati.
+3. **Fragilità dell'integrazione stessa** (nuovo, emerso dalla verifica
+   operativa in §7bis): nessuna API/CSV ufficiale, solo scraping di una
+   tabella HTML — un cambio di formato del portale rompe il parsing senza
+   preavviso. Mitigazione: fallback a caricamento manuale già previsto nel
+   design (§7bis), `payloadHash`/`rawStorageKey` conservano l'evidenza grezza
+   per ispezione in caso di parsing sospetto, retry/backoff/dead-letter già
+   nativi del job queue esistente.
 3. **RBAC**: estendere permessi granulari senza nuovi ruoli rischia di
    concedere "richiesta documenti"/"verifica legale" a chi non dovrebbe finché
    la tabella al §9 non è confermata esplicitamente dall'utente.
@@ -393,12 +578,21 @@ più ampio, che avrebbe conseguenze anche fuori da questo modulo.
 
 - Nessun registro dispositivi riutilizzabile cross-pratica (`EnforcementDevice`
   come entità condivisa) — domanda aperta nel brief, rimandata.
-- Nessuna integrazione con una banca dati esterna reale (MIT o altro) — non ne
-  esiste una interrogabile automaticamente, per esplicita cautela del brief.
+- **Aggiornamento rispetto alla prima stesura**: l'integrazione con il
+  registro MIT (`velox.mit.gov.it/dispositivi`) **è ora inclusa in v1** (§7bis),
+  su indicazione esplicita dell'utente e dopo verifica che si tratti di una
+  fonte reale — non è più esclusa come "banca dati esterna inesistente".
+  Restano **esclusi**: qualunque altra fonte esterna oltre a questo unico
+  registro (nessuna aggregazione multi-fonte in v1); un motore di regole
+  legali versionate (`LegalRuleRecord`, si veda §7); un'API/export ufficiale
+  che non esiste (l'integrazione si basa su parsing HTML, con i rischi
+  descritti al §7bis/§10).
 - Nessun concetto di tenant/organizzazione introdotto solo per questo modulo.
 - Nessuna conclusione automatica su approvazione vs omologazione del
   dispositivo, o su qualunque altra distinzione giuridica, senza una decisione
-  legale esplicita e una fonte autorevole indicata dall'utente.
+  legale esplicita e una fonte autorevole indicata dall'utente — **incluso il
+  confronto con il registro MIT**: un `MISMATCH` non implica automaticamente
+  nulla sulla validità della sanzione (si veda §10, rischio #2).
 - Nessun nuovo ruolo utente (si propone di estendere permessi, non ruoli — si
   veda §9).
 
@@ -412,26 +606,39 @@ più ampio, che avrebbe conseguenze anche fuori da questo modulo.
    nuovo pannello alla stessa pagina.
 3. **Fase D** — questa specifica, da discutere e approvare esplicitamente.
 4. **Fase E** — implementazione, branch `feature/autovelox`, solo dopo
-   approvazione: migrazione Prisma (3 modelli + 2 enum di dominio +
-   `EnforcementCheckApplicability`/`EnforcementVerificationState`/
-   `EnforcementDocumentType`/`EnforcementDocumentStatus`); estensione pipeline
+   approvazione: migrazione Prisma (5 modelli — inclusi `SpeedRegistrySnapshot`
+   e i 4 enum di dominio più `SpeedRegistryFetchMethod`/
+   `EnforcementRegistryMatchState` — vedi §7/§7bis); nuovo `JobType.SYNC_SPEED_DEVICE_REGISTRY`
+   con pattern di auto-rischedulazione giornaliera (§7bis); estensione pipeline
    di estrazione/classificazione per popolare `EnforcementDeviceCheck`/
    `EnforcementDeviceField`; nuovo pannello UI nel dettaglio pratica; estensione
-   `recommended-action.ts` per i nuovi blocker; nuovi permessi in
-   `src/lib/auth/rbac.ts`; nuove `AuditAction` (es. `ENFORCEMENT_DEVICE_CONFIRMED`,
-   `ENFORCEMENT_DOCUMENT_LINKED`, `ENFORCEMENT_LEGAL_ESCALATED`).
+   `recommended-action.ts` per i nuovi blocker; nuovi permessi (4, incluso
+   `enforcement:manage-registry-sync`) in `src/lib/auth/rbac.ts`; nuove
+   `AuditAction` (es. `ENFORCEMENT_DEVICE_CONFIRMED`,
+   `ENFORCEMENT_DOCUMENT_LINKED`, `ENFORCEMENT_LEGAL_ESCALATED`,
+   `SPEED_REGISTRY_SYNCED`, `SPEED_REGISTRY_MANUAL_UPLOAD`).
 
 ## 13. File impattati (stima, solo per Fase E — nessuno toccato in questa sessione)
 
-- `prisma/schema.prisma` — 3 nuovi modelli, 4 nuovi enum, relazioni inverse su
-  `Case`, `ExtractionRun`, `User`, `Attachment`; nuova migrazione in
-  `prisma/migrations/`.
-- `src/lib/auth/rbac.ts` — 3 nuovi permessi granulari.
+- `prisma/schema.prisma` — 5 nuovi modelli (inclusi `SpeedRegistrySnapshot`),
+  6 nuovi enum, relazioni inverse su `Case`, `ExtractionRun`, `User`,
+  `Attachment`; nuova migrazione in `prisma/migrations/`.
+- `src/lib/auth/rbac.ts` — 4 nuovi permessi granulari.
+- `src/lib/jobs/queue.ts` / `src/generated/prisma` (enum `JobType`) — nuovo
+  tipo `SYNC_SPEED_DEVICE_REGISTRY`.
+- Nuovo `src/lib/enforcement/registry-sync.ts` (o percorso analogo) —
+  download/parsing tabella HTML, calcolo hash/diff, salvataggio snapshot;
+  nessuna dipendenza da un provider LLM.
+- Nuova route per il caricamento manuale di fallback (es.
+  `src/app/api/enforcement/registry-snapshot/route.ts`, protetta da
+  `enforcement:manage-registry-sync`).
 - `docs/SPEC.md` — nuova sezione dedicata (dopo §10 "Dettaglio pratica" o come
   sotto-sezione di §5 "Modello di dominio"), come richiesto dalle note
-  operative se la specifica viene approvata.
+  operative se la specifica viene approvata — dovrà includere anche la
+  citazione normativa precisa verificata al §7bis.
 - `CLAUDE.md` — solo se emergono nuovi invarianti specifici (es. "il modulo
-  autovelox non esprime mai una valutazione di validità della sanzione") da
+  autovelox non esprime mai una valutazione di validità della sanzione" o "il
+  confronto con il registro MIT non implica un giudizio di validità") da
   aggiungere alla lista esistente — da valutare in sede di approvazione, non
   anticipato qui.
 - Nuovi file applicativi (pipeline, componenti UI, route API, test) — da
@@ -446,24 +653,37 @@ esistenti nel repo (Vitest, `tests/unit`/`tests/integration`/`tests/e2e`,
 
 - **Unit**: derivazione `EnforcementVerificationState` da conteggi
   campi/documenti mancanti/in conflitto (analogo a `tests/unit/rules/engine.test.ts`);
-  mappatura applicabilità da tipo violazione/testo verbale.
+  mappatura applicabilità da tipo violazione/testo verbale; parsing della
+  tabella HTML del registro MIT contro una fixture statica salvata nel repo
+  (mai una chiamata di rete reale nei test — coerente con `EMAIL_PROVIDER=mock`/
+  `LLM_PROVIDER=mock`, stesso principio "tutto dimostrabile senza dipendenze
+  esterne reali" di CLAUDE.md); calcolo `payloadHash`/diff tra due fixture.
 - **Integration**: endpoint conferma `EnforcementDeviceField` (campo vuoto
   rifiutato — **con il fix di P0 #1 già applicato e testato**; campo
   valorizzato confermato; audit log scritto); endpoint documenti (collega
   allegato, segna mancante/richiesto); permessi (`enforcement:confirm`/
-  `request-documents`/`legal-escalate` per ruolo, analogo a
-  `tests/unit/rbac.test.ts` + `tests/integration/auth-guard.test.ts`).
+  `request-documents`/`legal-escalate`/`manage-registry-sync` per ruolo,
+  analogo a `tests/unit/rbac.test.ts` + `tests/integration/auth-guard.test.ts`);
+  job `SYNC_SPEED_DEVICE_REGISTRY` — auto-rischedulazione con lo stesso
+  `idempotencyKey` non crea job duplicati (stesso test-pattern di
+  `tests/integration/job-queue.test.ts`); fallback a `MANUAL_UPLOAD` quando il
+  parsing programmatico fallisce; `registrySnapshotId` correttamente
+  registrato su `EnforcementDeviceCheck` dopo un confronto.
 - **E2E** (pattern di `tests/e2e/fine-review-and-draft.test.ts`, il precedente
   più vicino già esistente — multa PEC che raggiunge priorità critica e genera
   una bozza): eccesso di velocità → applicabile, dispositivo identificato dopo
   conferma umana; ZTL → non applicabile, pannello compatto; dispositivo non
   identificabile → stato `TO_BE_IDENTIFIED`; certificato di taratura mancante
   → `DOCUMENTATION_INCOMPLETE`; documenti completi → `DOCUMENTED_VERIFICATION_COMPLETE`;
-  dati in conflitto → `DATA_CONFLICT`; richiesta documenti genera un
-  `EmailDraft` reale in `PENDING_APPROVAL` (mai inviato); READ_ONLY non può
-  confermare/richiedere/segnalare; audit log per ogni transizione; nessuna
-  conclusione legale automatica verificata a livello di assert (nessun testo
-  libero generato dal modello nei campi di stato).
+  dati in conflitto → `DATA_CONFLICT`; dispositivo non presente nello snapshot
+  registro consultato → `registryMatch: NOT_FOUND`, mai tradotto
+  automaticamente in un giudizio di validità (assert esplicito che nessun
+  campo di stato contenga testo libero generato dal modello); richiesta
+  documenti genera un `EmailDraft` reale in `PENDING_APPROVAL` (mai inviato);
+  READ_ONLY non può confermare/richiedere/segnalare/caricare uno snapshot
+  manuale; audit log per ogni transizione, incluse `SPEED_REGISTRY_SYNCED`/
+  `SPEED_REGISTRY_MANUAL_UPLOAD`; nessuna conclusione legale automatica
+  verificata a livello di assert.
 - **Tenant isolation**: esplicitamente **non applicabile** nel modello
   attuale (si veda §2/§11) — non testabile perché il concetto non esiste
   nell'app; da riconsiderare solo se l'architettura diventasse multi-tenant.
