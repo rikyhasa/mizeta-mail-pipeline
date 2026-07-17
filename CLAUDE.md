@@ -31,6 +31,11 @@ decisionale.
 7. Audit log immutabile per le operazioni importanti. Niente segreti o corpo email nei log.
 8. Non modificare tabelle legacy del gestionale non documentate. Accesso al gestionale
    solo tramite l'interfaccia `ERPAdapter`, in sola lettura.
+9. Il modulo di verifica autovelox e l'indicatore ricorso non esprimono mai una
+   valutazione sulla validità di una sanzione né una previsione sull'esito di un
+   ricorso: solo stati documentali, confronti (es. con il registro MIT) e
+   un'indicazione operativa con la sua scomposizione sempre visibile — mai una
+   probabilità di accoglimento (docs/SPEC.md §10bis).
 
 ## Stack e convenzioni
 

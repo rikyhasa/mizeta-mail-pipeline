@@ -70,6 +70,9 @@ Case, CaseCategory, CaseStatus, CasePriority, CaseField, CaseDeadline, Task, Com
 Customer, Supplier, Vehicle, Driver, ShipmentReference, InvoiceReference, AuditLog,
 ClassificationRun, ExtractionRun, Notification, GeneratedDocument.
 
+Estensione post-MVP (§10bis): EnforcementDeviceCheck, EnforcementDeviceField,
+EnforcementDocumentCheck, SpeedRegistrySnapshot, AppealDecision.
+
 Regole: la pratica (Case) è separata dalle email; più email possono appartenere alla
 stessa pratica; una email ha una categoria principale e può avere categorie secondarie.
 
@@ -187,6 +190,48 @@ Azioni: conferma campo; correggi campo; assegna responsabile; modifica stato; ag
 attività; aggiungi commento; crea bozza; genera documento; segna completato; collega o
 separa pratica.
 
+## 10bis. Modulo verifica autovelox e indicatore ricorso
+
+Estensione post-MVP (specifica completa: `docs/SPEC-AUTOVELOX-DRAFT.md`).
+
+**Verifica autovelox.** Solo per pratiche `FINE_OR_PENALTY` legate a un
+dispositivo di controllo della velocità — mai per qualunque multa: prima si
+stabilisce l'applicabilità (autovelox fisso/mobile, tutor, telelaser,
+dispositivo non identificato; non applicabile per ZTL/semaforo/altra
+violazione). Quando applicabile: identificazione dispositivo, dati tecnici,
+documentazione tecnica (decreto di approvazione/omologazione, certificato di
+taratura, certificato di funzionalità) con provenienza tracciata per ogni
+campo (come `CaseField`). Confronto con il registro nazionale MIT
+(`velox.mit.gov.it/dispositivi`, sincronizzazione giornaliera automatica con
+fallback a caricamento manuale, ogni consultazione registra quale snapshot è
+stato usato). Stati sempre documentali, mai un giudizio di merito: Non
+applicabile; Da identificare; Identificato; Documentazione da
+acquisire/incompleta; Dati in conflitto; Da verificare; Verificato
+documentalmente; Richiede verifica legale. Il confronto col registro produce
+solo Corrisponde/Non corrisponde/Non trovato — mai tradotto automaticamente
+in un giudizio di validità della sanzione. Richiesta di documentazione
+all'ente tramite bozza (stessa infrastruttura di §11, stessa approvazione
+umana obbligatoria — mai un invio automatico).
+
+**Indicatore ricorso.** Per tutte le multe, non solo da autovelox: due assi
+calcolati a lettura ogni volta che si apre la pratica (mai persistiti come
+verità) — elementi documentali (Assenti/Deboli/Rilevanti/Forti) e convenienza
+economica (Sfavorevole/Limitata/Favorevole, confronto tra importo — ed
+eventuale valore equivalente dei punti decurtati per autisti professionali —
+e il costo del ricorso al Giudice di Pace; contributo unificato, marca da
+bollo, costo interno di gestione e valore punto sono parametri configurabili
+in Impostazioni, §16). I due assi si combinano in un'indicazione operativa:
+Valutare ricorso al Giudice di Pace; Considerare ricorso al Prefetto
+(gratuito); Elementi presenti ma antieconomico; Nessun elemento rilevante;
+Termini scaduti; Dati insufficienti. **Mai una previsione di esito o una
+probabilità di accoglimento** — solo un'indicazione operativa con la sua
+scomposizione sempre visibile. Solo l'eventuale decisione dell'operatore
+(ricorso avviato/non avviato) è persistita, con audit log.
+
+Permessi granulari dedicati (non nuovi ruoli): `enforcement:confirm`,
+`enforcement:request-documents`, `enforcement:legal-escalate`,
+`enforcement:manage-registry-sync` (§14).
+
 ## 11. Bozze email
 
 Generate ma mai inviate (l'invio non esiste nell'MVP). Tono professionale e sintetico;
@@ -226,6 +271,10 @@ Ruoli: ADMIN, OPERATIONS, ACCOUNTING, COMMERCIAL, READ_ONLY. Minimo privilegio.
 MVP: collegamento email in sola lettura; nessuna cancellazione, invio, pagamento o
 scrittura nel gestionale; audit log immutabile.
 
+Permessi granulari (estensione permesso, non ruolo) per il modulo autovelox
+(§10bis): `enforcement:confirm`, `enforcement:request-documents`,
+`enforcement:legal-escalate`, `enforcement:manage-registry-sync`.
+
 Retention configurabile: durata conservazione email, allegati, audit log;
 cancellazione/anonimizzazione; esclusione di mittenti, cartelle e caselle personali.
 Non salvare più contenuto del necessario.
@@ -246,6 +295,12 @@ Provider email e stato connessione; ultima sincronizzazione; stato webhook/polli
 soglia minima di confidenza; soglie economiche; retention; categorie abilitate; utenti e
 ruoli; regole di assegnazione; modelli di risposta; reparto predefinito per categoria;
 modalità mock; test connessione; sincronizzazione manuale controllata.
+
+Parametri dell'indicatore ricorso (§10bis): contributo unificato (soglia,
+valore basso/alto), marca da bollo, costo interno di gestione pratica, valore
+equivalente per punto patente, moltiplicatore di convenienza — con fonte e
+data di ultima verifica per i valori normativi. Storico e caricamento manuale
+di fallback dello snapshot del registro MIT (solo ADMIN).
 
 ## 17. Osservabilità
 
