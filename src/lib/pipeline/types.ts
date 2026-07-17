@@ -2,6 +2,7 @@ import type { CaseCategory, DeadlineKind, PecMessageType } from "@/generated/pri
 import type { ClassificationResult } from "@/lib/adapters/llm/schemas";
 import type { ProposeActionsResult } from "@/lib/adapters/llm/schemas/actions";
 import type { ExtractableCategory, ExtractionResultFor } from "@/lib/adapters/llm/schemas/extraction-index";
+import type { EnforcementDeviceAnalysisResult } from "@/lib/adapters/llm/schemas/enforcement-device-analysis";
 import type { AttachmentInput, ExtractionMessageInput, LLMProvider, LLMResult } from "@/lib/adapters/llm/types";
 import type { CaseRepository, MatchResult } from "@/lib/matching/types";
 import type { RuleEngineResult, RuleSettingsData } from "@/lib/rules/types";
@@ -72,4 +73,6 @@ export interface ProcessMessageResult {
   deadlines: DeducedDeadline[];
   ruleOutcome: RuleEngineResult | null;
   actionProposal: LLMResult<ProposeActionsResult> | null;
+  /** Solo per FINE_OR_PENALTY con estrazione riuscita (docs/SPEC-AUTOVELOX-DRAFT.md §4, §6). */
+  enforcementDeviceAnalysis: LLMResult<EnforcementDeviceAnalysisResult> | null;
 }

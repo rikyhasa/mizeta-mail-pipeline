@@ -8,7 +8,16 @@ import {
 } from "@/lib/adapters/llm/schemas/extraction-index";
 import { proposeActionsResultSchema, type ProposeActionsResult } from "@/lib/adapters/llm/schemas/actions";
 import { draftGenerationResultSchema, type DraftGenerationResult } from "@/lib/adapters/llm/schemas/draft";
-import type { ActionProposalInput, ClassificationInput, DraftGenerationInput, ExtractionInput, LLMProvider, LLMResult } from "@/lib/adapters/llm/types";
+import { enforcementDeviceAnalysisSchema, type EnforcementDeviceAnalysisResult } from "@/lib/adapters/llm/schemas/enforcement-device-analysis";
+import type {
+  ActionProposalInput,
+  ClassificationInput,
+  DraftGenerationInput,
+  EnforcementDeviceAnalysisInput,
+  ExtractionInput,
+  LLMProvider,
+  LLMResult,
+} from "@/lib/adapters/llm/types";
 import { callStructured } from "@/lib/adapters/llm/anthropic/structured-output";
 import {
   buildActionProposalSystemPrompt,
@@ -17,6 +26,7 @@ import {
   buildClassificationUserContent,
   buildDraftGenerationSystemPrompt,
   buildDraftGenerationUserContent,
+  buildEnforcementDeviceAnalysisSystemPrompt,
   buildExtractionSystemPrompt,
   buildExtractionUserContent,
 } from "@/lib/adapters/llm/anthropic/prompts";
@@ -97,6 +107,17 @@ export class AnthropicLLMProvider implements LLMProvider {
       usage: { inputTokens, outputTokens, costUsd: hasCost ? costUsd : null },
       model: lastModel,
     };
+  }
+
+  async analyzeEnforcementDevice(input: EnforcementDeviceAnalysisInput): Promise<LLMResult<EnforcementDeviceAnalysisResult>> {
+    const { data, usage, model } = await callStructured(this.client, {
+      model: this.model,
+      system: buildEnforcementDeviceAnalysisSystemPrompt(),
+      userContent: buildExtractionUserContent(input.messages),
+      schema: enforcementDeviceAnalysisSchema,
+      maxTokens: 2048,
+    });
+    return { data, usage, model };
   }
 
   async proposeActions(input: ActionProposalInput): Promise<LLMResult<ProposeActionsResult>> {

@@ -19,7 +19,7 @@ import {
   findKeywordIndex,
 } from "@/lib/text/patterns";
 
-interface Segment {
+export interface Segment {
   messageId: string;
   attachmentId: string | null;
   sourceType: FieldSourceType;
@@ -27,7 +27,7 @@ interface Segment {
 }
 
 /** Allegati (sempre isReadable, mai testo null) prima dei corpi email: precedenza attachment su email_body. */
-function buildSegments(messages: ExtractionMessageInput[]): Segment[] {
+export function buildSegments(messages: ExtractionMessageInput[]): Segment[] {
   const segments: Segment[] = [];
   for (const m of messages) {
     for (const a of m.attachments) {
@@ -42,14 +42,14 @@ function buildSegments(messages: ExtractionMessageInput[]): Segment[] {
   return segments;
 }
 
-interface Found<T> {
+export interface Found<T> {
   value: T;
   raw: string;
   segment: Segment;
   confidence: number;
 }
 
-function emptyField() {
+export function emptyField() {
   return {
     value: null,
     normalized_value: null,
@@ -63,7 +63,7 @@ function emptyField() {
   };
 }
 
-function fieldFrom<T>(found: Found<T> | null, normalize: (v: T) => string = (v) => String(v)) {
+export function fieldFrom<T>(found: Found<T> | null, normalize: (v: T) => string = (v) => String(v)) {
   if (!found) return emptyField();
   return {
     value: found.value,
@@ -86,7 +86,7 @@ function findAmountNear(segments: Segment[], anchors: string[]): Found<number> |
   return null;
 }
 
-function findDateNear(segments: Segment[], anchors: string[]): Found<string> | null {
+export function findDateNear(segments: Segment[], anchors: string[]): Found<string> | null {
   for (const segment of segments) {
     const idx = findKeywordIndex(segment.text, anchors);
     if (idx === -1) continue;

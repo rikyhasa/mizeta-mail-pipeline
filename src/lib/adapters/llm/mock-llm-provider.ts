@@ -2,9 +2,19 @@ import { classificationResultSchema, type ClassificationResult } from "@/lib/ada
 import { extractionSchemaForCategory, type ExtractableCategory, type ExtractionResultFor } from "@/lib/adapters/llm/schemas/extraction-index";
 import { proposeActionsResultSchema, type ProposeActionsResult } from "@/lib/adapters/llm/schemas/actions";
 import { draftGenerationResultSchema, type DraftGenerationResult } from "@/lib/adapters/llm/schemas/draft";
-import type { ActionProposalInput, ClassificationInput, DraftGenerationInput, ExtractionInput, LLMProvider, LLMResult } from "@/lib/adapters/llm/types";
+import { enforcementDeviceAnalysisSchema, type EnforcementDeviceAnalysisResult } from "@/lib/adapters/llm/schemas/enforcement-device-analysis";
+import type {
+  ActionProposalInput,
+  ClassificationInput,
+  DraftGenerationInput,
+  EnforcementDeviceAnalysisInput,
+  ExtractionInput,
+  LLMProvider,
+  LLMResult,
+} from "@/lib/adapters/llm/types";
 import { classifyHeuristically } from "@/lib/adapters/llm/mock/classify-heuristics";
 import { extractHeuristically } from "@/lib/adapters/llm/mock/extract-heuristics";
+import { analyzeEnforcementDeviceHeuristically } from "@/lib/adapters/llm/mock/analyze-enforcement-device-heuristics";
 import { proposeActionsHeuristically } from "@/lib/adapters/llm/mock/propose-actions-heuristics";
 import { generateDraftHeuristically } from "@/lib/adapters/llm/mock/generate-draft-heuristics";
 
@@ -32,6 +42,12 @@ export class MockLLMProvider implements LLMProvider {
     const raw = extractHeuristically(input.category, input.messages);
     const schema = extractionSchemaForCategory(input.category);
     const data = schema.parse(raw) as ExtractionResultFor<C>;
+    return { data, usage: NO_USAGE, model: MOCK_MODEL_NAME };
+  }
+
+  async analyzeEnforcementDevice(input: EnforcementDeviceAnalysisInput): Promise<LLMResult<EnforcementDeviceAnalysisResult>> {
+    const raw = analyzeEnforcementDeviceHeuristically(input.messages);
+    const data = enforcementDeviceAnalysisSchema.parse(raw);
     return { data, usage: NO_USAGE, model: MOCK_MODEL_NAME };
   }
 

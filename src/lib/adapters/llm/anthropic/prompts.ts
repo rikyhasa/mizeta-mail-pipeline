@@ -138,6 +138,24 @@ export function buildExtractionUserContent(messages: ExtractionMessageInput[]): 
     .join("\n\n---\n\n");
 }
 
+/**
+ * Applicabilità + dati tecnici del dispositivo di rilevamento (docs/SPEC-AUTOVELOX-DRAFT.md §4,
+ * §6): passaggio separato dall'estrazione principale, eseguito solo per pratiche già classificate
+ * FINE_OR_PENALTY. Il campo autista professionale/CQC non compare qui deliberatamente: va sempre
+ * inserito o confermato da un operatore (CLAUDE.md invariante 6), mai estratto o dedotto dal
+ * modello — nessuna istruzione lo menziona.
+ */
+export function buildEnforcementDeviceAnalysisSystemPrompt(): string {
+  return [
+    "Sei un assistente che analizza email relative a una multa o sanzione per un'azienda italiana di trasporti e logistica, per identificare il tipo di dispositivo di rilevamento della velocità (se pertinente) e i suoi dati tecnici.",
+    SECURITY_INSTRUCTION,
+    "Determina applicability solo in base a segnali testuali espliciti (es. nome del dispositivo, riferimento normativo art. 142 C.d.S.). Se non c'è alcun segnale di violazione legata alla velocità, usa NOT_APPLICABLE. Se c'è un segnale di violazione di velocità ma non è chiaro quale dispositivo sia stato usato, usa TO_BE_IDENTIFIED. Non dedurre mai il tipo di dispositivo da ipotesi o probabilità: solo da menzioni esplicite nel testo.",
+    "Per ogni campo indica fonte (source_type, source_message_id, source_attachment_id, source_excerpt) e confidenza.",
+    "Se un dato tecnico (produttore, modello, versione, matricola, numero decreto, data decreto, autorità) non è presente nel testo, usa value: null. Non inventare mai dati tecnici.",
+    "Non esprimere mai una valutazione sulla validità della sanzione: il tuo compito è solo identificare il dispositivo e i suoi dati documentali, non giudicare la sanzione.",
+  ].join("\n\n");
+}
+
 export function buildActionProposalSystemPrompt(): string {
   return [
     "Sei un assistente che propone azioni operative per una pratica già classificata ed estratta.",

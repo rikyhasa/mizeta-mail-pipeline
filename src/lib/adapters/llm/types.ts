@@ -2,6 +2,7 @@ import type { ClassificationResult } from "@/lib/adapters/llm/schemas";
 import type { ExtractableCategory, ExtractionResultFor } from "@/lib/adapters/llm/schemas/extraction-index";
 import type { ProposeActionsResult } from "@/lib/adapters/llm/schemas/actions";
 import type { DraftGenerationResult } from "@/lib/adapters/llm/schemas/draft";
+import type { EnforcementDeviceAnalysisResult } from "@/lib/adapters/llm/schemas/enforcement-device-analysis";
 import type { CaseCategory } from "@/generated/prisma/enums";
 
 export interface AttachmentInput {
@@ -42,6 +43,13 @@ export interface ActionProposalInput {
   extractedFieldValues: Record<string, string | number | boolean | null>;
 }
 
+/** Solo per pratiche già classificate FINE_OR_PENALTY (docs/SPEC-AUTOVELOX-DRAFT.md §4, §6) —
+ * un passaggio separato dall'estrazione principale, non una variante di ExtractionInput. */
+export interface EnforcementDeviceAnalysisInput {
+  caseId: string;
+  messages: ExtractionMessageInput[];
+}
+
 export interface DraftGenerationInput {
   caseId: string;
   category: CaseCategory;
@@ -78,6 +86,10 @@ export interface LLMProvider {
   classify(input: ClassificationInput): Promise<LLMResult<ClassificationResult>>;
 
   extractFields<C extends ExtractableCategory>(input: ExtractionInput<C>): Promise<LLMResult<ExtractionResultFor<C>>>;
+
+  /** Applicabilità del modulo di verifica autovelox + dati tecnici del dispositivo
+   * (docs/SPEC-AUTOVELOX-DRAFT.md §4, §6) — passaggio separato, solo per FINE_OR_PENALTY. */
+  analyzeEnforcementDevice(input: EnforcementDeviceAnalysisInput): Promise<LLMResult<EnforcementDeviceAnalysisResult>>;
 
   proposeActions(input: ActionProposalInput): Promise<LLMResult<ProposeActionsResult>>;
 

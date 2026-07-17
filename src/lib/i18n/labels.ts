@@ -12,6 +12,7 @@ import type {
   DeadlineKind,
   Department,
   EmailDraftStatus,
+  EnforcementCheckApplicability,
   FieldSourceType,
   GeneratedDocumentType,
   Role,
@@ -183,4 +184,15 @@ export const APPEAL_DECISION_LABELS: Record<AppealDecisionKind, string> = {
   GDP_FILED: "Ricorso Giudice di Pace avviato",
   PREFETTO_FILED: "Ricorso Prefetto avviato",
   NO_APPEAL: "Nessun ricorso",
+};
+
+/** Modulo verifica autovelox (docs/SPEC.md §10bis, §4 di docs/SPEC-AUTOVELOX-DRAFT.md). */
+export const ENFORCEMENT_CHECK_APPLICABILITY_LABELS: Record<EnforcementCheckApplicability, string> = {
+  NOT_APPLICABLE: "Non applicabile",
+  TO_BE_IDENTIFIED: "Da identificare",
+  SPEED_CAMERA_FIXED: "Autovelox fisso",
+  SPEED_CAMERA_MOBILE: "Autovelox mobile",
+  AVERAGE_SPEED_CONTROL: "Tutor / velocità media",
+  TELELASER: "Telelaser",
+  OTHER_SPEED_DEVICE: "Altro dispositivo di rilevamento velocità",
 };

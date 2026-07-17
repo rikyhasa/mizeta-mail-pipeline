@@ -16,6 +16,7 @@ import { writeAuditLog } from "./audit";
 import { persistClassification } from "./persist-classification";
 import { persistExtraction } from "./persist-extraction";
 import { persistActions } from "./persist-actions";
+import { persistEnforcementDeviceAnalysis } from "./persist-enforcement-device-analysis";
 import { PipelineExtractionError } from "./types";
 import type { DeducedDeadline, ExtractionOutcome, PipelineMessageInput, ProcessMessageDeps, ProcessMessageResult } from "./types";
 
@@ -203,7 +204,18 @@ export async function runPipelineForMessage(input: PipelineMessageInput, deps: P
   );
 
   if (match.isPecReceipt) {
-    return { input, now, classification, classificationCategory, match, extraction: null, deadlines: [], ruleOutcome: null, actionProposal: null };
+    return {
+      input,
+      now,
+      classification,
+      classificationCategory,
+      match,
+      extraction: null,
+      deadlines: [],
+      ruleOutcome: null,
+      actionProposal: null,
+      enforcementDeviceAnalysis: null,
+    };
   }
 
   const currentAsMessageInput: ExtractionMessageInput = {
@@ -229,6 +241,23 @@ export async function runPipelineForMessage(input: PipelineMessageInput, deps: P
       extraction = { category: classificationCategory, result: extractionResult };
     } catch (error) {
       throw new PipelineExtractionError(error instanceof Error ? error.message : String(error), match.caseId ?? null);
+    }
+  }
+
+  // Applicabilità + dati tecnici del dispositivo autovelox (docs/SPEC-AUTOVELOX-DRAFT.md §4, §6):
+  // passaggio separato dall'estrazione principale, solo per FINE_OR_PENALTY con estrazione
+  // riuscita. Non critico (stesso pattern di proposeActions più sotto): un suo fallimento non
+  // deve mai far perdere classificazione/estrazione già calcolate — resta semplicemente nessuna
+  // analisi dispositivo, rivedibile manualmente da un operatore in un secondo momento.
+  let enforcementDeviceAnalysis: ProcessMessageResult["enforcementDeviceAnalysis"] = null;
+  if (classificationCategory === "FINE_OR_PENALTY" && extraction) {
+    try {
+      enforcementDeviceAnalysis = await deps.llmProvider.analyzeEnforcementDevice({
+        caseId: match.caseId ?? "",
+        messages: allMessages,
+      });
+    } catch {
+      enforcementDeviceAnalysis = null;
     }
   }
 
@@ -318,7 +347,18 @@ export async function runPipelineForMessage(input: PipelineMessageInput, deps: P
     finalRuleOutcome = { ...ruleOutcome, status: "NEEDS_REVIEW", needsHumanReview: true };
   }
 
-  return { input, now, classification, classificationCategory, match, extraction, deadlines, ruleOutcome: finalRuleOutcome, actionProposal };
+  return {
+    input,
+    now,
+    classification,
+    classificationCategory,
+    match,
+    extraction,
+    deadlines,
+    ruleOutcome: finalRuleOutcome,
+    actionProposal,
+    enforcementDeviceAnalysis,
+  };
 }
 
 async function readAttachmentText(storageKey: string): Promise<string> {
@@ -465,6 +505,7 @@ export async function processIncomingMessage(emailMessageId: string): Promise<Pr
     const { caseId } = await persistClassification(tx, deps.llmProvider.providerName, result);
     await persistExtraction(tx, deps.llmProvider.providerName, caseId, result);
     await persistActions(tx, deps.llmProvider.providerName, caseId, result);
+    await persistEnforcementDeviceAnalysis(tx, deps.llmProvider.providerName, caseId, result);
   });
 
   return result;

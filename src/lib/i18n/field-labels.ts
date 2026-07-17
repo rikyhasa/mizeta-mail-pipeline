@@ -91,6 +91,15 @@ export const FIELD_LABELS: Record<string, string> = {
   notification_date: "Data di notifica",
   driver_professional_cqc: "Autista professionale (CQC)",
 
+  // EnforcementDeviceField (docs/SPEC-AUTOVELOX-DRAFT.md §4, §6)
+  manufacturer: "Produttore",
+  model: "Modello",
+  version: "Versione",
+  serial_number: "Matricola",
+  decree_number: "Numero decreto",
+  decree_date: "Data decreto",
+  authority: "Ente responsabile",
+
   // CLAIM_OR_DAMAGE
   shipment_or_trip_reference: "Spedizione/viaggio",
   event_date: "Data evento",
@@ -240,7 +249,13 @@ const DATE_FIELD_KEYS = new Set([
   "appeal_due_at",
   "payment_promise_date",
   "notification_date",
+  "decree_date",
 ]);
+
+/** Ordine di visualizzazione dei campi tecnici del dispositivo nel futuro pannello di verifica
+ * autovelox (Tappa 6, docs/SPEC-AUTOVELOX-DRAFT.md §9) — separato da `CATEGORY_FIELD_ORDER`
+ * perché `EnforcementDeviceField` non è un `CaseField` per categoria estraibile. */
+export const ENFORCEMENT_DEVICE_FIELD_ORDER = ["manufacturer", "model", "version", "serial_number", "decree_number", "decree_date", "authority"];
 
 /** `driver_professional_cqc` (SPEC.md §10bis, indicatore ricorso) non va mai estratto o dedotto
  * dal modello (CLAUDE.md invariante 6): l'informazione raramente è scritta nel verbale, va

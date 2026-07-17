@@ -1,8 +1,17 @@
-import type { ActionProposalInput, ClassificationInput, DraftGenerationInput, ExtractionInput, LLMProvider, LLMResult } from "@/lib/adapters/llm/types";
+import type {
+  ActionProposalInput,
+  ClassificationInput,
+  DraftGenerationInput,
+  EnforcementDeviceAnalysisInput,
+  ExtractionInput,
+  LLMProvider,
+  LLMResult,
+} from "@/lib/adapters/llm/types";
 import type { ClassificationResult } from "@/lib/adapters/llm/schemas";
 import type { ExtractableCategory, ExtractionResultFor } from "@/lib/adapters/llm/schemas/extraction-index";
 import type { ProposeActionsResult } from "@/lib/adapters/llm/schemas/actions";
 import type { DraftGenerationResult } from "@/lib/adapters/llm/schemas/draft";
+import type { EnforcementDeviceAnalysisResult } from "@/lib/adapters/llm/schemas/enforcement-device-analysis";
 
 const NOT_IMPLEMENTED = "OpenAILLMProvider non implementato in questa fase: solo interfaccia/scheletro documentato.";
 
@@ -19,6 +28,10 @@ export class OpenAILLMProvider implements LLMProvider {
   }
 
   async extractFields<C extends ExtractableCategory>(_input: ExtractionInput<C>): Promise<LLMResult<ExtractionResultFor<C>>> {
+    throw new Error(NOT_IMPLEMENTED);
+  }
+
+  async analyzeEnforcementDevice(_input: EnforcementDeviceAnalysisInput): Promise<LLMResult<EnforcementDeviceAnalysisResult>> {
     throw new Error(NOT_IMPLEMENTED);
   }
 
