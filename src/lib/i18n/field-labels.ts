@@ -88,6 +88,8 @@ export const FIELD_LABELS: Record<string, string> = {
   appeal_due_at: "Termine per il ricorso",
   points: "Punti decurtati",
   received_channel: "Canale di ricezione",
+  notification_date: "Data di notifica",
+  driver_professional_cqc: "Autista professionale (CQC)",
 
   // CLAIM_OR_DAMAGE
   shipment_or_trip_reference: "Spedizione/viaggio",
@@ -197,7 +199,9 @@ export const CATEGORY_FIELD_ORDER: Record<ExtractableCategory, string[]> = {
     "reduced_payment_due_at",
     "ordinary_payment_due_at",
     "appeal_due_at",
+    "notification_date",
     "points",
+    "driver_professional_cqc",
     "missing_documents",
     "received_channel",
   ],
@@ -235,8 +239,14 @@ const DATE_FIELD_KEYS = new Set([
   "ordinary_payment_due_at",
   "appeal_due_at",
   "payment_promise_date",
+  "notification_date",
 ]);
 
+/** `driver_professional_cqc` (SPEC.md §10bis, indicatore ricorso) non va mai estratto o dedotto
+ * dal modello (CLAUDE.md invariante 6): l'informazione raramente è scritta nel verbale, va
+ * inserita o confermata da un operatore (o, in futuro, derivata dall'anagrafica autisti) — non
+ * fa parte di `finePenaltyExtractionSchema`. Assente/non confermato è un valore legittimo, non
+ * un dato mancante che blocca il calcolo: l'indicatore lo tratta come "punti non conteggiati". */
 const BOOLEAN_FIELD_KEYS = new Set([
   "hydraulic_tailgate_required",
   "adr_required",
@@ -248,6 +258,7 @@ const BOOLEAN_FIELD_KEYS = new Set([
   "photos_present",
   "cmr_or_pod_present",
   "insurance_involved",
+  "driver_professional_cqc",
 ]);
 
 const CURRENCY_FIELD_KEYS = new Set([
