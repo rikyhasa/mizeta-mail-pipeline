@@ -232,6 +232,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
                 canRequestDocuments: hasPermission(user.role, "enforcement:request-documents"),
                 canLegalEscalate: hasPermission(user.role, "enforcement:legal-escalate"),
               }}
+              blockers={blockerReasons}
             />
           )}
 

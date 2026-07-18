@@ -10,8 +10,10 @@ export interface RecommendedActionData {
 }
 
 /** Un verbo per categoria di blocker, non per singolo testo (che include conteggi/dettagli
- * variabili) — evita di fare pattern matching fragile sul testo tradotto. */
-const CTA_LABEL_BY_BLOCKER_KIND: Record<CaseBlockerKind, string> = {
+ * variabili) — evita di fare pattern matching fragile sul testo tradotto. Esportato: riusato da
+ * EnforcementVerificationCard per mostrare la stessa azione consigliata del pannello autovelox
+ * mostrata in sidebar (docs/SPEC-AUTOVELOX-DRAFT.md §8bis, H9 — mai due priorità diverse). */
+export const CTA_LABEL_BY_BLOCKER_KIND: Record<CaseBlockerKind, string> = {
   missing_fields: "Completa i dati",
   needs_review: "Verifica i dati",
   low_confidence: "Verifica la classificazione",

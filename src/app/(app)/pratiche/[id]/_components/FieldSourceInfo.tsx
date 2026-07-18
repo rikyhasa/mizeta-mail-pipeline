@@ -1,10 +1,14 @@
 import { Info } from "lucide-react";
+import { buttonClassName } from "@/components/ui/Button";
 import { FIELD_SOURCE_TYPE_LABELS } from "@/lib/i18n/labels";
 import type { FieldSourceType } from "@/generated/prisma/enums";
 
 /**
  * Fonte del dato in un popover discreto, non ripetuta per esteso sotto ogni campo
- * (FASE-7-REDESIGN.md — dati estratti).
+ * (FASE-7-REDESIGN.md — dati estratti). Trigger con etichetta testuale, non solo icona
+ * (A2/nota di framing FASE E: l'affordance di provenienza c'era già ma restava scoperta solo
+ * da chi già sapeva cercarla dietro un'icona di 16px) — per audit veloce, "vai alla fonte" deve
+ * essere leggibile a colpo d'occhio quanto "Conferma" o "Modifica".
  */
 export function FieldSourceInfo({
   sourceType,
@@ -20,10 +24,11 @@ export function FieldSourceInfo({
   return (
     <details className="group relative inline-block align-middle">
       <summary
-        className="inline-flex h-7 w-7 cursor-pointer list-none items-center justify-center rounded-full text-[var(--color-ink-muted)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-ink)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-brand)] [&::-webkit-details-marker]:hidden"
-        aria-label="Fonte del dato"
+        className={`${buttonClassName({ variant: "tertiary", size: "sm" })} cursor-pointer list-none [&::-webkit-details-marker]:hidden`}
+        aria-label="Vedi la fonte del dato"
       >
-        <Info className="h-4 w-4" aria-hidden="true" />
+        <Info className="h-3.5 w-3.5" aria-hidden="true" />
+        Fonte
       </summary>
       <div className="absolute left-0 z-10 mt-1 w-64 rounded-lg border border-[var(--color-border)] bg-white p-3 text-xs shadow-md">
         {sourceType && <p className="text-[var(--color-ink-muted)]">Fonte: {FIELD_SOURCE_TYPE_LABELS[sourceType]}</p>}

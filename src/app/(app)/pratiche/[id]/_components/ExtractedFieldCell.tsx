@@ -71,7 +71,10 @@ export function ExtractedFieldCell({
               <span className="sr-only">{field.confirmedBy ? `Confermato da ${field.confirmedBy.name}` : "Confermato"}</span>
             </span>
           )}
-          {!field.confirmedBy && (
+          {/* "Conferma" solo su un campo con un valore: confermare un campo vuoto fallisce sempre
+           * lato server (422, P0 #1 di docs/UX-AUDIT-2026-07.md) — l'affordance utile lì è
+           * inserire un valore, non confermarne l'assenza (H8). */}
+          {!field.confirmedBy && field.value && (
             <ActionButton
               method="PATCH"
               url={`${base}/${fieldKey}`}
@@ -85,7 +88,13 @@ export function ExtractedFieldCell({
         </div>
       </div>
       <div className="flex items-center gap-1">
-        <FieldEditForm caseId={caseId} fieldKey={fieldKey} initialValue={field.value ?? ""} endpointBase={endpointBase} />
+        <FieldEditForm
+          caseId={caseId}
+          fieldKey={fieldKey}
+          initialValue={field.value ?? ""}
+          endpointBase={endpointBase}
+          triggerLabel={!field.value ? "Inserisci dato" : undefined}
+        />
         <FieldSourceInfo
           sourceType={field.sourceType}
           sourceMessageId={field.sourceMessageId}

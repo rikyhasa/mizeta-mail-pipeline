@@ -11,6 +11,7 @@ export function FieldEditForm({
   fieldKey,
   initialValue,
   endpointBase,
+  triggerLabel,
 }: {
   caseId: string;
   fieldKey: string;
@@ -18,6 +19,10 @@ export function FieldEditForm({
   /** Radice dell'endpoint da usare al posto del default `/api/cases/${caseId}/fields`, per
    * riusare questo form anche su EnforcementDeviceField (Tappa 6). */
   endpointBase?: string;
+  /** Quando fornito, il toggle "modifica" diventa un bottone testuale prominente invece della
+   * sola icona a matita — usato sui campi vuoti (H8/docs/UX-AUDIT-2026-07.md: mai un bottone
+   * "Conferma" su un valore assente, l'azione utile lì è inserirlo). */
+  triggerLabel?: string;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -49,6 +54,13 @@ export function FieldEditForm({
   }
 
   if (!editing) {
+    if (triggerLabel) {
+      return (
+        <button type="button" onClick={() => setEditing(true)} className={buttonClassName({ variant: "secondary", size: "sm" })}>
+          {triggerLabel}
+        </button>
+      );
+    }
     return (
       <button
         type="button"

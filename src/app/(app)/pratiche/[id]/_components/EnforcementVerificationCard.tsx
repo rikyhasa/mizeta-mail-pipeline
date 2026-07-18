@@ -1,11 +1,13 @@
 import { ShieldAlert, Check, AlertTriangle } from "lucide-react";
 import { WorkPanel } from "@/components/ui/WorkPanel";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
+import { Disclosure } from "@/components/ui/Disclosure";
 import { ActionButton } from "@/components/ActionButton";
 import { InlineSelect } from "@/components/InlineSelect";
 import { ExtractedFieldCell } from "./ExtractedFieldCell";
 import { EnforcementDocumentLinkForm } from "./EnforcementDocumentLinkForm";
 import { tierFields } from "./field-tiers";
+import { CTA_LABEL_BY_BLOCKER_KIND } from "./recommended-action";
 import { fieldLabel, formatFieldValue, ENFORCEMENT_DEVICE_FIELD_ORDER } from "@/lib/i18n/field-labels";
 import {
   ENFORCEMENT_CHECK_APPLICABILITY_LABELS,
@@ -15,6 +17,7 @@ import {
   ENFORCEMENT_REGISTRY_MATCH_LABELS,
 } from "@/lib/i18n/labels";
 import { formatDateTime } from "@/lib/format";
+import type { CaseBlockerReason } from "@/lib/cases/blockers";
 import type {
   EnforcementCheckApplicability,
   EnforcementDocumentStatus,
@@ -77,6 +80,43 @@ export interface EnforcementCheckData {
   documentChecks: EnforcementDocumentData[];
 }
 
+interface EnforcementOutcome {
+  label: string;
+  tone: BadgeTone;
+  /** Motivi in linguaggio operativo (mai un giudizio di merito) — vuoto quando l'esito è
+   * "nessuna incoerenza rilevata". */
+  reasons: string[];
+}
+
+/**
+ * Esito complessivo del pannello (H1/ipotesi esterna sull'esito troppo nascosto): pura
+ * derivazione presentazionale dagli stessi dati già mostrati più sotto (badge di stato,
+ * campi, documenti) — nessuna nuova logica di business, nessun giudizio sulla validità della
+ * sanzione (CLAUDE.md invariante 9), solo una sintesi di ciò che il resto del pannello già dice.
+ */
+function deriveEnforcementOutcome(
+  check: Pick<EnforcementCheckData, "applicability" | "registryMatch">,
+  missingDocumentCount: number,
+  problematicFieldCount: number,
+): EnforcementOutcome {
+  if (check.applicability === "TO_BE_IDENTIFIED") {
+    return { label: "Verifica non conclusa", tone: "warning", reasons: ["Dispositivo di rilevamento non identificato"] };
+  }
+
+  const reasons: string[] = [];
+  if (problematicFieldCount > 0) reasons.push(`${problematicFieldCount} dato/i tecnico/i da confermare`);
+  if (missingDocumentCount > 0) reasons.push(`${missingDocumentCount} documento/i tecnico/i mancante/i`);
+  if (check.registryMatch === "MISMATCH") reasons.push("Dati dichiarati in conflitto con il registro MIT");
+  else if (check.registryMatch === "NOT_FOUND") reasons.push("Dispositivo non risulta nel registro MIT alla data di consultazione");
+  else if (check.registryMatch === null) reasons.push("Registro MIT non ancora consultato");
+
+  if (check.registryMatch === "MISMATCH") return { label: "Dati in conflitto", tone: "critical", reasons };
+  if (problematicFieldCount > 0 || missingDocumentCount > 0) return { label: "Documentazione incompleta", tone: "warning", reasons };
+  if (check.registryMatch === "NOT_FOUND") return { label: "Verifica completata — dispositivo non nel registro MIT", tone: "warning", reasons };
+  if (check.registryMatch === null) return { label: "Verifica completata — registro non ancora consultato", tone: "muted", reasons };
+  return { label: "Verifica completata, nessuna incoerenza rilevata", tone: "success", reasons: [] };
+}
+
 /**
  * Pannello "Verifica autovelox" (docs/SPEC-AUTOVELOX-DRAFT.md §8): compare dopo la sintesi
  * operativa e prima dei dati estratti generici, solo per FINE_OR_PENALTY. Quando non applicabile
@@ -90,11 +130,16 @@ export function EnforcementVerificationCard({
   check,
   attachments,
   permissions,
+  blockers,
 }: {
   caseId: string;
   check: EnforcementCheckData | null;
   attachments: { id: string; fileName: string }[];
   permissions: { canConfirm: boolean; canRequestDocuments: boolean; canLegalEscalate: boolean };
+  /** Lista completa dei blocker della pratica (stessa fonte della sidebar, src/lib/cases/blockers.ts)
+   * — il pannello ne usa solo quelli "enforcement_*" per mostrare la stessa azione consigliata
+   * della sidebar (H9: mai due priorità diverse fra pannello e "Prossima azione"). */
+  blockers: CaseBlockerReason[];
 }) {
   if (!check || check.applicability === "NOT_APPLICABLE") {
     return (
@@ -106,6 +151,9 @@ export function EnforcementVerificationCard({
 
   const tieredFields = tierFields(check.fields, ENFORCEMENT_DEVICE_FIELD_ORDER);
   const missingDocumentCount = DOCUMENT_TYPES.length - check.documentChecks.filter((d) => d.status === "PRESENT").length;
+  const problematicFieldCount = tieredFields.filter((f) => f.tier === "problematic").length;
+  const outcome = deriveEnforcementOutcome(check, missingDocumentCount, problematicFieldCount);
+  const primaryEnforcementBlocker = blockers.find((b) => b.kind.startsWith("enforcement_"));
 
   return (
     <WorkPanel id="verifica-autovelox" title="Verifica autovelox">
@@ -115,6 +163,26 @@ export function EnforcementVerificationCard({
           Questo pannello verifica la presenza e la coerenza della documentazione tecnica disponibile. Non esprime alcuna
           valutazione sulla validità della sanzione né sull&apos;esito di un eventuale ricorso.
         </span>
+      </div>
+
+      <div className="mt-3 rounded-lg border border-[var(--color-border)] p-3.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="detail-label">Esito</span>
+          <Badge tone={outcome.tone}>{outcome.label}</Badge>
+        </div>
+        {outcome.reasons.length > 0 && (
+          <ul className="mt-2 flex flex-col gap-1 text-sm text-[var(--color-ink)]">
+            {outcome.reasons.map((reason) => (
+              <li key={reason}>· {reason}</li>
+            ))}
+          </ul>
+        )}
+        {primaryEnforcementBlocker && (
+          <p className="mt-2 text-sm text-[var(--color-ink)]">
+            <span className="font-medium">Azione consigliata:</span>{" "}
+            <span className="text-[var(--color-brand-dark)]">{CTA_LABEL_BY_BLOCKER_KIND[primaryEnforcementBlocker.kind]}</span>
+          </p>
+        )}
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-4">
@@ -151,61 +219,81 @@ export function EnforcementVerificationCard({
               options={APPLICABILITY_OPTIONS}
             />
           </div>
-          <ActionButton method="PATCH" url={`/api/cases/${caseId}/enforcement/check`} body={{}} variant="tertiary" size="sm">
-            Conferma identificazione
-          </ActionButton>
+          {check.applicability !== "TO_BE_IDENTIFIED" && (
+            <ActionButton method="PATCH" url={`/api/cases/${caseId}/enforcement/check`} body={{}} variant="tertiary" size="sm">
+              Conferma identificazione
+            </ActionButton>
+          )}
         </div>
       )}
 
       {tieredFields.length > 0 && (
-        <div className="detail-field-grid mt-4">
-          {tieredFields.map(({ key, field, tier }, index) => (
-            <ExtractedFieldCell
-              key={key}
-              caseId={caseId}
-              fieldKey={key}
-              label={fieldLabel(key)}
-              formattedValue={field.value ? formatFieldValue(key, field.value) : null}
-              field={field}
-              tier={tier}
-              spanFull={tieredFields.length % 2 !== 0 && index === tieredFields.length - 1}
-              endpointBase={`/api/cases/${caseId}/enforcement/fields`}
-            />
-          ))}
-        </div>
+        <Disclosure
+          className="mt-4"
+          defaultOpen={problematicFieldCount > 0}
+          summary={
+            problematicFieldCount > 0
+              ? `Identificazione dispositivo — ${problematicFieldCount} dato/i da confermare`
+              : `Identificazione dispositivo — ${tieredFields.length} dato/i confermati`
+          }
+        >
+          <div className="detail-field-grid">
+            {tieredFields.map(({ key, field, tier }, index) => (
+              <ExtractedFieldCell
+                key={key}
+                caseId={caseId}
+                fieldKey={key}
+                label={fieldLabel(key)}
+                formattedValue={field.value ? formatFieldValue(key, field.value) : null}
+                field={field}
+                tier={tier}
+                spanFull={tieredFields.length % 2 !== 0 && index === tieredFields.length - 1}
+                endpointBase={`/api/cases/${caseId}/enforcement/fields`}
+              />
+            ))}
+          </div>
+        </Disclosure>
       )}
 
       <div className="mt-4 border-t border-[var(--color-border)] pt-3">
-        <span className="detail-label">Documentazione tecnica</span>
-        <ul className="mt-2 flex flex-col gap-2">
-          {DOCUMENT_TYPES.map((type) => {
-            const doc = check.documentChecks.find((d) => d.documentType === type) ?? null;
-            const status = doc?.status ?? "MISSING";
-            return (
-              <li key={type} className="flex flex-col gap-1.5 rounded-lg bg-white p-2.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm text-[var(--color-ink)]">{ENFORCEMENT_DOCUMENT_TYPE_LABELS[type]}</span>
-                  <Badge tone={status === "PRESENT" ? "success" : status === "REQUESTED" ? "info" : "warning"} icon={status === "PRESENT" ? Check : AlertTriangle}>
-                    {ENFORCEMENT_DOCUMENT_STATUS_LABELS[status]}
-                  </Badge>
-                </div>
-                {doc?.attachmentFileName && doc.attachmentId && (
-                  <a
-                    href={`/api/attachments/${doc.attachmentId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs font-medium text-[var(--color-brand-dark)] hover:underline"
-                  >
-                    {doc.attachmentFileName}
-                  </a>
-                )}
-                {permissions.canConfirm && status !== "PRESENT" && (
-                  <EnforcementDocumentLinkForm caseId={caseId} documentType={type} attachments={attachments} />
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <Disclosure
+          defaultOpen={missingDocumentCount > 0}
+          summary={
+            missingDocumentCount > 0
+              ? `Documentazione tecnica — ${missingDocumentCount} mancante/i`
+              : `Documentazione tecnica — completa (${DOCUMENT_TYPES.length})`
+          }
+        >
+          <ul className="flex flex-col gap-2">
+            {DOCUMENT_TYPES.map((type) => {
+              const doc = check.documentChecks.find((d) => d.documentType === type) ?? null;
+              const status = doc?.status ?? "MISSING";
+              return (
+                <li key={type} className="flex flex-col gap-1.5 rounded-lg bg-white p-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-[var(--color-ink)]">{ENFORCEMENT_DOCUMENT_TYPE_LABELS[type]}</span>
+                    <Badge tone={status === "PRESENT" ? "success" : status === "REQUESTED" ? "info" : "warning"} icon={status === "PRESENT" ? Check : AlertTriangle}>
+                      {ENFORCEMENT_DOCUMENT_STATUS_LABELS[status]}
+                    </Badge>
+                  </div>
+                  {doc?.attachmentFileName && doc.attachmentId && (
+                    <a
+                      href={`/api/attachments/${doc.attachmentId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs font-medium text-[var(--color-brand-dark)] hover:underline"
+                    >
+                      {doc.attachmentFileName}
+                    </a>
+                  )}
+                  {permissions.canConfirm && status !== "PRESENT" && (
+                    <EnforcementDocumentLinkForm caseId={caseId} documentType={type} attachments={attachments} />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </Disclosure>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--color-border)] pt-3">
