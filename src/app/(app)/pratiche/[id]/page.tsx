@@ -156,10 +156,24 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const lastMessage = caseRecord.messages[caseRecord.messages.length - 1] ?? null;
 
   // Indicatore ricorso (docs/SPEC.md §10bis): solo per multe, calcolato a lettura — mai
-  // persistito (solo l'eventuale decisione dell'operatore lo è, in AppealDecision).
+  // persistito (solo l'eventuale decisione dell'operatore lo è, in AppealDecision). L'asse
+  // documentale usa i segnali reali del modulo autovelox quando la pratica ne ha uno (stesso
+  // enforcementDeviceCheck già caricato sopra per EnforcementVerificationCard, nessuna query
+  // aggiuntiva) — fallback generico solo per multe non-velox (enforcementDeviceCheck null).
   const appealIndicatorResult =
     caseRecord.category === "FINE_OR_PENALTY"
-      ? resolveAppealIndicatorForCase(caseRecord.fields, await getRuleSettings(), new Date())
+      ? resolveAppealIndicatorForCase(
+          caseRecord.fields,
+          caseRecord.enforcementDeviceCheck
+            ? {
+                applicability: caseRecord.enforcementDeviceCheck.applicability,
+                registryMatch: caseRecord.enforcementDeviceCheck.registryMatch,
+                documentChecks: caseRecord.enforcementDeviceCheck.documentChecks,
+              }
+            : null,
+          await getRuleSettings(),
+          new Date(),
+        )
       : null;
 
   return (

@@ -1,6 +1,12 @@
 import { formatCurrency } from "@/lib/format";
 import type { RuleSettingsData } from "@/lib/rules/types";
 import type { AppealDocumentaryStrength, AppealEconomicConvenience, AppealIndication } from "@/generated/prisma/enums";
+import type { AppealDocumentaryStatus } from "./documentary-strength";
+
+/** Stati ausiliari (vedi documentary-strength.ts) in cui la verifica documentale non è ancora
+ * conclusa — l'assenza di elementi in questi casi non deve mai leggersi come "verificato, nessun
+ * elemento" (NO_RELEVANT_ELEMENT): è semplicemente presto per dirlo (INSUFFICIENT_DATA). */
+const DOCUMENTARY_STATUS_PENDING = new Set<AppealDocumentaryStatus>(["not_yet_evaluated", "device_to_be_identified", "registry_not_consulted"]);
 
 export interface AppealIndicatorInput {
   /** Importo ordinario del verbale — mai quello ridotto: chi presenta ricorso rinuncia allo
@@ -21,6 +27,12 @@ export interface AppealIndicatorInput {
    * generico su `missing_documents` per multe non-velox) — questa funzione lo combina con
    * l'asse economico, non lo calcola. */
   documentaryStrength: AppealDocumentaryStrength;
+  /** Stato ausiliario non persistito (documentary-strength.ts) — `null` quando la pratica usa il
+   * fallback generico (nessun `EnforcementDeviceCheck`). Usato solo per distinguere "verifica
+   * autovelox non ancora conclusa" da "conclusa, nessun elemento" quando l'asse è comunque
+   * `NONE` per entrambi — mai per esprimere un giudizio, solo per non dire "nessun elemento
+   * rilevante" quando in realtà non si è ancora potuto guardare. */
+  documentaryStatus: AppealDocumentaryStatus | null;
   /** Giorni residui per il termine al Giudice di Pace (30gg da notification_date). `null` se
    * `notification_date` non è disponibile — insieme a `daysRemainingPrefetto` null porta a
    * DATI_INSUFFICIENTI, non a una stima approssimata silenziosa. */
@@ -31,6 +43,8 @@ export interface AppealIndicatorInput {
 
 export interface AppealIndicatorResult {
   documentaryAxis: AppealDocumentaryStrength;
+  /** Passthrough dello stato ausiliario dell'input — vedi il commento su `AppealIndicatorInput`. */
+  documentaryStatus: AppealDocumentaryStatus | null;
   economicAxis: AppealEconomicConvenience | null;
   indication: AppealIndication;
   /** Importo + eventuale valore equivalente dei punti (solo se autista professionale CQC
@@ -107,6 +121,7 @@ export function calculateAppealIndicator(input: AppealIndicatorInput, settings: 
   if (input.amount === null || (input.daysRemainingGdp === null && input.daysRemainingPrefetto === null)) {
     return {
       documentaryAxis: input.documentaryStrength,
+      documentaryStatus: input.documentaryStatus,
       economicAxis: null,
       indication: "INSUFFICIENT_DATA",
       valueAtStake: null,
@@ -119,10 +134,16 @@ export function calculateAppealIndicator(input: AppealIndicatorInput, settings: 
 
   const gdpOpen = input.daysRemainingGdp !== null && input.daysRemainingGdp > 0;
   const prefettoOpen = input.daysRemainingPrefetto !== null && input.daysRemainingPrefetto > 0;
+  const documentaryDataPending = input.documentaryStatus !== null && DOCUMENTARY_STATUS_PENDING.has(input.documentaryStatus);
 
   let indication: AppealIndication;
   if (!gdpOpen && !prefettoOpen) {
     indication = "DEADLINES_EXPIRED";
+  } else if (documentaryDataPending) {
+    // La verifica autovelox non è ancora conclusa (dispositivo da identificare o registro non
+    // consultato): l'asse documentale è "NONE" per assenza di dati, non perché la verifica abbia
+    // escluso elementi rilevanti — mai leggerlo come NO_RELEVANT_ELEMENT in questo caso.
+    indication = "INSUFFICIENT_DATA";
   } else if (input.documentaryStrength === "NONE") {
     indication = "NO_RELEVANT_ELEMENT";
   } else if (economicAxis === "FAVORABLE" && gdpOpen) {
@@ -135,6 +156,7 @@ export function calculateAppealIndicator(input: AppealIndicatorInput, settings: 
 
   return {
     documentaryAxis: input.documentaryStrength,
+    documentaryStatus: input.documentaryStatus,
     economicAxis,
     indication,
     valueAtStake,

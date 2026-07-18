@@ -1,6 +1,10 @@
 import { calculateAppealIndicator, type AppealIndicatorResult } from "./calculate";
 import { calculateAppealDeadlines } from "./deadlines";
-import { deriveGenericDocumentaryStrength } from "./documentary-strength";
+import {
+  deriveEnforcementDocumentaryStrength,
+  deriveGenericDocumentaryStrength,
+  type EnforcementDeviceCheckForDocumentaryStrength,
+} from "./documentary-strength";
 import type { RuleSettingsData } from "@/lib/rules/types";
 
 export interface CaseFieldLookup {
@@ -24,13 +28,15 @@ function parseTriStateBoolean(raw: string | null): boolean | null {
 
 /**
  * Assembla l'input per `calculateAppealIndicator` a partire dai `CaseField` già caricati di una
- * pratica (nessuna query aggiuntiva) — calcolato a lettura, mai persistito
- * (docs/SPEC.md §10bis). L'asse documentale usa qui il fallback generico (§15.3): quando il
- * modulo di verifica autovelox sarà disponibile (Tappa 4/6), andrà sostituito dai suoi segnali
- * per le pratiche a cui si applica.
+ * pratica (nessuna query aggiuntiva) — calcolato a lettura, mai persistito (docs/SPEC.md §10bis).
+ * L'asse documentale usa i segnali reali del modulo autovelox (`enforcementCheck`, già caricato
+ * dalla stessa query di `EnforcementVerificationCard` in page.tsx — nessuna query aggiuntiva
+ * anche qui) quando presente; per le multe non da autovelox (`enforcementCheck` null, es. ZTL o
+ * sosta vietata) resta il fallback generico di `deriveGenericDocumentaryStrength`.
  */
 export function resolveAppealIndicatorForCase(
   fields: CaseFieldLookup[],
+  enforcementCheck: EnforcementDeviceCheckForDocumentaryStrength | null,
   settings: RuleSettingsData,
   now: Date,
 ): AppealIndicatorResult {
@@ -44,12 +50,17 @@ export function resolveAppealIndicatorForCase(
   const notificationDate = notificationDateRaw ? new Date(notificationDateRaw) : null;
   const { daysRemainingGdp, daysRemainingPrefetto } = calculateAppealDeadlines(notificationDate, now);
 
+  const { axis: documentaryStrength, status: documentaryStatus } = enforcementCheck
+    ? deriveEnforcementDocumentaryStrength(enforcementCheck)
+    : { axis: deriveGenericDocumentaryStrength(), status: null };
+
   return calculateAppealIndicator(
     {
       amount,
       points,
       driverProfessionalCqc,
-      documentaryStrength: deriveGenericDocumentaryStrength(),
+      documentaryStrength,
+      documentaryStatus,
       daysRemainingGdp,
       daysRemainingPrefetto,
     },

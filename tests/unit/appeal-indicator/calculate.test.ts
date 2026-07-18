@@ -11,6 +11,7 @@ const BASE: AppealIndicatorInput = {
   points: 0,
   driverProfessionalCqc: null,
   documentaryStrength: "STRONG",
+  documentaryStatus: "strong",
   daysRemainingGdp: 20,
   daysRemainingPrefetto: 50,
 };
@@ -97,6 +98,34 @@ describe("calculateAppealIndicator — asse documentale", () => {
       SETTINGS,
     );
     expect(result.indication).toBe("RELEVANT_BUT_UNECONOMICAL");
+  });
+});
+
+describe("calculateAppealIndicator — documentaryStatus 'pending' non deve mai leggersi come NO_RELEVANT_ELEMENT", () => {
+  it.each(["not_yet_evaluated", "device_to_be_identified", "registry_not_consulted"] as const)(
+    "documentaryStatus '%s' con asse NONE → INSUFFICIENT_DATA, anche con economia favorevole e termini aperti",
+    (status) => {
+      const result = calculateAppealIndicator({ ...BASE, amount: 500, documentaryStrength: "NONE", documentaryStatus: status }, SETTINGS);
+      expect(result.indication).toBe("INSUFFICIENT_DATA");
+    },
+  );
+
+  it("documentaryStatus 'verified' con asse NONE → NO_RELEVANT_ELEMENT (verifica conclusa, non in sospeso)", () => {
+    const result = calculateAppealIndicator({ ...BASE, amount: 500, documentaryStrength: "NONE", documentaryStatus: "verified" }, SETTINGS);
+    expect(result.indication).toBe("NO_RELEVANT_ELEMENT");
+  });
+
+  it("documentaryStatus null (fallback generico non-velox) con asse NONE → NO_RELEVANT_ELEMENT, comportamento invariato", () => {
+    const result = calculateAppealIndicator({ ...BASE, amount: 500, documentaryStrength: "NONE", documentaryStatus: null }, SETTINGS);
+    expect(result.indication).toBe("NO_RELEVANT_ELEMENT");
+  });
+
+  it("termini scaduti vince comunque su documentaryStatus pending (DEADLINES_EXPIRED ha priorità)", () => {
+    const result = calculateAppealIndicator(
+      { ...BASE, documentaryStatus: "device_to_be_identified", daysRemainingGdp: -3, daysRemainingPrefetto: -10 },
+      SETTINGS,
+    );
+    expect(result.indication).toBe("DEADLINES_EXPIRED");
   });
 });
 

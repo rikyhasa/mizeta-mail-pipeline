@@ -1,5 +1,6 @@
 import { withPermission } from "@/lib/auth/route-helpers";
 import { recordManualSpeedRegistryUpload } from "@/lib/speed-registry/sync-speed-device-registry";
+import { rematchDevicesForSnapshot } from "@/lib/speed-registry/apply-registry-match";
 
 /**
  * Fallback manuale del registro MIT (docs/SPEC-AUTOVELOX-DRAFT.md §7bis, Tappa 5): usato quando
@@ -21,6 +22,9 @@ export async function POST(request: Request) {
 
     try {
       const result = await recordManualSpeedRegistryUpload({ pages, uploadedById: user.id });
+      if (result.snapshotId) {
+        await rematchDevicesForSnapshot(result.snapshotId, user.id);
+      }
       return Response.json({ result });
     } catch (error) {
       return Response.json({ error: error instanceof Error ? error.message : String(error) }, { status: 422 });

@@ -8,9 +8,9 @@ const ENFORCEMENT_DOCUMENT_TYPE_COUNT = Object.keys(ENFORCEMENT_DOCUMENT_TYPE_LA
 /** Stesso valore già usato in ExtractedFieldCell.tsx (70%), non un nuovo numero inventato. */
 const LOW_CONFIDENCE_THRESHOLD = 0.7;
 
-/** Categoria del blocker: usata solo per scegliere un verbo concreto nella CTA "Prossima azione"
- * (docs/UX-AUDIT-2026-07.md, punto 3.3.4 — "Vai" era un'etichetta generica) — non introduce
- * nuova logica di business, la lista e l'ordine dei blocker restano quelli di sempre. */
+/** Categoria del blocker: usata per scegliere un verbo concreto nella CTA "Prossima azione"
+ * (docs/UX-AUDIT-2026-07.md, punto 3.3.4 — "Vai" era un'etichetta generica) e per l'ordine di
+ * priorità (vedi `BLOCKER_PRIORITY` sotto). */
 export type CaseBlockerKind =
   | "missing_fields"
   | "needs_review"
@@ -22,6 +22,32 @@ export type CaseBlockerKind =
   | "enforcement_identify"
   | "enforcement_missing_fields"
   | "enforcement_missing_docs";
+
+/**
+ * Priorità di visualizzazione (numero più basso = mostrato per primo in "Prossima azione", che
+ * usa solo `blockers[0]`): fino a questa modifica l'ordine era implicitamente quello di
+ * inserimento in `deriveCaseBlockers`, che metteva sempre i blocker autovelox in coda — per una
+ * pratica FINE_OR_PENALTY con dati generici ancora da confermare (praticamente ogni pratica
+ * appena arrivata), il blocker specifico "Identifica il dispositivo"/"Conferma i dati del
+ * dispositivo" non emergeva mai come CTA principale, nonostante fosse il singolo passo più utile.
+ * `enforcement_identify` è il caso limite: senza sapere il tipo di dispositivo, il resto del
+ * modulo autovelox (registro, documenti) non può procedere, quindi resta sempre il primo.
+ * `no_assignee` è retrocesso deliberatamente: sapere COSA manca è più utile di sapere CHI deve
+ * occuparsene, ed è quasi sempre vero per una pratica appena arrivata (rischiava di vincere ogni
+ * volta per pura frequenza, non per rilevanza).
+ */
+const BLOCKER_PRIORITY: Record<CaseBlockerKind, number> = {
+  enforcement_identify: 0,
+  missing_fields: 1,
+  needs_review: 1,
+  enforcement_missing_fields: 1,
+  low_confidence: 2,
+  anomaly: 2,
+  enforcement_missing_docs: 2,
+  security_flags: 3,
+  no_assignee: 4,
+  pending_relations: 5,
+};
 
 export interface CaseBlockerReason {
   text: string;
@@ -103,7 +129,9 @@ export function deriveCaseBlockers(input: CaseBlockerInput): CaseBlockerReason[]
       }
     }
   }
-  return blockers;
+  // `sort` è stabile (garanzia ES2019+): a parità di priorità l'ordine di inserimento sopra resta
+  // invariato — nessun cambiamento per i test che verificano solo un blocker alla volta.
+  return blockers.sort((a, b) => BLOCKER_PRIORITY[a.kind] - BLOCKER_PRIORITY[b.kind]);
 }
 
 /**

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { withPermission } from "@/lib/auth/route-helpers";
 import { writeAuditLog } from "@/lib/pipeline/audit";
 import { ENFORCEMENT_CHECK_APPLICABILITY_LABELS } from "@/lib/i18n/labels";
+import { matchAndPersistDeviceRegistryMatch } from "@/lib/speed-registry/apply-registry-match";
 import type { EnforcementCheckApplicability, EnforcementVerificationState } from "@/generated/prisma/enums";
 
 const APPLICABILITY_VALUES = Object.keys(ENFORCEMENT_CHECK_APPLICABILITY_LABELS) as [
@@ -62,6 +63,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
       return check;
     });
+
+    // Confronto col registro MIT (docs/SPEC-AUTOVELOX-DRAFT.md §7bis): tentato solo quando
+    // l'applicabilità è un dispositivo concreto — la funzione stessa non scrive nulla se mancano
+    // matricola/decreto o se nessuno snapshot esiste ancora (registro resta "non consultato").
+    if (applicability !== "NOT_APPLICABLE") {
+      await matchAndPersistDeviceRegistryMatch(caseId, user.id);
+    }
 
     return Response.json({ check: updated });
   });

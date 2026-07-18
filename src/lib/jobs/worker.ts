@@ -16,6 +16,7 @@ import {
   type RenewSubscriptionPayload,
 } from "@/lib/jobs/types";
 import { runScheduledSpeedRegistrySync } from "@/lib/speed-registry/sync-speed-device-registry";
+import { rematchDevicesForSnapshot } from "@/lib/speed-registry/apply-registry-match";
 
 /**
  * Claim transazionale del prossimo job pronto: `SELECT ... FOR UPDATE SKIP LOCKED` è l'unica
@@ -71,7 +72,13 @@ async function dispatch(job: Job): Promise<void> {
       return;
     }
     case "SYNC_SPEED_DEVICE_REGISTRY": {
-      await runScheduledSpeedRegistrySync();
+      const result = await runScheduledSpeedRegistrySync();
+      // Un dispositivo può passare da "non trovato" a "corrisponde" (o viceversa) fra due sync,
+      // senza che l'operatore riapra la pratica (docs/SPEC-AUTOVELOX-DRAFT.md §7bis) — solo su
+      // uno snapshot realmente nuovo, mai su "nessuna modifica".
+      if (result.snapshotId) {
+        await rematchDevicesForSnapshot(result.snapshotId, null);
+      }
       return;
     }
     default: {

@@ -146,6 +146,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   APPEAL_DECISION_RECORDED: "Decisione ricorso registrata",
   ENFORCEMENT_DOCUMENTATION_REQUESTED: "Documentazione tecnica richiesta",
   ENFORCEMENT_TECHNICAL_REVIEW_REQUESTED: "Segnalato per verifica tecnica",
+  ENFORCEMENT_REGISTRY_MATCHED: "Confronto con il registro MIT eseguito",
 };
 
 /** Gli 8 modelli di SPEC.md §12 — mancava una traduzione: DocumentsCard mostrava il valore

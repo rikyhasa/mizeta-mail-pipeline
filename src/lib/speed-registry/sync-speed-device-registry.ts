@@ -18,7 +18,9 @@ function hashPages(pages: string[]): string {
   return createHash("sha256").update(pages.join(PAGE_BREAK_MARKER)).digest("hex");
 }
 
-async function loadPreviousDevices(rawStorageKey: string): Promise<SpeedRegistryDeviceRow[]> {
+/** Ricostruisce la lista dispositivi grezza di uno snapshot già salvato — riusata sia per il
+ * diff col sync successivo sia per il confronto dispositivo↔registro (apply-registry-match.ts). */
+export async function loadDevicesFromSnapshot(rawStorageKey: string): Promise<SpeedRegistryDeviceRow[]> {
   const raw = (await attachmentStorage.get(rawStorageKey)).toString("utf-8");
   const pages = raw.split(PAGE_BREAK_MARKER);
   return parseSpeedRegistryHtml(pages).devices;
@@ -63,7 +65,7 @@ async function persistSpeedRegistrySnapshot(params: PersistParams): Promise<Spee
     return { snapshotId: null, unchanged: true, deviceCount: devices.length, malformedRowCount, diff: null };
   }
 
-  const previousDevices = previous ? await loadPreviousDevices(previous.rawStorageKey) : [];
+  const previousDevices = previous ? await loadDevicesFromSnapshot(previous.rawStorageKey) : [];
   const diff = diffDeviceLists(previousDevices, devices);
 
   const rawStorageKey = `speed-registry/${randomUUID()}.html`;

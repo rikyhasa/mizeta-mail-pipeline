@@ -2,6 +2,13 @@ import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { withPermission } from "@/lib/auth/route-helpers";
 import { writeAuditLog } from "@/lib/pipeline/audit";
+import { matchAndPersistDeviceRegistryMatch } from "@/lib/speed-registry/apply-registry-match";
+
+/** Campi la cui conferma può cambiare l'esito del confronto col registro MIT — solo la matricola
+ * è pensata per essere un identificativo univoco per dispositivo fisico (numero decreto come
+ * fallback nel matcher stesso). Confermare un produttore o un modello da solo non basta a
+ * cercare nel registro (docs/SPEC-AUTOVELOX-DRAFT.md §7bis). */
+const FIELDS_TRIGGERING_REGISTRY_MATCH = new Set(["serial_number", "decree_number"]);
 
 const patchSchema = z.object({ value: z.string().nullable().optional() });
 
@@ -57,6 +64,10 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
 
       return field;
     });
+
+    if (FIELDS_TRIGGERING_REGISTRY_MATCH.has(fieldKey)) {
+      await matchAndPersistDeviceRegistryMatch(caseId, user.id);
+    }
 
     return Response.json({ field: updated });
   });
