@@ -1,4 +1,5 @@
 import { WorkPanel } from "@/components/ui/WorkPanel";
+import { ActionButton } from "@/components/ActionButton";
 import { ExtractedFieldCell } from "./ExtractedFieldCell";
 import { isExtractableCategory } from "@/lib/adapters/llm/schemas/extraction-index";
 import { fieldLabel, formatFieldValue } from "@/lib/i18n/field-labels";
@@ -37,20 +38,32 @@ export function ExtractedFieldsSection({
       ) : fields.length === 0 ? (
         <p className="text-sm text-[var(--color-ink-muted)]">Nessun campo ancora estratto.</p>
       ) : (
-        <div className="detail-field-grid">
-          {fields.map(({ key, field, tier }, index) => (
-            <ExtractedFieldCell
-              key={key}
-              caseId={caseId}
-              fieldKey={key}
-              label={fieldLabel(key)}
-              formattedValue={field.value ? formatFieldValue(key, field.value) : null}
-              field={field}
-              tier={tier}
-              spanFull={fields.length % 2 !== 0 && index === fields.length - 1}
-            />
-          ))}
-        </div>
+        <>
+          {(() => {
+            const highConfidenceCount = fields.filter((f) => f.tier === "middle").length;
+            return highConfidenceCount > 0 ? (
+              <div className="mb-3">
+                <ActionButton method="POST" url={`/api/cases/${caseId}/fields/confirm-high-confidence`} variant="secondary" size="sm">
+                  Conferma tutti i dati ad alta confidenza ({highConfidenceCount})
+                </ActionButton>
+              </div>
+            ) : null;
+          })()}
+          <div className="detail-field-grid">
+            {fields.map(({ key, field, tier }, index) => (
+              <ExtractedFieldCell
+                key={key}
+                caseId={caseId}
+                fieldKey={key}
+                label={fieldLabel(key)}
+                formattedValue={field.value ? formatFieldValue(key, field.value) : null}
+                field={field}
+                tier={tier}
+                spanFull={fields.length % 2 !== 0 && index === fields.length - 1}
+              />
+            ))}
+          </div>
+        </>
       )}
     </WorkPanel>
   );

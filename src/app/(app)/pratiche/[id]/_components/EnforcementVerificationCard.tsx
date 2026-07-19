@@ -48,6 +48,10 @@ const REGISTRY_MATCH_TONE: Record<EnforcementRegistryMatchState, BadgeTone> = {
 
 const DOCUMENT_TYPES = Object.keys(ENFORCEMENT_DOCUMENT_TYPE_LABELS) as EnforcementDocumentType[];
 const APPLICABILITY_OPTIONS = Object.entries(ENFORCEMENT_CHECK_APPLICABILITY_LABELS).map(([value, label]) => ({ value, label }));
+/** Campi effettivamente confrontati dal matcher registro MIT (Troncone C, §2.1.A) — solo per
+ * questi ha senso l'etichetta "Verificato dal registro MIT" invece del bottone di conferma in
+ * blocco generico; `decree_date`/`version`/`authority` non sono mai confrontati oggi. */
+const REGISTRY_VERIFIABLE_FIELD_KEYS = new Set(["manufacturer", "model", "serial_number", "decree_number"]);
 
 interface EnforcementFieldData {
   fieldKey: string;
@@ -152,6 +156,7 @@ export function EnforcementVerificationCard({
   const tieredFields = tierFields(check.fields, ENFORCEMENT_DEVICE_FIELD_ORDER);
   const missingDocumentCount = DOCUMENT_TYPES.length - check.documentChecks.filter((d) => d.status === "PRESENT").length;
   const problematicFieldCount = tieredFields.filter((f) => f.tier === "problematic").length;
+  const highConfidenceFieldCount = tieredFields.filter((f) => f.tier === "middle").length;
   const outcome = deriveEnforcementOutcome(check, missingDocumentCount, problematicFieldCount);
   const primaryEnforcementBlocker = blockers.find((b) => b.kind.startsWith("enforcement_"));
 
@@ -237,6 +242,13 @@ export function EnforcementVerificationCard({
               : `Identificazione dispositivo — ${tieredFields.length} dato/i confermati`
           }
         >
+          {permissions.canConfirm && highConfidenceFieldCount > 0 && (
+            <div className="mb-3">
+              <ActionButton method="POST" url={`/api/cases/${caseId}/enforcement/fields/confirm-high-confidence`} variant="secondary" size="sm">
+                Conferma tutti i dati ad alta confidenza ({highConfidenceFieldCount})
+              </ActionButton>
+            </div>
+          )}
           <div className="detail-field-grid">
             {tieredFields.map(({ key, field, tier }, index) => (
               <ExtractedFieldCell
@@ -249,6 +261,7 @@ export function EnforcementVerificationCard({
                 tier={tier}
                 spanFull={tieredFields.length % 2 !== 0 && index === tieredFields.length - 1}
                 endpointBase={`/api/cases/${caseId}/enforcement/fields`}
+                registryVerified={check.registryMatch === "MATCH" && REGISTRY_VERIFIABLE_FIELD_KEYS.has(key)}
               />
             ))}
           </div>

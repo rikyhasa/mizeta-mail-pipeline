@@ -31,6 +31,7 @@ export function ExtractedFieldCell({
   tier,
   spanFull = false,
   endpointBase,
+  registryVerified = false,
 }: {
   caseId: string;
   fieldKey: string;
@@ -44,6 +45,10 @@ export function ExtractedFieldCell({
   /** Radice dell'endpoint da usare al posto del default `/api/cases/${caseId}/fields`, per
    * riusare questa cella anche su EnforcementDeviceField (Tappa 6). */
   endpointBase?: string;
+  /** true quando questo campo è stato confrontato con esito positivo col registro MIT
+   * (Troncone C, §2.1.A) — nessun bottone "Conferma", solo un'etichetta di provenienza: nessun
+   * umano ha agito, non va simulata una conferma che non è avvenuta. */
+  registryVerified?: boolean;
 }) {
   const base = endpointBase ?? `/api/cases/${caseId}/fields`;
   const pct = field.confidence !== null ? Math.round(field.confidence * 100) : null;
@@ -71,17 +76,19 @@ export function ExtractedFieldCell({
               <span className="sr-only">{field.confirmedBy ? `Confermato da ${field.confirmedBy.name}` : "Confermato"}</span>
             </span>
           )}
-          {/* "Conferma" solo su un campo con un valore: confermare un campo vuoto fallisce sempre
-           * lato server (422, P0 #1 di docs/UX-AUDIT-2026-07.md) — l'affordance utile lì è
-           * inserire un valore, non confermarne l'assenza (H8). */}
-          {!field.confirmedBy && field.value && (
-            <ActionButton
-              method="PATCH"
-              url={`${base}/${fieldKey}`}
-              body={{}}
-              variant={tier === "problematic" ? "secondary" : "tertiary"}
-              size="sm"
-            >
+          {tier === "middle" && registryVerified && (
+            <Badge tone="info" icon={Check}>
+              Verificato dal registro MIT
+            </Badge>
+          )}
+          {/* "Conferma" solo sui campi che restano un'eccezione da rivedere (bassa confidenza,
+           * conflitto — tier "problematic" con un valore presente): i campi già affidabili
+           * (tier "middle", soglia di confidenza già superata o verificati dal registro MIT) non
+           * mostrano più un bottone individuale — si confermano dal bottone di blocco del
+           * pannello (Troncone C, §2.1). Mai "Conferma" su un valore assente (H8, P0 #1 di
+           * docs/UX-AUDIT-2026-07.md): confermarlo fallirebbe sempre lato server. */}
+          {!field.confirmedBy && field.value && field.needsHumanReview && (
+            <ActionButton method="PATCH" url={`${base}/${fieldKey}`} body={{}} variant="secondary" size="sm">
               Conferma
             </ActionButton>
           )}

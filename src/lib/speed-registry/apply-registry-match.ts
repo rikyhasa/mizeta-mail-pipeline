@@ -1,8 +1,14 @@
 import { prisma } from "@/lib/db/prisma";
 import { writeAuditLog } from "@/lib/pipeline/audit";
 import type { EnforcementCheckApplicability, EnforcementRegistryMatchState } from "@/generated/prisma/enums";
-import { matchDeviceAgainstRegistry, type DeviceIdentityForMatch } from "./match-device-registry";
+import {
+  matchDeviceAgainstRegistry,
+  normalize,
+  type DeviceIdentityForMatch,
+  type MatchDeviceAgainstRegistryResult,
+} from "./match-device-registry";
 import { loadDevicesFromSnapshot } from "./sync-speed-device-registry";
+import type { SpeedRegistryDeviceRow } from "./types";
 
 /** Applicabilità per cui ha senso cercare un dispositivo concreto nel registro — esclude
  * TO_BE_IDENTIFIED (nulla da cercare) e NOT_APPLICABLE (nessun EnforcementDeviceCheck esiste
@@ -29,25 +35,86 @@ async function loadDeviceIdentity(checkId: string): Promise<DeviceIdentityForMat
   };
 }
 
+/**
+ * Determina quali `EnforcementDeviceField` sono stati realmente confrontati con la riga di
+ * registro trovata e coincidono — mai un campo il cui lato registro è null (nulla da
+ * confrontare) né un campo diverso da quello usato per la ricerca (l'altro identificativo,
+ * es. decree_number quando la ricerca è avvenuta per matricola, non viene mai confrontato dal
+ * matcher: non va trattato come verificato). Usata solo su `match === "MATCH"` (Troncone C,
+ * §2.1.A) — mai su MISMATCH/NOT_FOUND/ambiguous.
+ */
+function determineRegistryVerifiedFieldKeys(identity: DeviceIdentityForMatch, matchedRow: SpeedRegistryDeviceRow): string[] {
+  const verified: string[] = [];
+  if (identity.serialNumber !== null && matchedRow.serialNumber !== null && normalize(identity.serialNumber) === normalize(matchedRow.serialNumber)) {
+    verified.push("serial_number");
+  }
+  if (identity.decreeNumber !== null && matchedRow.decreeNumber !== null && normalize(identity.decreeNumber) === normalize(matchedRow.decreeNumber)) {
+    verified.push("decree_number");
+  }
+  if (identity.manufacturer !== null && matchedRow.manufacturer !== null) verified.push("manufacturer");
+  if (identity.model !== null && matchedRow.model !== null) verified.push("model");
+  return verified;
+}
+
+/**
+ * Traduce l'esito puro di `matchDeviceAgainstRegistry` in quali campi vanno auto-verificati o
+ * rimessi in revisione (Troncone C, §2.1.A/§2.4). Un match "ambiguous" (più righe di registro
+ * con lo stesso identificativo) non tocca alcun campo anche se `match === "MATCH"`: il candidato
+ * scelto non è abbastanza univoco per esentare l'operatore dalla revisione.
+ */
+function computeFieldUpdates(
+  identity: DeviceIdentityForMatch,
+  result: MatchDeviceAgainstRegistryResult,
+): { verifiedFieldKeys: string[]; conflictingFieldKeys: string[] } {
+  if (result.match === "MATCH" && !result.ambiguous && result.matchedRow) {
+    return { verifiedFieldKeys: determineRegistryVerifiedFieldKeys(identity, result.matchedRow), conflictingFieldKeys: [] };
+  }
+  if (result.match === "MISMATCH") {
+    return { verifiedFieldKeys: [], conflictingFieldKeys: result.conflictingFields };
+  }
+  return { verifiedFieldKeys: [], conflictingFieldKeys: [] };
+}
+
 async function persistMatch(
   checkId: string,
   caseId: string,
   snapshotId: string,
   match: EnforcementRegistryMatchState,
   actorId: string | null,
+  fieldUpdates: { verifiedFieldKeys: string[]; conflictingFieldKeys: string[] },
 ): Promise<void> {
   await prisma.$transaction(async (tx) => {
     await tx.enforcementDeviceCheck.update({
       where: { id: checkId },
       data: { registryMatch: match, registrySnapshotId: snapshotId },
     });
+
+    // Dati verificati deterministicamente dal registro MIT (Troncone C, §2.1.A): nessun click
+    // umano, nessun confirmedById scritto (nessun umano ha agito) — solo needsHumanReview
+    // azzerato, con provenienza tracciata dall'audit ENFORCEMENT_REGISTRY_MATCHED sotto, non da
+    // un nuovo campo per-field.
+    for (const fieldKey of fieldUpdates.verifiedFieldKeys) {
+      await tx.enforcementDeviceField.updateMany({
+        where: { checkId, fieldKey },
+        data: { needsHumanReview: false },
+      });
+    }
+    // Solo i campi realmente in conflitto tornano/restano da rivedere — mai tutti i campi del
+    // dispositivo indiscriminatamente.
+    for (const fieldKey of fieldUpdates.conflictingFieldKeys) {
+      await tx.enforcementDeviceField.updateMany({
+        where: { checkId, fieldKey },
+        data: { needsHumanReview: true },
+      });
+    }
+
     await writeAuditLog(tx, {
       action: "ENFORCEMENT_REGISTRY_MATCHED",
       entityType: "EnforcementDeviceCheck",
       entityId: checkId,
       caseId,
       actorId: actorId ?? undefined,
-      metadata: { match, snapshotId },
+      metadata: { match, snapshotId, verifiedFieldKeys: fieldUpdates.verifiedFieldKeys, conflictingFieldKeys: fieldUpdates.conflictingFieldKeys },
     });
   });
 }
@@ -73,11 +140,11 @@ export async function matchAndPersistDeviceRegistryMatch(
 
   const identity = await loadDeviceIdentity(check.id);
   const registryDevices = await loadDevicesFromSnapshot(snapshot.rawStorageKey);
-  const { match } = matchDeviceAgainstRegistry(identity, registryDevices);
-  if (match === null) return { match: null };
+  const result = matchDeviceAgainstRegistry(identity, registryDevices);
+  if (result.match === null) return { match: null };
 
-  await persistMatch(check.id, caseId, snapshot.id, match, actorId);
-  return { match };
+  await persistMatch(check.id, caseId, snapshot.id, result.match, actorId, computeFieldUpdates(identity, result));
+  return { match: result.match };
 }
 
 /**
@@ -98,9 +165,9 @@ export async function rematchDevicesForSnapshot(snapshotId: string, actorId: str
   let matchedCount = 0;
   for (const check of checks) {
     const identity = await loadDeviceIdentity(check.id);
-    const { match } = matchDeviceAgainstRegistry(identity, registryDevices);
-    if (match === null) continue;
-    await persistMatch(check.id, check.caseId, snapshot.id, match, actorId);
+    const result = matchDeviceAgainstRegistry(identity, registryDevices);
+    if (result.match === null) continue;
+    await persistMatch(check.id, check.caseId, snapshot.id, result.match, actorId, computeFieldUpdates(identity, result));
     matchedCount += 1;
   }
   return { matchedCount };

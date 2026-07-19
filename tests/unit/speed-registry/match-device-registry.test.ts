@@ -67,4 +67,55 @@ describe("matchDeviceAgainstRegistry", () => {
     const result = matchDeviceAgainstRegistry(identity({ decreeNumber: "40218/2019" }), registry);
     expect(result.match).toBe("MATCH");
   });
+
+  it("MISMATCH su produttore: conflictingFields riporta solo 'manufacturer', non 'model'", () => {
+    const registry = [device({ serialNumber: "AV-2021-3312", manufacturer: "Gatso", model: "24" })];
+    const result = matchDeviceAgainstRegistry(
+      identity({ serialNumber: "AV-2021-3312", manufacturer: "Sicve", model: "24" }),
+      registry,
+    );
+    expect(result.match).toBe("MISMATCH");
+    expect(result.conflictingFields).toEqual(["manufacturer"]);
+  });
+
+  it("MISMATCH su entrambi produttore e modello: conflictingFields li riporta entrambi", () => {
+    const registry = [device({ serialNumber: "AV-2021-3312", manufacturer: "Gatso", model: "24" })];
+    const result = matchDeviceAgainstRegistry(
+      identity({ serialNumber: "AV-2021-3312", manufacturer: "Sicve", model: "99" }),
+      registry,
+    );
+    expect(result.conflictingFields).toEqual(["manufacturer", "model"]);
+  });
+
+  it("MATCH pulito: conflictingFields vuoto, ambiguous false", () => {
+    const registry = [device({ serialNumber: "AV-2021-3312", manufacturer: "Gatso", model: "24" })];
+    const result = matchDeviceAgainstRegistry(identity({ serialNumber: "AV-2021-3312" }), registry);
+    expect(result.conflictingFields).toEqual([]);
+    expect(result.ambiguous).toBe(false);
+  });
+
+  it("più righe di registro con la stessa matricola: ambiguous true, anche se il primo confronto risulterebbe MATCH", () => {
+    const registry = [
+      device({ serialNumber: "AV-DUP", manufacturer: "Gatso", cadastralCode: "B1" }),
+      device({ serialNumber: "AV-DUP", manufacturer: "Gatso", cadastralCode: "B2" }),
+    ];
+    const result = matchDeviceAgainstRegistry(identity({ serialNumber: "AV-DUP", manufacturer: "Gatso" }), registry);
+    expect(result.match).toBe("MATCH");
+    expect(result.ambiguous).toBe(true);
+  });
+
+  it("più righe con lo stesso numero decreto (fallback): ambiguous true", () => {
+    const registry = [
+      device({ serialNumber: "AV-1", decreeNumber: "40218/2019", cadastralCode: "B1" }),
+      device({ serialNumber: "AV-2", decreeNumber: "40218/2019", cadastralCode: "B2" }),
+    ];
+    const result = matchDeviceAgainstRegistry(identity({ decreeNumber: "40218/2019" }), registry);
+    expect(result.ambiguous).toBe(true);
+  });
+
+  it("NOT_FOUND: conflictingFields vuoto, ambiguous false", () => {
+    const result = matchDeviceAgainstRegistry(identity({ serialNumber: "AV-9999-9999" }), [device({ serialNumber: "AV-0000-0000" })]);
+    expect(result.conflictingFields).toEqual([]);
+    expect(result.ambiguous).toBe(false);
+  });
 });
