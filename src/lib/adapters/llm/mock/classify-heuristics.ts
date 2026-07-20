@@ -178,7 +178,16 @@ function estimateBaselinePriority(category: CaseCategory, subject: string, body:
  */
 export function classifyHeuristically(input: ClassificationInput, threshold: number): ClassificationResult {
   const combinedText = `${input.emailSubject}\n${input.emailBody}`;
-  const securityFlags = detectSecurityFlags(combinedText);
+  // Un'injection può nascondersi anche nel testo di un allegato (FASE 10,
+  // docs/FASE-10-LETTURA-ALLEGATI.md: "injection dentro un allegato → flag di sicurezza"), non
+  // solo in oggetto/corpo — ma solo per la scansione di sicurezza: gli altri identificatori
+  // (numero fattura/ordine/verbale, scadenza) restano cercati solo in oggetto/corpo, comportamento
+  // invariato e già calibrato contro il dataset eval (docs/evaluation.md).
+  const attachmentText = input.attachments
+    .filter((a) => a.isReadable && a.text)
+    .map((a) => a.text)
+    .join("\n");
+  const securityFlags = detectSecurityFlags(`${combinedText}\n${attachmentText}`);
 
   const scores = scoreCategories(input.emailSubject, input.emailBody);
   const top = scores[0];
