@@ -13,7 +13,10 @@ interface ApplicabilityRule {
  * subito l'applicabilità, prima di cercare segnali di velocità più specifici — un solo segnale
  * dominante per verbale, non un punteggio combinato tra regole. */
 const APPLICABILITY_RULES: ApplicabilityRule[] = [
-  { keywords: ["ztl", "zona a traffico limitato", "accesso non autorizzato", "varco elettronico", "semaforo"], applicability: "NOT_APPLICABLE" },
+  {
+    keywords: ["ztl", "zona a traffico limitato", "accesso non autorizzato", "varco elettronico", "semaforo", "sosta vietata", "divieto di sosta"],
+    applicability: "NOT_APPLICABLE",
+  },
   { keywords: ["tutor", "velocità media"], applicability: "AVERAGE_SPEED_CONTROL" },
   { keywords: ["telelaser"], applicability: "TELELASER" },
   { keywords: ["autovelox mobile", "postazione mobile", "pattuglia con autovelox"], applicability: "SPEED_CAMERA_MOBILE" },
@@ -62,7 +65,7 @@ function detectApplicability(segments: Segment[]): ApplicabilityDetection {
   if (speedSignal) {
     return { value: "TO_BE_IDENTIFIED", segment: speedSignal.segment, excerpt: excerptAround(speedSignal.segment, speedSignal.keyword) };
   }
-  return { value: "NOT_APPLICABLE", segment: null, excerpt: null };
+  return { value: "TO_BE_IDENTIFIED", segment: null, excerpt: null };
 }
 
 function findManufacturer(segments: Segment[]): Found<string> | null {

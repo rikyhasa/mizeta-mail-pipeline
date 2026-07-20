@@ -51,10 +51,11 @@ describe("analyzeEnforcementDeviceHeuristically — applicability", () => {
     expect(result.applicability.value).toBe("TO_BE_IDENTIFIED");
   });
 
-  it("ricade onestamente su NOT_APPLICABLE quando non c'è alcun segnale nel testo", () => {
+  it("ricade onestamente su TO_BE_IDENTIFIED quando non c'è alcun segnale nel testo", () => {
     const result = analyzeEnforcementDeviceHeuristically(messages({ bodyText: "Comunicazione generica priva di riferimenti a infrazioni di velocità." }));
-    expect(result.applicability.value).toBe("NOT_APPLICABLE");
+    expect(result.applicability.value).toBe("TO_BE_IDENTIFIED");
     expect(result.applicability.confidence).toBeNull();
+    expect(result.applicability.needs_human_review).toBe(true);
   });
 
   it("una regola non legata alla velocità (ZTL) prevale su un segnale di velocità nello stesso testo", () => {
