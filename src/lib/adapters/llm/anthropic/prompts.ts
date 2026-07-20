@@ -117,6 +117,12 @@ export function buildExtractionSystemPrompt(category: ExtractableCategory): stri
     `Sei un assistente che estrae dati strutturati da email della categoria ${category} per un'azienda italiana di trasporti e logistica.`,
     SECURITY_INSTRUCTION,
     "Per ogni campo indica fonte (source_type, source_message_id, source_attachment_id, source_excerpt) e confidenza.",
+    // FASE 10, docs/FASE-10-LETTURA-ALLEGATI.md: il testo di un allegato con più pagine è
+    // suddiviso da marcatori espliciti "--- pagina N ---" dentro ATTACHMENT_CONTENT — senza
+    // questa istruzione il modello non saprebbe collegarli al campo source_page dello schema.
+    "Se il testo di un allegato contiene marcatori \"--- pagina N ---\", indica in source_page il " +
+      "numero della pagina in cui hai trovato il valore del campo. Per campi presi dal corpo " +
+      "dell'email (mai da un allegato), lascia source_page a null.",
     dateFieldGuidance(category),
     "Se un dato non è presente o non sei sicuro, usa value: null e needs_human_review: true. Non inventare mai dati.",
   ].join("\n\n");
