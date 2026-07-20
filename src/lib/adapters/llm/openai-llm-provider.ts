@@ -1,5 +1,6 @@
 import type {
   ActionProposalInput,
+  AttachmentVisionExtractionInput,
   ClassificationInput,
   DraftGenerationInput,
   EnforcementDeviceAnalysisInput,
@@ -12,6 +13,7 @@ import type { ExtractableCategory, ExtractionResultFor } from "@/lib/adapters/ll
 import type { ProposeActionsResult } from "@/lib/adapters/llm/schemas/actions";
 import type { DraftGenerationResult } from "@/lib/adapters/llm/schemas/draft";
 import type { EnforcementDeviceAnalysisResult } from "@/lib/adapters/llm/schemas/enforcement-device-analysis";
+import type { AttachmentVisionExtractionResult } from "@/lib/adapters/llm/schemas/attachment-vision-extraction";
 
 const NOT_IMPLEMENTED = "OpenAILLMProvider non implementato in questa fase: solo interfaccia/scheletro documentato.";
 
@@ -40,6 +42,10 @@ export class OpenAILLMProvider implements LLMProvider {
   }
 
   async generateDraft(_input: DraftGenerationInput): Promise<LLMResult<DraftGenerationResult>> {
+    throw new Error(NOT_IMPLEMENTED);
+  }
+
+  async extractAttachmentVisionText(_input: AttachmentVisionExtractionInput): Promise<LLMResult<AttachmentVisionExtractionResult>> {
     throw new Error(NOT_IMPLEMENTED);
   }
 

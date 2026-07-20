@@ -9,8 +9,10 @@ import {
 import { proposeActionsResultSchema, type ProposeActionsResult } from "@/lib/adapters/llm/schemas/actions";
 import { draftGenerationResultSchema, type DraftGenerationResult } from "@/lib/adapters/llm/schemas/draft";
 import { enforcementDeviceAnalysisSchema, type EnforcementDeviceAnalysisResult } from "@/lib/adapters/llm/schemas/enforcement-device-analysis";
+import { attachmentVisionExtractionSchema, type AttachmentVisionExtractionResult } from "@/lib/adapters/llm/schemas/attachment-vision-extraction";
 import type {
   ActionProposalInput,
+  AttachmentVisionExtractionInput,
   ClassificationInput,
   DraftGenerationInput,
   EnforcementDeviceAnalysisInput,
@@ -22,6 +24,7 @@ import { callStructured } from "@/lib/adapters/llm/anthropic/structured-output";
 import {
   buildActionProposalSystemPrompt,
   buildActionProposalUserContent,
+  buildAttachmentVisionSystemPrompt,
   buildClassificationSystemPrompt,
   buildClassificationUserContent,
   buildDraftGenerationSystemPrompt,
@@ -138,6 +141,30 @@ export class AnthropicLLMProvider implements LLMProvider {
       userContent: buildDraftGenerationUserContent(input),
       schema: draftGenerationResultSchema,
       maxTokens: 1536,
+    });
+    return { data, usage, model };
+  }
+
+  /**
+   * Livello 3 di estrazione allegati (FASE 10, docs/FASE-10-LETTURA-ALLEGATI.md): il PDF/
+   * immagine viene passato direttamente come content block `document`/`image` in base64 —
+   * nessuna rasterizzazione lato server, Claude legge nativamente il documento. Stesso
+   * pattern di `callStructured` per il resto: mai `tools[]`, sempre ri-validato con lo schema
+   * Zod. `userContent` qui è un array di content block, non una stringa (vedi
+   * `StructuredCallParams.userContent`).
+   */
+  async extractAttachmentVisionText(input: AttachmentVisionExtractionInput): Promise<LLMResult<AttachmentVisionExtractionResult>> {
+    const source =
+      input.mimeType === "application/pdf"
+        ? ({ type: "document" as const, source: { type: "base64" as const, media_type: input.mimeType, data: input.contentBase64 } })
+        : ({ type: "image" as const, source: { type: "base64" as const, media_type: input.mimeType, data: input.contentBase64 } });
+
+    const { data, usage, model } = await callStructured(this.client, {
+      model: this.model,
+      system: buildAttachmentVisionSystemPrompt(),
+      userContent: [{ type: "text", text: `ATTACHMENT_CONTENT[id=${input.attachmentId} file=${input.fileName}]` }, source],
+      schema: attachmentVisionExtractionSchema,
+      maxTokens: 4096,
     });
     return { data, usage, model };
   }

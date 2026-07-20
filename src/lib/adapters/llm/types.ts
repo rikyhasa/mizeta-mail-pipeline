@@ -3,6 +3,7 @@ import type { ExtractableCategory, ExtractionResultFor } from "@/lib/adapters/ll
 import type { ProposeActionsResult } from "@/lib/adapters/llm/schemas/actions";
 import type { DraftGenerationResult } from "@/lib/adapters/llm/schemas/draft";
 import type { EnforcementDeviceAnalysisResult } from "@/lib/adapters/llm/schemas/enforcement-device-analysis";
+import type { AttachmentVisionExtractionResult } from "@/lib/adapters/llm/schemas/attachment-vision-extraction";
 import type { CaseCategory } from "@/generated/prisma/enums";
 
 export interface AttachmentInput {
@@ -11,6 +12,9 @@ export interface AttachmentInput {
   isReadable: boolean;
   /** null se isReadable=false: il contenuto non deve mai essere letto o inventato. */
   text: string | null;
+  /** Campi mappati da un parser strutturato (es. XML FatturaPA, FASE 10), fieldKey -> valore
+   * grezzo. Presente solo per gli allegati estratti al livello STRUCTURED. */
+  structuredFields?: Record<string, string | number | boolean> | null;
 }
 
 export interface ClassificationInput {
@@ -48,6 +52,20 @@ export interface ActionProposalInput {
 export interface EnforcementDeviceAnalysisInput {
   caseId: string;
   messages: ExtractionMessageInput[];
+}
+
+/**
+ * Livello 3 di estrazione allegati (FASE 10, docs/FASE-10-LETTURA-ALLEGATI.md): usato solo
+ * quando l'estrazione locale del testo (livello 2) non è disponibile o è insufficiente, o per
+ * immagini. Non uno dei passaggi ufficiali della pipeline AI (SPEC.md §6) — un pre-processing
+ * che precede la classificazione.
+ */
+export interface AttachmentVisionExtractionInput {
+  attachmentId: string;
+  fileName: string;
+  /** Solo i formati supportati dall'input multimodale del provider (PDF, jpeg/png/gif/webp). */
+  mimeType: "application/pdf" | "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+  contentBase64: string;
 }
 
 export interface DraftGenerationInput {
@@ -95,6 +113,10 @@ export interface LLMProvider {
 
   /** Generazione bozza di risposta (SPEC.md §11): mai inviata, richiede sempre approvazione umana esplicita. */
   generateDraft(input: DraftGenerationInput): Promise<LLMResult<DraftGenerationResult>>;
+
+  /** Estrazione visione degli allegati, livello 3 (FASE 10, docs/FASE-10-LETTURA-ALLEGATI.md) —
+   * non uno dei passaggi ufficiali sopra, un pre-processing che li precede. */
+  extractAttachmentVisionText(input: AttachmentVisionExtractionInput): Promise<LLMResult<AttachmentVisionExtractionResult>>;
 
   healthCheck(): Promise<{ ok: boolean; provider: string }>;
 }

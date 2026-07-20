@@ -17,7 +17,10 @@ export function computeCostUsd(model: string, inputTokens: number | null, output
 export interface StructuredCallParams<T extends z.ZodTypeAny> {
   model: string;
   system: string;
-  userContent: string;
+  /** Stringa semplice per i passaggi testuali; array di content block (testo + `document`/
+   * `image` in base64) per l'estrazione visione degli allegati (FASE 10) — mai `tools[]` in
+   * nessun caso, coerente con `callStructured` sotto. */
+  userContent: string | Anthropic.MessageCreateParams["messages"][number]["content"];
   schema: T;
   maxTokens?: number;
 }

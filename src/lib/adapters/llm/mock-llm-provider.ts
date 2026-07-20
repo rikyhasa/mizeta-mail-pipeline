@@ -3,8 +3,10 @@ import { extractionSchemaForCategory, type ExtractableCategory, type ExtractionR
 import { proposeActionsResultSchema, type ProposeActionsResult } from "@/lib/adapters/llm/schemas/actions";
 import { draftGenerationResultSchema, type DraftGenerationResult } from "@/lib/adapters/llm/schemas/draft";
 import { enforcementDeviceAnalysisSchema, type EnforcementDeviceAnalysisResult } from "@/lib/adapters/llm/schemas/enforcement-device-analysis";
+import { attachmentVisionExtractionSchema, type AttachmentVisionExtractionResult } from "@/lib/adapters/llm/schemas/attachment-vision-extraction";
 import type {
   ActionProposalInput,
+  AttachmentVisionExtractionInput,
   ClassificationInput,
   DraftGenerationInput,
   EnforcementDeviceAnalysisInput,
@@ -17,6 +19,7 @@ import { extractHeuristically } from "@/lib/adapters/llm/mock/extract-heuristics
 import { analyzeEnforcementDeviceHeuristically } from "@/lib/adapters/llm/mock/analyze-enforcement-device-heuristics";
 import { proposeActionsHeuristically } from "@/lib/adapters/llm/mock/propose-actions-heuristics";
 import { generateDraftHeuristically } from "@/lib/adapters/llm/mock/generate-draft-heuristics";
+import { extractAttachmentVisionHeuristically } from "@/lib/adapters/llm/mock/extract-attachment-vision-heuristics";
 
 const MOCK_MODEL_NAME = "mock-heuristic-v1";
 const NO_USAGE = { inputTokens: null, outputTokens: null, costUsd: null };
@@ -60,6 +63,12 @@ export class MockLLMProvider implements LLMProvider {
   async generateDraft(input: DraftGenerationInput): Promise<LLMResult<DraftGenerationResult>> {
     const raw = generateDraftHeuristically(input);
     const data = draftGenerationResultSchema.parse(raw);
+    return { data, usage: NO_USAGE, model: MOCK_MODEL_NAME };
+  }
+
+  async extractAttachmentVisionText(input: AttachmentVisionExtractionInput): Promise<LLMResult<AttachmentVisionExtractionResult>> {
+    const raw = extractAttachmentVisionHeuristically(input);
+    const data = attachmentVisionExtractionSchema.parse(raw);
     return { data, usage: NO_USAGE, model: MOCK_MODEL_NAME };
   }
 
