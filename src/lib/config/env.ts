@@ -56,6 +56,17 @@ const envSchema = z.object({
   ATTACHMENT_STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
   ATTACHMENT_STORAGE_LOCAL_DIR: z.string().min(1).default("./storage"),
 
+  // Limiti operativi per l'estrazione reale del testo degli allegati (FASE 10,
+  // docs/FASE-10-LETTURA-ALLEGATI.md): tecnici/di deployment, non regolabili
+  // dall'operatore — a differenza del budget visione, che è in RuleSettings/Impostazioni
+  // perché è una scelta di spesa, non un limite tecnico.
+  ATTACHMENT_EXTRACTION_MAX_SIZE_BYTES: z.coerce.number().positive().default(20_000_000),
+  ATTACHMENT_EXTRACTION_MAX_PAGES: z.coerce.number().positive().default(20),
+  ATTACHMENT_EXTRACTION_TIMEOUT_MS: z.coerce.number().positive().default(30_000),
+  // Sotto questa soglia di caratteri/pagina, il testo locale estratto da un PDF è
+  // considerato assente/scarso (probabile scansione senza livello testo) → fallback visione.
+  ATTACHMENT_TEXT_DENSITY_MIN_CHARS_PER_PAGE: z.coerce.number().positive().default(40),
+
   // Registro MIT dispositivi (docs/SPEC-AUTOVELOX-DRAFT.md §7bis): "real" fa richieste HTTP
   // dirette a velox.mit.gov.it (mai da contenuto email, CLAUDE.md invariante 1/2 non si applica
   // qui — è una fonte esterna nota, non un link presente in un'email), "mock" legge fixture
