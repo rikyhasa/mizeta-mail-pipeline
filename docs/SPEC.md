@@ -114,6 +114,15 @@ Ogni campo estratto contiene: `value, normalized_value, confidence, source_type,
 source_message_id, source_attachment_id, source_page, source_excerpt,
 needs_human_review`. L'interfaccia permette di aprire in un clic la fonte del dato.
 
+Il testo di un allegato che entra in questi passaggi è testo realmente estratto (FASE 10,
+`docs/FASE-10-LETTURA-ALLEGATI.md`), non più i byte grezzi: parser dedicato per dati
+strutturati (es. fattura elettronica XML/.p7m, `source_type = ATTACHMENT_STRUCTURED`,
+confidenza sempre 1.0, mai dedotto dal modello) → estrazione testo locale per PDF digitali,
+con `source_page` reale → visione del modello solo quando il livello locale non basta, gated
+da un budget di spesa giornaliero configurabile (Impostazioni). L'esito reale
+(`Attachment.isReadable`, metodo, eventuale motivo) sostituisce il flag statico impostato
+dall'adapter mail all'ingestione.
+
 ### Campi per categoria
 
 **Preventivi (QUOTE_REQUEST):** cliente; referente; email e telefono; località/indirizzo
@@ -294,7 +303,9 @@ Mai segreti o token.
 Provider email e stato connessione; ultima sincronizzazione; stato webhook/polling PEC;
 soglia minima di confidenza; soglie economiche; retention; categorie abilitate; utenti e
 ruoli; regole di assegnazione; modelli di risposta; reparto predefinito per categoria;
-modalità mock; test connessione; sincronizzazione manuale controllata.
+modalità mock; test connessione; sincronizzazione manuale controllata; budget massimo
+giornaliero per l'estrazione visione degli allegati (FASE 10, superato il budget gli allegati
+restano in coda con stato "estrazione rinviata", mai persi silenziosamente).
 
 Parametri dell'indicatore ricorso (§10bis): contributo unificato (soglia,
 valore basso/alto), marca da bollo, costo interno di gestione pratica, valore
@@ -306,7 +317,9 @@ di fallback dello snapshot del registro MIT (solo ADMIN).
 
 Logging strutturato; error tracking; metriche job; stato subscription; email processate;
 fallimenti; retry; costo e token delle chiamate AI; latenza; classificazioni corrette
-manualmente. Mai il corpo completo delle email nei log.
+manualmente; allegati estratti per metodo (strutturato/testo locale/visione), fallimenti,
+pagine totali, costo visione cumulato, allegati in attesa di budget (FASE 10). Mai il corpo
+completo delle email nei log.
 
 ## 18. Test ed evaluation
 

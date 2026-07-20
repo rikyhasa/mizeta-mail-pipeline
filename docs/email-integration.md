@@ -135,8 +135,9 @@ CI, coerente con "o simile".
 
 ### 4.1 Schema
 
-- `Job`: `type` (`INGEST_MAILBOX_CHANGES | PROCESS_INCOMING_MESSAGE | RENEW_SUBSCRIPTION`),
-  `payload` (JSON), `idempotencyKey` (univoca), `status`
+- `Job`: `type` (`INGEST_MAILBOX_CHANGES | PROCESS_INCOMING_MESSAGE | RENEW_SUBSCRIPTION |
+  EXTRACT_ATTACHMENTS | RETRY_DEFERRED_ATTACHMENT_EXTRACTIONS` — gli ultimi due dalla FASE 10,
+  docs/FASE-10-LETTURA-ALLEGATI.md), `payload` (JSON), `idempotencyKey` (univoca), `status`
   (`PENDING|RUNNING|SUCCEEDED|FAILED|DEAD_LETTER`), `attempts`/`maxAttempts`, `nextRunAt`,
   `lockedAt`/`lockedBy`, `lastError`.
 - `JobAttempt`: log per singolo tentativo (per audit/debug, non usato per la logica di retry).
@@ -152,7 +153,9 @@ CI, coerente con "o simile".
 Chiavi usate: `process-message:{emailMessageId}` (colma la mancanza di idempotenza di
 `processIncomingMessage` stesso — chiamarlo due volte con lo stesso id creerebbe
 `ClassificationRun`/audit duplicati), `ingest-mailbox:{mailboxConnectionId}`,
-`renew-subscription:{mailboxConnectionId}`.
+`renew-subscription:{mailboxConnectionId}`, `extract-attachments:{emailMessageId}` (FASE 10),
+`retry-deferred-attachment-extractions` (unica, un solo job ricorrente alla volta — stesso
+pattern di `speed-registry-sync`).
 
 Deduplicazione dei messaggi stessa (non dei job): `EmailMessage` ha
 `@@unique([mailboxConnectionId, providerMessageId])` — `ingestRawMessage`
@@ -194,9 +197,15 @@ primitiva di più basso livello (`ingestRawMessage`), mantenendo la propria logi
 assegnazione `caseId` da fixture (deliberatamente bypassa il matching reale per dati
 sintetici deterministici).
 
-`ingestMailboxChanges` non chiama mai `processIncomingMessage` direttamente: accoda un job
-`PROCESS_INCOMING_MESSAGE` per messaggio nuovo, disaccoppiando l'ingestione dai retry della
-pipeline/LLM.
+`ingestMailboxChanges` non chiama mai `processIncomingMessage` direttamente: accoda un job per
+messaggio nuovo, disaccoppiando l'ingestione dai retry della pipeline/LLM. Dalla FASE 10
+(docs/FASE-10-LETTURA-ALLEGATI.md), un messaggio con allegati accoda `EXTRACT_ATTACHMENTS`
+invece di `PROCESS_INCOMING_MESSAGE` direttamente — il worker accoda quest'ultimo solo al
+termine dell'estrazione (mai i due job in parallelo, altrimenti la classificazione leggerebbe
+testo allegati non ancora estratto); un messaggio senza allegati salta il passaggio.
+`ingestRawMessage` calcola già il `contentHash` di ogni allegato appena scritto in storage
+(sha256, `src/lib/attachments/content-hash.ts`), usato dal job di estrazione per riusare un
+risultato già ottenuto in passato (es. fattura duplicata) senza rieseguire alcun parser.
 
 ## 6. Collegare una mailbox reale
 

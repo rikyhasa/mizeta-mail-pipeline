@@ -28,6 +28,16 @@ Nessuna azione o tool call deriva direttamente dal testo di un'email. In pratica
   quando `isReadable=false`.
 - **Nessuna esecuzione**: nessun allegato viene mai eseguito, nessuna macro, nessun URL
   contenuto in un'email viene mai aperto dal sistema (invariante 2 di `CLAUDE.md`).
+- **Estrazione reale degli allegati (FASE 10, `docs/FASE-10-LETTURA-ALLEGATI.md`)**: solo API
+  di parsing/estrazione testo vengono chiamate su PDF/XML (`pdfjs-dist`, `fast-xml-parser`),
+  mai rendering o esecuzione di script/azioni embedded. Il parser XML (`fast-xml-parser`) non
+  ha alcuna capacità di risolvere DOCTYPE/entità esterne (nessuna vulnerabilità XXE
+  strutturale, non solo per configurazione — verificato con test dedicato,
+  `tests/unit/attachments/structured-fattura-pa.test.ts`). L'unwrap della busta CMS/PKCS#7
+  `.p7m` non verifica la firma crittografica (esplicitamente fuori scope v1, documentato). Il
+  testo trascritto dal livello visione rientra nella pipeline come qualunque altro
+  `ATTACHMENT_CONTENT` e viene ri-scansionato per injection dallo stesso passaggio di
+  classificazione — un'immagine è dato non affidabile quanto un corpo email.
 
 ## 2. Cosa l'MVP non fa mai — invariante 2
 
