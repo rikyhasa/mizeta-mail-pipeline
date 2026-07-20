@@ -4,7 +4,8 @@ import { getCachedMailProvider } from "@/lib/adapters/mail/mail-provider-factory
 import type { RawEmailMessage } from "@/lib/adapters/mail/types";
 import { writeAuditLog } from "@/lib/pipeline/audit";
 import { enqueueJob } from "@/lib/jobs/queue";
-import { processIncomingMessageIdempotencyKey } from "@/lib/jobs/types";
+import { extractAttachmentsIdempotencyKey, processIncomingMessageIdempotencyKey } from "@/lib/jobs/types";
+import { computeContentHash } from "@/lib/attachments/content-hash";
 
 /**
  * Primitiva "un raw message → righe DB" (SPEC.md §3: idempotenza/deduplicazione tramite
@@ -22,7 +23,7 @@ export async function ingestRawMessage(params: {
   raw: RawEmailMessage;
   caseId?: string | null;
   storageKeyPrefix?: string;
-}): Promise<{ emailMessageId: string; created: boolean }> {
+}): Promise<{ emailMessageId: string; created: boolean; hasAttachments: boolean }> {
   const { mailboxConnectionId, raw, caseId = null, storageKeyPrefix = "mail" } = params;
 
   const already = await prisma.emailMessage.findUnique({
@@ -30,7 +31,7 @@ export async function ingestRawMessage(params: {
       mailboxConnectionId_providerMessageId: { mailboxConnectionId, providerMessageId: raw.providerMessageId },
     },
   });
-  if (already) return { emailMessageId: already.id, created: false };
+  if (already) return { emailMessageId: already.id, created: false, hasAttachments: raw.attachments.length > 0 };
 
   const thread = await prisma.emailThread.upsert({
     where: {
@@ -69,6 +70,10 @@ export async function ingestRawMessage(params: {
   for (const attachment of raw.attachments) {
     const storageKey = `${storageKeyPrefix}/${message.id}/${attachment.fileName}`;
     await attachmentStorage.put(storageKey, attachment.content);
+    // contentHash calcolato subito, sui byte appena scritti: permette al job di estrazione
+    // (FASE 10) di riusare un'estrazione già riuscita in passato (es. fattura duplicata) senza
+    // rileggere lo storage prima di sapere se serve.
+    const content = Buffer.isBuffer(attachment.content) ? attachment.content : Buffer.from(attachment.content);
     await prisma.attachment.create({
       data: {
         emailMessageId: message.id,
@@ -76,12 +81,13 @@ export async function ingestRawMessage(params: {
         mimeType: attachment.mimeType,
         sizeBytes: attachment.sizeBytes,
         storageKey,
+        contentHash: computeContentHash(content),
         isReadable: attachment.isReadable,
       },
     });
   }
 
-  return { emailMessageId: message.id, created: true };
+  return { emailMessageId: message.id, created: true, hasAttachments: raw.attachments.length > 0 };
 }
 
 /**
@@ -101,11 +107,11 @@ export async function ingestMailboxChanges(mailboxConnectionId: string): Promise
   const adapter = getCachedMailProvider();
   const { changes, nextCursor } = await adapter.listChanges(mailbox.externalAccountId, mailbox.lastSyncCursor);
 
-  const newMessageIds: string[] = [];
+  const newMessages: { emailMessageId: string; hasAttachments: boolean }[] = [];
   for (const change of changes) {
     const raw = await adapter.fetchMessage(mailbox.externalAccountId, change.providerMessageId);
-    const { emailMessageId, created } = await ingestRawMessage({ mailboxConnectionId, raw });
-    if (created) newMessageIds.push(emailMessageId);
+    const { emailMessageId, created, hasAttachments } = await ingestRawMessage({ mailboxConnectionId, raw });
+    if (created) newMessages.push({ emailMessageId, hasAttachments });
     await adapter.markProcessingResult(mailbox.externalAccountId, change.providerMessageId, { ok: true });
   }
 
@@ -118,17 +124,30 @@ export async function ingestMailboxChanges(mailboxConnectionId: string): Promise
       action: "EMAIL_SYNCED",
       entityType: "MailboxConnection",
       entityId: mailboxConnectionId,
-      metadata: { messagesProcessed: changes.length, newMessages: newMessageIds.length },
+      metadata: { messagesProcessed: changes.length, newMessages: newMessages.length },
     });
   });
 
-  for (const emailMessageId of newMessageIds) {
-    await enqueueJob({
-      type: "PROCESS_INCOMING_MESSAGE",
-      payload: { emailMessageId },
-      idempotencyKey: processIncomingMessageIdempotencyKey(emailMessageId),
-    });
+  // Un messaggio con allegati passa prima da EXTRACT_ATTACHMENTS (FASE 10,
+  // docs/FASE-10-LETTURA-ALLEGATI.md: estrazione PRIMA della classificazione), che accoda
+  // PROCESS_INCOMING_MESSAGE al proprio termine (src/lib/jobs/worker.ts) — mai i due job in
+  // parallelo, altrimenti la classificazione leggerebbe testo non ancora estratto. Un
+  // messaggio senza allegati salta il passaggio, nessun job inutile.
+  for (const { emailMessageId, hasAttachments } of newMessages) {
+    if (hasAttachments) {
+      await enqueueJob({
+        type: "EXTRACT_ATTACHMENTS",
+        payload: { emailMessageId },
+        idempotencyKey: extractAttachmentsIdempotencyKey(emailMessageId),
+      });
+    } else {
+      await enqueueJob({
+        type: "PROCESS_INCOMING_MESSAGE",
+        payload: { emailMessageId },
+        idempotencyKey: processIncomingMessageIdempotencyKey(emailMessageId),
+      });
+    }
   }
 
-  return { processed: changes.length, newMessageIds };
+  return { processed: changes.length, newMessageIds: newMessages.map((m) => m.emailMessageId) };
 }

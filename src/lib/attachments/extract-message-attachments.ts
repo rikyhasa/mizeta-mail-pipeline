@@ -6,6 +6,8 @@ import { getCachedLLMProvider } from "@/lib/adapters/llm/llm-provider-factory";
 import type { LLMProvider } from "@/lib/adapters/llm/types";
 import { getRuleSettings } from "@/lib/rules/settings-repository";
 import { logger } from "@/lib/observability/logger";
+import { enqueueJob } from "@/lib/jobs/queue";
+import { processIncomingMessageIdempotencyKey } from "@/lib/jobs/types";
 import { computeContentHash } from "@/lib/attachments/content-hash";
 import { extractStructuredFatturaPa } from "@/lib/attachments/extractors/structured-fattura-pa";
 import { extractPdfText } from "@/lib/attachments/extractors/pdf-text";
@@ -141,6 +143,10 @@ export async function extractMessageAttachments(emailMessageId: string): Promise
   const [settings, llmProvider] = [await getRuleSettings(), getCachedLLMProvider()];
 
   for (const attachment of message.attachments) {
+    // Idempotenza: un allegato già estratto con successo non viene mai ri-elaborato (rilevante
+    // per il job ricorrente di retry dei DEFERRED_BUDGET su un messaggio con più allegati).
+    if (attachment.extractionStatus === "SUCCEEDED") continue;
+
     const content = await attachmentStorage.get(attachment.storageKey);
     const contentHash = attachment.contentHash ?? computeContentHash(content);
 
@@ -176,4 +182,40 @@ export async function extractMessageAttachments(emailMessageId: string): Promise
       data: { contentHash, ...outcomeToUpdateData(outcome, extractedAt) },
     });
   }
+}
+
+/**
+ * Job ricorrente: ritenta gli allegati rimasti `DEFERRED_BUDGET` (budget visione esaurito al
+ * tentativo precedente), di nuovo soggetti allo stesso budget giornaliero — mai un bypass. Per
+ * ogni messaggio il cui numero di allegati ancora rinviati diminuisce (almeno uno è riuscito o
+ * definitivamente fallito), riaccoda `PROCESS_INCOMING_MESSAGE`: solo così la pratica riflette
+ * il nuovo dato, senza rielaborare inutilmente messaggi il cui esito non è cambiato.
+ */
+export async function retryDeferredAttachmentExtractions(): Promise<{ retriedMessageIds: string[]; resolvedMessageIds: string[] }> {
+  const deferredAttachments = await prisma.attachment.findMany({
+    where: { extractionStatus: "DEFERRED_BUDGET" },
+    select: { emailMessageId: true },
+  });
+  const messageIds = [...new Set(deferredAttachments.map((a) => a.emailMessageId))];
+
+  const retriedMessageIds: string[] = [];
+  const resolvedMessageIds: string[] = [];
+
+  for (const emailMessageId of messageIds) {
+    const before = await prisma.attachment.count({ where: { emailMessageId, extractionStatus: "DEFERRED_BUDGET" } });
+    await extractMessageAttachments(emailMessageId);
+    const after = await prisma.attachment.count({ where: { emailMessageId, extractionStatus: "DEFERRED_BUDGET" } });
+    retriedMessageIds.push(emailMessageId);
+
+    if (after < before) {
+      resolvedMessageIds.push(emailMessageId);
+      await enqueueJob({
+        type: "PROCESS_INCOMING_MESSAGE",
+        payload: { emailMessageId },
+        idempotencyKey: processIncomingMessageIdempotencyKey(emailMessageId),
+      });
+    }
+  }
+
+  return { retriedMessageIds, resolvedMessageIds };
 }

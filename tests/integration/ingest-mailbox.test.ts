@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db/prisma";
 import { ingestMailboxChanges, ingestRawMessage } from "@/lib/mail/ingest-mailbox";
 import { resetCachedMailProvider } from "@/lib/adapters/mail/mail-provider-factory";
-import { processIncomingMessageIdempotencyKey } from "@/lib/jobs/types";
+import { extractAttachmentsIdempotencyKey, processIncomingMessageIdempotencyKey } from "@/lib/jobs/types";
 import type { RawEmailMessage } from "@/lib/adapters/mail/types";
 import { SEED_EMAILS } from "../../prisma/seed-data/emails";
 
@@ -91,8 +91,15 @@ describe("Orchestratore di ingestione condiviso (src/lib/mail/ingest-mailbox.ts)
     const audit = await prisma.auditLog.findFirst({ where: { action: "EMAIL_SYNCED", entityId: mailbox.id } });
     expect(audit).toBeTruthy();
 
+    // FASE 10: un messaggio con allegati passa prima da EXTRACT_ATTACHMENTS (mai
+    // PROCESS_INCOMING_MESSAGE in parallelo); solo un messaggio senza allegati accoda
+    // direttamente PROCESS_INCOMING_MESSAGE.
     for (const emailMessageId of newMessageIds) {
-      const job = await prisma.job.findUnique({ where: { idempotencyKey: processIncomingMessageIdempotencyKey(emailMessageId) } });
+      const savedMessage = messages.find((m) => m.id === emailMessageId);
+      const expectedKey = savedMessage?.hasAttachments
+        ? extractAttachmentsIdempotencyKey(emailMessageId)
+        : processIncomingMessageIdempotencyKey(emailMessageId);
+      const job = await prisma.job.findUnique({ where: { idempotencyKey: expectedKey } });
       expect(job).toBeTruthy();
       if (job) createdJobIds.push(job.id);
     }
@@ -137,7 +144,11 @@ describe("Orchestratore di ingestione condiviso (src/lib/mail/ingest-mailbox.ts)
     const messages = await prisma.emailMessage.findMany({ where: { id: { in: newMessageIds } } });
     createdThreadIds.push(...new Set(messages.map((m) => m.threadId)));
     for (const emailMessageId of newMessageIds) {
-      const job = await prisma.job.findUnique({ where: { idempotencyKey: processIncomingMessageIdempotencyKey(emailMessageId) } });
+      const savedMessage = messages.find((m) => m.id === emailMessageId);
+      const expectedKey = savedMessage?.hasAttachments
+        ? extractAttachmentsIdempotencyKey(emailMessageId)
+        : processIncomingMessageIdempotencyKey(emailMessageId);
+      const job = await prisma.job.findUnique({ where: { idempotencyKey: expectedKey } });
       if (job) createdJobIds.push(job.id);
     }
 

@@ -9,14 +9,18 @@ import { logger } from "@/lib/observability/logger";
 import { enqueueJob } from "@/lib/jobs/queue";
 import {
   ingestMailboxChangesIdempotencyKey,
+  processIncomingMessageIdempotencyKey,
   renewSubscriptionIdempotencyKey,
+  retryDeferredAttachmentExtractionsIdempotencyKey,
   syncSpeedDeviceRegistryIdempotencyKey,
+  type ExtractAttachmentsPayload,
   type IngestMailboxChangesPayload,
   type ProcessIncomingMessagePayload,
   type RenewSubscriptionPayload,
 } from "@/lib/jobs/types";
 import { runScheduledSpeedRegistrySync } from "@/lib/speed-registry/sync-speed-device-registry";
 import { rematchDevicesForSnapshot } from "@/lib/speed-registry/apply-registry-match";
+import { extractMessageAttachments, retryDeferredAttachmentExtractions } from "@/lib/attachments/extract-message-attachments";
 
 /**
  * Claim transazionale del prossimo job pronto: `SELECT ... FOR UPDATE SKIP LOCKED` è l'unica
@@ -69,6 +73,23 @@ async function dispatch(job: Job): Promise<void> {
       await processIncomingMessage(emailMessageId);
       return;
     }
+    case "EXTRACT_ATTACHMENTS": {
+      // FASE 10, docs/FASE-10-LETTURA-ALLEGATI.md: estrazione allegati PRIMA della
+      // classificazione. Al termine (anche con esiti parziali/rinviati per singoli allegati —
+      // mai bloccare l'intera email) accoda sempre PROCESS_INCOMING_MESSAGE, mai in parallelo.
+      const { emailMessageId } = job.payload as unknown as ExtractAttachmentsPayload;
+      await extractMessageAttachments(emailMessageId);
+      await enqueueJob({
+        type: "PROCESS_INCOMING_MESSAGE",
+        payload: { emailMessageId },
+        idempotencyKey: processIncomingMessageIdempotencyKey(emailMessageId),
+      });
+      return;
+    }
+    case "RETRY_DEFERRED_ATTACHMENT_EXTRACTIONS": {
+      await retryDeferredAttachmentExtractions();
+      return;
+    }
     case "RENEW_SUBSCRIPTION": {
       const { mailboxConnectionId } = job.payload as unknown as RenewSubscriptionPayload;
       const mailbox = await prisma.mailboxConnection.findUniqueOrThrow({ where: { id: mailboxConnectionId } });
@@ -100,8 +121,18 @@ async function dispatch(job: Job): Promise<void> {
   }
 }
 
-const RECURRING_JOB_TYPES = new Set<Job["type"]>(["SYNC_SPEED_DEVICE_REGISTRY"]);
 const SPEED_REGISTRY_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
+// Il budget visione si libera al cambio di giorno (Europe/Rome): un'ora è un compromesso fra
+// intercettare presto il giorno successivo e non martellare inutilmente il worker.
+const DEFERRED_ATTACHMENT_RETRY_INTERVAL_MS = 60 * 60 * 1000;
+
+const RECURRING_JOB_CONFIG: Partial<Record<Job["type"], { intervalMs: number; idempotencyKey: () => string }>> = {
+  SYNC_SPEED_DEVICE_REGISTRY: { intervalMs: SPEED_REGISTRY_SYNC_INTERVAL_MS, idempotencyKey: syncSpeedDeviceRegistryIdempotencyKey },
+  RETRY_DEFERRED_ATTACHMENT_EXTRACTIONS: {
+    intervalMs: DEFERRED_ATTACHMENT_RETRY_INTERVAL_MS,
+    idempotencyKey: retryDeferredAttachmentExtractionsIdempotencyKey,
+  },
+};
 
 /**
  * Auto-rischedulazione (docs/SPEC-AUTOVELOX-DRAFT.md §7bis): non esiste un cron interno, quindi
@@ -111,12 +142,13 @@ const SPEED_REGISTRY_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
  * backoff di `markFailed`, riaccodare anche lì romperebbe il backoff.
  */
 async function rescheduleIfRecurring(job: Job): Promise<void> {
-  if (!RECURRING_JOB_TYPES.has(job.type)) return;
+  const config = RECURRING_JOB_CONFIG[job.type];
+  if (!config) return;
   await enqueueJob({
-    type: "SYNC_SPEED_DEVICE_REGISTRY",
+    type: job.type,
     payload: {},
-    idempotencyKey: syncSpeedDeviceRegistryIdempotencyKey(),
-    runAt: new Date(Date.now() + SPEED_REGISTRY_SYNC_INTERVAL_MS),
+    idempotencyKey: config.idempotencyKey(),
+    runAt: new Date(Date.now() + config.intervalMs),
   });
 }
 
@@ -190,11 +222,12 @@ export async function runWorkerOnce(): Promise<{ claimed: boolean; jobId?: strin
  * microsoft365 vicine a scadenza e `INGEST_MAILBOX_CHANGES` per ogni mailbox connessa
  * come safety net contro webhook persi. Mai per `pec_imap` (scheletro non funzionante).
  *
- * Anche il bootstrap di `SYNC_SPEED_DEVICE_REGISTRY` (docs/SPEC-AUTOVELOX-DRAFT.md §7bis) vive
- * qui: `enqueueJob` è già idempotente su `idempotencyKey` — se il job non è mai esistito lo crea
- * ed esegue subito; se è già PENDING/RUNNING con la sua schedulazione a 24h, no-op (non la
- * disturba); se per qualunque motivo si fosse fermato in stato terminale senza essersi
- * riaccodato da solo, questo tick lo riarma — stesso ruolo di safety net degli altri due job. */
+ * Anche il bootstrap di `SYNC_SPEED_DEVICE_REGISTRY` (docs/SPEC-AUTOVELOX-DRAFT.md §7bis) e di
+ * `RETRY_DEFERRED_ATTACHMENT_EXTRACTIONS` (FASE 10) vive qui: `enqueueJob` è già idempotente su
+ * `idempotencyKey` — se il job non è mai esistito lo crea ed esegue subito; se è già
+ * PENDING/RUNNING con la sua schedulazione, no-op (non la disturba); se per qualunque motivo si
+ * fosse fermato in stato terminale senza essersi riaccodato da solo, questo tick lo riarma —
+ * stesso ruolo di safety net degli altri job. */
 export async function runRecoveryTick(): Promise<void> {
   const mailboxes = await prisma.mailboxConnection.findMany({ where: { status: "CONNECTED" } });
   const marginMs = env.MICROSOFT365_SUBSCRIPTION_RENEWAL_MARGIN_HOURS * 60 * 60 * 1000;
@@ -203,6 +236,12 @@ export async function runRecoveryTick(): Promise<void> {
     type: "SYNC_SPEED_DEVICE_REGISTRY",
     payload: {},
     idempotencyKey: syncSpeedDeviceRegistryIdempotencyKey(),
+  });
+
+  await enqueueJob({
+    type: "RETRY_DEFERRED_ATTACHMENT_EXTRACTIONS",
+    payload: {},
+    idempotencyKey: retryDeferredAttachmentExtractionsIdempotencyKey(),
   });
 
   for (const mailbox of mailboxes) {
