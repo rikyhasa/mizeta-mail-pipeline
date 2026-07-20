@@ -21,6 +21,7 @@ type AutomationFields = Pick<
   | "emailRetentionDays"
   | "attachmentRetentionDays"
   | "auditLogRetentionDays"
+  | "visionExtractionDailyBudgetUsd"
 >;
 
 export function AutomationSettingsForm({ settings }: { settings: RuleSettingsData }) {
@@ -121,6 +122,15 @@ export function AutomationSettingsForm({ settings }: { settings: RuleSettingsDat
           {numberField("claimAmountHighThreshold", "Soglia importo reclamo alto (EUR)", 1, 0)}
           {numberField("quoteSameDayResponseWithinHours", "Ore per risposta preventivo in giornata", 1, 1)}
           {numberField("amountMismatchTolerancePercent", "Tolleranza discordanza importi (%)", 1, 0)}
+        </div>
+      </WorkPanel>
+
+      <WorkPanel
+        title="Estrazione allegati"
+        description="Budget massimo giornaliero per l'estrazione visione (livello 3, scansioni e foto). Superato il budget, gli allegati restano in coda con stato «estrazione rinviata»."
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {numberField("visionExtractionDailyBudgetUsd", "Budget giornaliero estrazione visione (USD)", 0.5, 0)}
         </div>
       </WorkPanel>
 

@@ -89,8 +89,24 @@ enum FieldSourceType {
   EMAIL_BODY
   EMAIL_SUBJECT
   ATTACHMENT
+  // Campo mappato direttamente da un parser strutturato (es. XML FatturaPA), mai dal
+  // modello: confidenza sempre 1.0, needsHumanReview sempre false (FASE 10).
+  ATTACHMENT_STRUCTURED
   MANUAL
   SYSTEM
+}
+
+enum AttachmentExtractionMethod {
+  STRUCTURED
+  LOCAL_TEXT
+  VISION
+}
+
+enum AttachmentExtractionStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  DEFERRED_BUDGET
 }
 
 enum DeadlineKind {
@@ -444,11 +460,28 @@ model Attachment {
   isReadable     Boolean      @default(true)
   createdAt      DateTime     @default(now())
 
+  // Estrazione reale del testo (FASE 10, docs/FASE-10-LETTURA-ALLEGATI.md): STRUCTURED
+  // (parser dedicato, es. XML FatturaPA, confidenza 1.0) → LOCAL_TEXT (estrazione PDF
+  // locale, gratis) → VISION (fallback modello, a pagamento, gated da budget
+  // giornaliero). extractedPages/structuredFields sono alternativi fra loro, mai
+  // entrambi popolati per lo stesso allegato.
+  extractionMethod  AttachmentExtractionMethod?
+  extractionStatus  AttachmentExtractionStatus  @default(PENDING)
+  extractionError   String?
+  pageCount         Int?
+  extractionCostUsd Decimal?                     @db.Decimal(10, 4)
+  extractedAt       DateTime?
+  /// [{ page: number, text: string }] — livelli LOCAL_TEXT/VISION
+  extractedPages    Json?
+  /// fieldKey -> valore grezzo, solo livello STRUCTURED (es. fattura elettronica)
+  structuredFields  Json?
+
   sourcedFields             CaseField[]                @relation("FieldSourceAttachment")
   sourcedEnforcementFields  EnforcementDeviceField[]
   enforcementDocumentChecks EnforcementDocumentCheck[]
 
   @@index([emailMessageId])
+  @@index([contentHash])
 }
 
 // ---------- Case (pratica) ----------
@@ -894,6 +927,11 @@ model RuleSettings {
   appealFavorableMultiplier             Decimal   @default(2.0) @db.Decimal(4, 2)
   appealCostParamsSource                String?
   appealCostParamsVerifiedAt            DateTime?
+
+  // Estrazione visione allegati (FASE 10, docs/FASE-10-LETTURA-ALLEGATI.md): spesa
+  // massima giornaliera in USD per le chiamate vision di livello 3 (scansioni/foto).
+  // Superato il budget, gli allegati restano "estrazione rinviata" (mai persi).
+  visionExtractionDailyBudgetUsd Decimal @default(5.00) @db.Decimal(10, 2)
 
   updatedById String?
   updatedBy   User?    @relation(fields: [updatedById], references: [id])

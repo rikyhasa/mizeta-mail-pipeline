@@ -94,6 +94,7 @@ export const FIELD_SOURCE_TYPE_LABELS: Record<FieldSourceType, string> = {
   EMAIL_BODY: "Corpo email",
   EMAIL_SUBJECT: "Oggetto email",
   ATTACHMENT: "Allegato",
+  ATTACHMENT_STRUCTURED: "Allegato (dato strutturato)",
   MANUAL: "Inserito manualmente",
   SYSTEM: "Calcolato dal sistema",
 };

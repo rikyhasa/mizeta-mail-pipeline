@@ -25,4 +25,5 @@ export const DEFAULT_RULE_SETTINGS: RuleSettingsData = {
   appealFavorableMultiplier: 2.0,
   appealCostParamsSource: null,
   appealCostParamsVerifiedAt: null,
+  visionExtractionDailyBudgetUsd: 5.0,
 };

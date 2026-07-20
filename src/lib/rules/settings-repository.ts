@@ -32,6 +32,7 @@ export const ruleSettingsInputSchema = z.object({
   appealFavorableMultiplier: z.number().positive(),
   appealCostParamsSource: z.string().nullable(),
   appealCostParamsVerifiedAt: z.coerce.date().nullable(),
+  visionExtractionDailyBudgetUsd: z.number().nonnegative(),
 });
 
 interface RuleSettingsRow {
@@ -59,6 +60,7 @@ interface RuleSettingsRow {
   appealFavorableMultiplier: { toNumber(): number } | number;
   appealCostParamsSource: string | null;
   appealCostParamsVerifiedAt: Date | null;
+  visionExtractionDailyBudgetUsd: { toNumber(): number } | number;
 }
 
 function toNumber(value: { toNumber(): number } | number): number {
@@ -90,6 +92,7 @@ function toData(row: RuleSettingsRow): RuleSettingsData {
     appealFavorableMultiplier: toNumber(row.appealFavorableMultiplier),
     appealCostParamsSource: row.appealCostParamsSource,
     appealCostParamsVerifiedAt: row.appealCostParamsVerifiedAt,
+    visionExtractionDailyBudgetUsd: toNumber(row.visionExtractionDailyBudgetUsd),
   };
 }
 

@@ -19,10 +19,14 @@ import {
   findKeywordIndex,
 } from "@/lib/text/patterns";
 
+/** `ATTACHMENT_STRUCTURED` è assegnato solo dal merge server-side dei campi di una fattura
+ * elettronica (FASE 10), mai dal modello o dall'euristica mock — escluso qui di proposito. */
+export type ModelSourceType = Exclude<FieldSourceType, "ATTACHMENT_STRUCTURED">;
+
 export interface Segment {
   messageId: string;
   attachmentId: string | null;
-  sourceType: FieldSourceType;
+  sourceType: ModelSourceType;
   text: string;
 }
 

@@ -32,6 +32,10 @@ export interface RuleSettingsData {
   appealFavorableMultiplier: number;
   appealCostParamsSource: string | null;
   appealCostParamsVerifiedAt: Date | null;
+  /** Spesa massima giornaliera in USD per l'estrazione visione degli allegati (FASE 10,
+   * docs/FASE-10-LETTURA-ALLEGATI.md). Superato il budget, gli allegati che richiedono
+   * visione restano "estrazione rinviata" (mai persi silenziosamente). */
+  visionExtractionDailyBudgetUsd: number;
 }
 
 export interface RuleDeadline {
