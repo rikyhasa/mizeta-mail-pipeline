@@ -22,7 +22,7 @@ function device(overrides: Partial<SpeedRegistryDeviceRow>): SpeedRegistryDevice
 }
 
 function identity(overrides: Partial<DeviceIdentityForMatch>): DeviceIdentityForMatch {
-  return { manufacturer: null, model: null, serialNumber: null, decreeNumber: null, ...overrides };
+  return { manufacturer: null, model: null, serialNumber: null, decreeNumber: null, version: null, ...overrides };
 }
 
 describe("matchDeviceAgainstRegistry", () => {
@@ -66,6 +66,13 @@ describe("matchDeviceAgainstRegistry", () => {
     const registry = [device({ serialNumber: "AV-1", decreeNumber: "40218/2019" })];
     const result = matchDeviceAgainstRegistry(identity({ decreeNumber: "40218/2019" }), registry);
     expect(result.match).toBe("MATCH");
+  });
+
+  it("A2 — fallback per decreto con matricola incompatibile: MISMATCH, mai un MATCH falso", () => {
+    const registry = [device({ serialNumber: "B", decreeNumber: "D" })];
+    const result = matchDeviceAgainstRegistry(identity({ serialNumber: "A", decreeNumber: "D" }), registry);
+    expect(result.match).toBe("MISMATCH");
+    expect(result.conflictingFields).toEqual(["serialNumber"]);
   });
 
   it("MISMATCH su produttore: conflictingFields riporta solo 'manufacturer', non 'model'", () => {

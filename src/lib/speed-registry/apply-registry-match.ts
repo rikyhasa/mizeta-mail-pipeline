@@ -4,6 +4,7 @@ import type { EnforcementCheckApplicability, EnforcementRegistryMatchState } fro
 import {
   matchDeviceAgainstRegistry,
   normalize,
+  type DeviceIdentityFieldKey,
   type DeviceIdentityForMatch,
   type MatchDeviceAgainstRegistryResult,
 } from "./match-device-registry";
@@ -21,9 +22,21 @@ const APPLICABILITY_ELIGIBLE_FOR_MATCH: EnforcementCheckApplicability[] = [
   "OTHER_SPEED_DEVICE",
 ];
 
+/** `DeviceIdentityFieldKey` (camelCase, forma del matcher) → `fieldKey` reale su
+ * `EnforcementDeviceField` (snake_case per i due soli campi composti — gli altri coincidono).
+ * Necessaria prima di scrivere `conflictingFields`/campi verificati verso il DB: senza questa
+ * mappa `serialNumber`/`decreeNumber` punterebbero a `fieldKey` inesistenti. */
+const DEVICE_IDENTITY_FIELD_KEY_TO_DB_FIELD_KEY: Record<DeviceIdentityFieldKey, string> = {
+  manufacturer: "manufacturer",
+  model: "model",
+  serialNumber: "serial_number",
+  decreeNumber: "decree_number",
+  version: "version",
+};
+
 async function loadDeviceIdentity(checkId: string): Promise<DeviceIdentityForMatch> {
   const fields = await prisma.enforcementDeviceField.findMany({
-    where: { checkId, fieldKey: { in: ["manufacturer", "model", "serial_number", "decree_number"] } },
+    where: { checkId, fieldKey: { in: ["manufacturer", "model", "version", "serial_number", "decree_number"] } },
     select: { fieldKey: true, value: true },
   });
   const byKey = new Map(fields.map((f) => [f.fieldKey, f.value]));
@@ -32,6 +45,7 @@ async function loadDeviceIdentity(checkId: string): Promise<DeviceIdentityForMat
     model: byKey.get("model") ?? null,
     serialNumber: byKey.get("serial_number") ?? null,
     decreeNumber: byKey.get("decree_number") ?? null,
+    version: byKey.get("version") ?? null,
   };
 }
 
@@ -53,6 +67,7 @@ function determineRegistryVerifiedFieldKeys(identity: DeviceIdentityForMatch, ma
   }
   if (identity.manufacturer !== null && matchedRow.manufacturer !== null) verified.push("manufacturer");
   if (identity.model !== null && matchedRow.model !== null) verified.push("model");
+  if (identity.version !== null && matchedRow.version !== null) verified.push("version");
   return verified;
 }
 
@@ -70,7 +85,7 @@ function computeFieldUpdates(
     return { verifiedFieldKeys: determineRegistryVerifiedFieldKeys(identity, result.matchedRow), conflictingFieldKeys: [] };
   }
   if (result.match === "MISMATCH") {
-    return { verifiedFieldKeys: [], conflictingFieldKeys: result.conflictingFields };
+    return { verifiedFieldKeys: [], conflictingFieldKeys: result.conflictingFields.map((f) => DEVICE_IDENTITY_FIELD_KEY_TO_DB_FIELD_KEY[f]) };
   }
   return { verifiedFieldKeys: [], conflictingFieldKeys: [] };
 }
