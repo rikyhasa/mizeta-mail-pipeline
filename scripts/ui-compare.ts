@@ -176,6 +176,21 @@ async function findTargetFineCaseId(): Promise<string> {
   return found.id;
 }
 
+/** FASE 11, Parte B: la pratica seed EML-046 ("autovelox mobile senza produttore/matricola/
+ * decreto") è l'unica con applicability SPEED_CAMERA_MOBILE fra i 6 scenari autovelox — il caso
+ * "problematico" con più campi da confermare e nessun documento tecnico collegato, usato sia per
+ * il ciclo ui-compare sia per il conteggio dei controlli interattivi prima/dopo. */
+async function findTargetAutoveloxCaseId(): Promise<string> {
+  const problematic = await prisma.enforcementDeviceCheck.findFirst({
+    where: { applicability: "SPEED_CAMERA_MOBILE" },
+    select: { caseId: true },
+  });
+  if (problematic) return problematic.caseId;
+  const anyCheck = await prisma.enforcementDeviceCheck.findFirst({ select: { caseId: true } });
+  if (!anyCheck) throw new Error("Nessuna pratica con EnforcementDeviceCheck trovata nel seed del target.");
+  return anyCheck.caseId;
+}
+
 interface ScreenConfig {
   resolveTargetPath: () => Promise<string>;
   /** null quando la schermata non ha equivalente nella reference (es. "Coda di revisione",
@@ -201,6 +216,13 @@ const SCREENS: Record<string, ScreenConfig> = {
   },
   "case-detail": {
     resolveTargetPath: async () => `/pratiche/${await findTargetFineCaseId()}`,
+    referencePath: "/pratiche/case-008",
+  },
+  "enforcement-device": {
+    resolveTargetPath: async () => `/pratiche/${await findTargetAutoveloxCaseId()}`,
+    // La reference genera un'analisi mock per qualunque pratica FINE_OR_PENALTY (mai dati reali,
+    // solo composizione/densità da confrontare) — case-008 è già la pratica multa di riferimento
+    // usata da "case-detail".
     referencePath: "/pratiche/case-008",
   },
   posta: {

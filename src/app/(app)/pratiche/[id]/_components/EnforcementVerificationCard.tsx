@@ -2,11 +2,12 @@ import { ShieldAlert, Check, AlertTriangle } from "lucide-react";
 import { WorkPanel } from "@/components/ui/WorkPanel";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { Disclosure } from "@/components/ui/Disclosure";
+import { buttonClassName } from "@/components/ui/Button";
 import { ActionButton } from "@/components/ActionButton";
 import { InlineSelect } from "@/components/InlineSelect";
 import { ExtractedFieldCell } from "./ExtractedFieldCell";
 import { EnforcementDocumentLinkForm } from "./EnforcementDocumentLinkForm";
-import { tierFields } from "./field-tiers";
+import { tierFields, type TieredField } from "./field-tiers";
 import { CTA_LABEL_BY_BLOCKER_KIND } from "./recommended-action";
 import { fieldLabel, formatFieldValue, ENFORCEMENT_DEVICE_FIELD_ORDER } from "@/lib/i18n/field-labels";
 import {
@@ -17,7 +18,7 @@ import {
   ENFORCEMENT_REGISTRY_MATCH_LABELS,
 } from "@/lib/i18n/labels";
 import { formatDateTime } from "@/lib/format";
-import type { CaseBlockerReason } from "@/lib/cases/blockers";
+import type { CaseBlockerKind, CaseBlockerReason } from "@/lib/cases/blockers";
 import type {
   EnforcementCheckApplicability,
   EnforcementDocumentStatus,
@@ -52,6 +53,14 @@ const APPLICABILITY_OPTIONS = Object.entries(ENFORCEMENT_CHECK_APPLICABILITY_LAB
  * questi ha senso l'etichetta "Verificato dal registro MIT" invece del bottone di conferma in
  * blocco generico; `decree_date`/`version`/`authority` non sono mai confrontati oggi. */
 const REGISTRY_VERIFIABLE_FIELD_KEYS = new Set(["manufacturer", "model", "serial_number", "decree_number"]);
+/** Sezione del Livello 2 da aprire di default in base al blocker corrente (FASE 11, Livello 1
+ * "prossima azione" + Livello 2 "mai più di una sezione aperta"): stessa fonte di verità di
+ * `blockers`/`recommended-action.ts`, nessuna nuova logica di priorità qui. */
+const TIER2_SECTION_ANCHOR: Partial<Record<CaseBlockerKind, string>> = {
+  enforcement_identify: "verifica-autovelox-identificazione",
+  enforcement_missing_fields: "verifica-autovelox-identificazione",
+  enforcement_missing_docs: "verifica-autovelox-documentazione",
+};
 
 interface EnforcementFieldData {
   fieldKey: string;
@@ -160,6 +169,72 @@ export function EnforcementVerificationCard({
   const outcome = deriveEnforcementOutcome(check, missingDocumentCount, problematicFieldCount);
   const primaryEnforcementBlocker = blockers.find((b) => b.kind.startsWith("enforcement_"));
 
+  // Livello 2, "mai più di una sezione aperta di default" (FASE 11): derivata dallo stesso
+  // blocker già usato per la CTA sopra, non una seconda priorità calcolata qui. `anomalies` non
+  // ha un CaseBlockerKind dedicato — si apre quando l'esito è critico (MISMATCH), unico caso in
+  // cui i motivi meritano attenzione immediata senza un blocker enforcement_* specifico.
+  const openTier2Section: "identify" | "documents" | "anomalies" | null =
+    primaryEnforcementBlocker?.kind === "enforcement_identify" || primaryEnforcementBlocker?.kind === "enforcement_missing_fields"
+      ? "identify"
+      : primaryEnforcementBlocker?.kind === "enforcement_missing_docs"
+        ? "documents"
+        : outcome.tone === "critical"
+          ? "anomalies"
+          : null;
+
+  // Campi confermati compressi di default (FASE 11, Livello 2): restano pienamente accessibili
+  // (stesso ExtractedFieldCell, stessi controlli) dentro una Disclosure annidata chiusa — solo
+  // non contano più tra i controlli visibili di default della sezione, che è già la vera fonte
+  // di rumore quando quasi tutti i campi sono ok e solo uno o due restano da confermare.
+  const actionableFields = tieredFields.filter((f) => f.tier !== "confirmed");
+  const confirmedFields = tieredFields.filter((f) => f.tier === "confirmed");
+  // `const`, non `check.registryMatch` inline: un parametro destrutturato non resta ristretto
+  // (non-null) dentro una funzione annidata come `renderFieldGrid` per il controllo di flusso di
+  // TypeScript, anche se qui non viene mai riassegnato.
+  const registryMatch = check.registryMatch;
+
+  function renderFieldGrid(list: TieredField[]) {
+    return (
+      <div className="detail-field-grid">
+        {list.map(({ key, field, tier }, index) => (
+          <ExtractedFieldCell
+            key={key}
+            caseId={caseId}
+            fieldKey={key}
+            label={fieldLabel(key)}
+            formattedValue={field.value ? formatFieldValue(key, field.value) : null}
+            field={field}
+            tier={tier}
+            spanFull={list.length % 2 !== 0 && index === list.length - 1}
+            endpointBase={`/api/cases/${caseId}/enforcement/fields`}
+            registryVerified={registryMatch === "MATCH" && REGISTRY_VERIFIABLE_FIELD_KEYS.has(key)}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  const hasManualActions =
+    (permissions.canRequestDocuments && missingDocumentCount > 0) ||
+    (permissions.canConfirm && check.state !== "TO_BE_VERIFIED") ||
+    (permissions.canLegalEscalate && check.state !== "REQUIRES_LEGAL_REVIEW");
+
+  const fieldValueByKey = new Map(check.fields.map((f) => [f.fieldKey, f.value]));
+  const essentialFieldValue = (key: string) => {
+    const raw = fieldValueByKey.get(key) ?? null;
+    return raw ? formatFieldValue(key, raw) : null;
+  };
+  const manufacturerModel = [essentialFieldValue("manufacturer"), essentialFieldValue("model")].filter(Boolean).join(" ") || "—";
+  const essentialItems = [
+    { label: "Tipo dispositivo", value: ENFORCEMENT_CHECK_APPLICABILITY_LABELS[check.applicability] },
+    { label: "Produttore e modello", value: manufacturerModel },
+    { label: "Matricola", value: essentialFieldValue("serial_number") ?? "—" },
+    {
+      label: "Registro MIT",
+      value: check.registrySnapshot ? `Consultato il ${formatDateTime(check.registrySnapshot.fetchedAt)}` : "Non ancora consultato",
+    },
+  ];
+
   return (
     <WorkPanel id="verifica-autovelox" title="Verifica autovelox">
       <div className="flex items-start gap-2 rounded-lg bg-[var(--color-surface-muted)] p-3 text-xs text-[var(--color-ink-muted)]">
@@ -170,78 +245,63 @@ export function EnforcementVerificationCard({
         </span>
       </div>
 
-      <div className="mt-3 rounded-lg border border-[var(--color-border)] p-3.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="detail-label">Esito</span>
-          <Badge tone={outcome.tone}>{outcome.label}</Badge>
-        </div>
-        {outcome.reasons.length > 0 && (
-          <ul className="mt-2 flex flex-col gap-1 text-sm text-[var(--color-ink)]">
-            {outcome.reasons.map((reason) => (
-              <li key={reason}>· {reason}</li>
-            ))}
-          </ul>
-        )}
-        {primaryEnforcementBlocker && (
-          <p className="mt-2 text-sm text-[var(--color-ink)]">
-            <span className="font-medium">Azione consigliata:</span>{" "}
-            <span className="text-[var(--color-brand-dark)]">{CTA_LABEL_BY_BLOCKER_KIND[primaryEnforcementBlocker.kind]}</span>
-          </p>
-        )}
+      {/* Livello 1 — colpo d'occhio: esito, dati essenziali di sola lettura, un'unica azione
+       * reale. Nessun controllo per campo qui (FASE 11): sono la leva principale per restare
+       * sotto il target di ≤20 controlli visibili di default su una pratica problematica. */}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Badge tone={outcome.tone}>{outcome.label}</Badge>
+        <Badge tone={REGISTRY_MATCH_TONE[check.registryMatch ?? "NOT_CONSULTED"]}>
+          {ENFORCEMENT_REGISTRY_MATCH_LABELS[check.registryMatch ?? "NOT_CONSULTED"]}
+        </Badge>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-4">
-        <div>
-          <span className="detail-label">Stato verifica</span>
-          <div className="mt-1">
-            <Badge tone={STATE_TONE[check.state]}>{ENFORCEMENT_VERIFICATION_STATE_LABELS[check.state]}</Badge>
+      <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {essentialItems.map((item) => (
+          <div key={item.label}>
+            <dt className="detail-label">{item.label}</dt>
+            <dd className="detail-value truncate font-normal">{item.value}</dd>
           </div>
-          {check.confirmedByName && <span className="mt-1 block text-xs text-[var(--color-ink-muted)]">Confermato da {check.confirmedByName}</span>}
-        </div>
-        <div>
-          <span className="detail-label">Confronto registro MIT</span>
-          <div className="mt-1">
-            <Badge tone={REGISTRY_MATCH_TONE[check.registryMatch ?? "NOT_CONSULTED"]}>
-              {ENFORCEMENT_REGISTRY_MATCH_LABELS[check.registryMatch ?? "NOT_CONSULTED"]}
-            </Badge>
-          </div>
-          {check.registrySnapshot && (
-            <span className="mt-1 block text-xs text-[var(--color-ink-muted)]">
-              Registro consultato il {formatDateTime(check.registrySnapshot.fetchedAt)}
-            </span>
-          )}
-        </div>
-      </div>
+        ))}
+      </dl>
 
-      {permissions.canConfirm && (
-        <div className="mt-3 flex flex-wrap items-end gap-2">
-          <div className="max-w-xs">
-            <InlineSelect
-              url={`/api/cases/${caseId}/enforcement/check`}
-              fieldName="applicability"
-              value={check.applicability}
-              label="Tipo di dispositivo"
-              options={APPLICABILITY_OPTIONS}
-            />
-          </div>
-          {check.applicability !== "TO_BE_IDENTIFIED" && (
-            <ActionButton method="PATCH" url={`/api/cases/${caseId}/enforcement/check`} body={{}} variant="tertiary" size="sm">
-              Conferma identificazione
-            </ActionButton>
-          )}
-        </div>
+      {primaryEnforcementBlocker && (
+        <a
+          href={`#${TIER2_SECTION_ANCHOR[primaryEnforcementBlocker.kind] ?? "verifica-autovelox"}`}
+          className={`mt-3 inline-flex ${buttonClassName({ variant: "primary", size: "sm" })}`}
+        >
+          {CTA_LABEL_BY_BLOCKER_KIND[primaryEnforcementBlocker.kind]}
+        </a>
       )}
 
-      {tieredFields.length > 0 && (
+      {/* Livello 2 — espandibile, mai più di una sezione aperta di default. */}
+      <div className="mt-4 flex flex-col gap-3 border-t border-[var(--color-border)] pt-3">
         <Disclosure
-          className="mt-4"
-          defaultOpen={problematicFieldCount > 0}
+          id="verifica-autovelox-identificazione"
+          defaultOpen={openTier2Section === "identify"}
           summary={
             problematicFieldCount > 0
               ? `Identificazione dispositivo — ${problematicFieldCount} dato/i da confermare`
               : `Identificazione dispositivo — ${tieredFields.length} dato/i confermati`
           }
         >
+          {permissions.canConfirm && (
+            <div className="mb-3 flex flex-wrap items-end gap-2">
+              <div className="max-w-xs">
+                <InlineSelect
+                  url={`/api/cases/${caseId}/enforcement/check`}
+                  fieldName="applicability"
+                  value={check.applicability}
+                  label="Tipo di dispositivo"
+                  options={APPLICABILITY_OPTIONS}
+                />
+              </div>
+              {check.applicability !== "TO_BE_IDENTIFIED" && (
+                <ActionButton method="PATCH" url={`/api/cases/${caseId}/enforcement/check`} body={{}} variant="tertiary" size="sm">
+                  Conferma identificazione
+                </ActionButton>
+              )}
+            </div>
+          )}
           {permissions.canConfirm && highConfidenceFieldCount > 0 && (
             <div className="mb-3">
               <ActionButton method="POST" url={`/api/cases/${caseId}/enforcement/fields/confirm-high-confidence`} variant="secondary" size="sm">
@@ -249,28 +309,20 @@ export function EnforcementVerificationCard({
               </ActionButton>
             </div>
           )}
-          <div className="detail-field-grid">
-            {tieredFields.map(({ key, field, tier }, index) => (
-              <ExtractedFieldCell
-                key={key}
-                caseId={caseId}
-                fieldKey={key}
-                label={fieldLabel(key)}
-                formattedValue={field.value ? formatFieldValue(key, field.value) : null}
-                field={field}
-                tier={tier}
-                spanFull={tieredFields.length % 2 !== 0 && index === tieredFields.length - 1}
-                endpointBase={`/api/cases/${caseId}/enforcement/fields`}
-                registryVerified={check.registryMatch === "MATCH" && REGISTRY_VERIFIABLE_FIELD_KEYS.has(key)}
-              />
-            ))}
-          </div>
+          {actionableFields.length > 0 && renderFieldGrid(actionableFields)}
+          {confirmedFields.length === 0 && actionableFields.length === 0 && (
+            <p className="text-sm text-[var(--color-ink-muted)]">Nessun dato tecnico disponibile.</p>
+          )}
+          {confirmedFields.length > 0 && (
+            <Disclosure className="mt-3" defaultOpen={false} summary={`Campi confermati (${confirmedFields.length})`}>
+              {renderFieldGrid(confirmedFields)}
+            </Disclosure>
+          )}
         </Disclosure>
-      )}
 
-      <div className="mt-4 border-t border-[var(--color-border)] pt-3">
         <Disclosure
-          defaultOpen={missingDocumentCount > 0}
+          id="verifica-autovelox-documentazione"
+          defaultOpen={openTier2Section === "documents"}
           summary={
             missingDocumentCount > 0
               ? `Documentazione tecnica — ${missingDocumentCount} mancante/i`
@@ -320,29 +372,57 @@ export function EnforcementVerificationCard({
             })}
           </ul>
         </Disclosure>
-      </div>
 
-      <div className="mt-4 flex flex-wrap gap-2 border-t border-[var(--color-border)] pt-3">
-        {permissions.canRequestDocuments && missingDocumentCount > 0 && (
-          <ActionButton method="POST" url={`/api/cases/${caseId}/enforcement/request-documents`} variant="secondary" size="sm">
-            Richiedi documentazione
-          </ActionButton>
+        {(outcome.reasons.length > 0 || check.confirmedByName || check.registrySnapshot) && (
+          <Disclosure defaultOpen={openTier2Section === "anomalies"} summary="Anomalie e motivazioni">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="detail-label">Stato verifica</span>
+              <Badge tone={STATE_TONE[check.state]}>{ENFORCEMENT_VERIFICATION_STATE_LABELS[check.state]}</Badge>
+            </div>
+            {outcome.reasons.length > 0 && (
+              <ul className="mt-2 flex flex-col gap-1 text-sm text-[var(--color-ink)]">
+                {outcome.reasons.map((reason) => (
+                  <li key={reason}>· {reason}</li>
+                ))}
+              </ul>
+            )}
+            {check.confirmedByName && (
+              <p className="mt-2 text-xs text-[var(--color-ink-muted)]">Identificazione confermata da {check.confirmedByName}</p>
+            )}
+            {check.registrySnapshot && (
+              <p className="mt-1 text-xs text-[var(--color-ink-muted)]">
+                Registro consultato il {formatDateTime(check.registrySnapshot.fetchedAt)}
+              </p>
+            )}
+          </Disclosure>
         )}
-        {permissions.canConfirm && check.state !== "TO_BE_VERIFIED" && (
-          <ActionButton method="POST" url={`/api/cases/${caseId}/enforcement/technical-review`} variant="secondary" size="sm">
-            Segna per verifica tecnica
-          </ActionButton>
-        )}
-        {permissions.canLegalEscalate && check.state !== "REQUIRES_LEGAL_REVIEW" && (
-          <ActionButton
-            method="POST"
-            url={`/api/cases/${caseId}/enforcement/legal-escalate`}
-            variant="secondary"
-            size="sm"
-            confirmMessage="Segnalare questo dispositivo per verifica legale?"
-          >
-            Segna per verifica legale
-          </ActionButton>
+
+        {hasManualActions && (
+          <Disclosure defaultOpen={false} summary="Azioni manuali">
+            <div className="flex flex-wrap gap-2">
+              {permissions.canRequestDocuments && missingDocumentCount > 0 && (
+                <ActionButton method="POST" url={`/api/cases/${caseId}/enforcement/request-documents`} variant="secondary" size="sm">
+                  Richiedi documentazione
+                </ActionButton>
+              )}
+              {permissions.canConfirm && check.state !== "TO_BE_VERIFIED" && (
+                <ActionButton method="POST" url={`/api/cases/${caseId}/enforcement/technical-review`} variant="secondary" size="sm">
+                  Segna per verifica tecnica
+                </ActionButton>
+              )}
+              {permissions.canLegalEscalate && check.state !== "REQUIRES_LEGAL_REVIEW" && (
+                <ActionButton
+                  method="POST"
+                  url={`/api/cases/${caseId}/enforcement/legal-escalate`}
+                  variant="secondary"
+                  size="sm"
+                  confirmMessage="Segnalare questo dispositivo per verifica legale?"
+                >
+                  Segna per verifica legale
+                </ActionButton>
+              )}
+            </div>
+          </Disclosure>
         )}
       </div>
     </WorkPanel>
