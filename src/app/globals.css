@@ -134,6 +134,21 @@ body {
   gap: 10px;
   padding-bottom: 18px;
 }
+/* "Apri al punto" (FASE 11, pannello provenienza): evidenzia brevemente il messaggio raggiunto
+ * da un'ancora #msg-<id> — solo CSS, nessun JS per il requisito minimo (scroll nativo del
+ * browser già porta l'elemento a fuoco). */
+.detail-timeline-item:target {
+  animation: field-provenance-highlight 2.4s ease-out;
+  border-radius: 8px;
+}
+@keyframes field-provenance-highlight {
+  0%, 40% {
+    background: var(--color-warning-soft);
+  }
+  100% {
+    background: transparent;
+  }
+}
 .detail-timeline-item:not(:last-child)::after {
   content: "";
   position: absolute;

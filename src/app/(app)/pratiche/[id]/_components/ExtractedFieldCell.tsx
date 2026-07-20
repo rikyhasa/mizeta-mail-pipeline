@@ -2,7 +2,7 @@ import { AlertTriangle, Check } from "lucide-react";
 import { ActionButton } from "@/components/ActionButton";
 import { Badge } from "@/components/ui/Badge";
 import { FieldEditForm } from "./FieldEditForm";
-import { FieldSourceInfo } from "./FieldSourceInfo";
+import { FieldProvenancePanel } from "./FieldProvenancePanel";
 import type { FieldSourceType } from "@/generated/prisma/enums";
 import type { FieldTier } from "./field-tiers";
 
@@ -11,9 +11,12 @@ interface FieldData {
   confidence: number | null;
   needsHumanReview: boolean;
   confirmedBy: { name: string } | null;
+  confirmedAt: Date | null;
   sourceType: FieldSourceType | null;
   sourceMessageId: string | null;
   sourceAttachmentId: string | null;
+  sourcePage: number | null;
+  sourceExcerpt: string | null;
 }
 
 /**
@@ -102,10 +105,16 @@ export function ExtractedFieldCell({
           endpointBase={endpointBase}
           triggerLabel={!field.value ? "Inserisci dato" : undefined}
         />
-        <FieldSourceInfo
+        <FieldProvenancePanel
           sourceType={field.sourceType}
           sourceMessageId={field.sourceMessageId}
           sourceAttachmentId={field.sourceAttachmentId}
+          sourcePage={field.sourcePage}
+          sourceExcerpt={field.sourceExcerpt}
+          confidence={field.confidence}
+          needsHumanReview={field.needsHumanReview}
+          confirmedBy={field.confirmedBy}
+          confirmedAt={field.confirmedAt}
         />
       </div>
     </div>

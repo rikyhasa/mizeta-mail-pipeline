@@ -8,9 +8,12 @@ export interface CaseFieldData {
   confidence: number | null;
   needsHumanReview: boolean;
   confirmedBy: { name: string } | null;
+  confirmedAt: Date | null;
   sourceType: FieldSourceType | null;
   sourceMessageId: string | null;
   sourceAttachmentId: string | null;
+  sourcePage: number | null;
+  sourceExcerpt: string | null;
 }
 
 export interface TieredField {
