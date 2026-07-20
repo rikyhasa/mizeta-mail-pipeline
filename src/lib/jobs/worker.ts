@@ -23,13 +23,25 @@ import { rematchDevicesForSnapshot } from "@/lib/speed-registry/apply-registry-m
  * eccezione deliberata a "niente SQL raw" nel resto del repo — Prisma non espone questo
  * costrutto tramite il query builder. Il lock è tenuto dentro la stessa transazione della UPDATE
  * successiva, quindi due worker concorrenti non possono mai reclamare lo stesso job.
+ * `"id" ASC` come terzo criterio: `nextRunAt` e `createdAt` sono `TIMESTAMP(3)` — su una parità
+ * al millisecondo l'ordine altrimenti non sarebbe deterministico.
+ *
+ * Il cutoff di "pronto" è calcolato lato Node (`new Date()`) e passato come parametro, non
+ * `now()` SQL: sia `nextRunAt` (scritto da `enqueueJob`) sia `createdAt` (default Prisma
+ * `@default(now())`) sono stampati dall'orologio del processo Node, non dal server Postgres.
+ * Confrontarli contro `now()` del DB — due domini di clock letti da due processi diversi — causa
+ * un'inversione intermittente di una frazione di millisecondo: un job appena accodato con
+ * `nextRunAt` "adesso" può risultare transitoriamente nel futuro per il server DB, e un claim
+ * immediato (enqueue seguito subito da `runWorkerOnce`) lo manca (`claimed: false` inatteso).
+ * Misurato empiricamente: ~9% delle creazioni (18/200) con `now()` SQL, 0/200 con cutoff Node.
  */
 async function claimNextJob(): Promise<Job | null> {
   return prisma.$transaction(async (tx) => {
+    const cutoff = new Date();
     const rows = await tx.$queryRaw<{ id: string }[]>`
       SELECT id FROM "Job"
-      WHERE status = 'PENDING' AND "nextRunAt" <= now()
-      ORDER BY "nextRunAt" ASC, "createdAt" ASC
+      WHERE status = 'PENDING' AND "nextRunAt" <= ${cutoff}
+      ORDER BY "nextRunAt" ASC, "createdAt" ASC, "id" ASC
       LIMIT 1
       FOR UPDATE SKIP LOCKED
     `;

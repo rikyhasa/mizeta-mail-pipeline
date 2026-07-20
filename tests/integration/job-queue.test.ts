@@ -16,8 +16,10 @@ describe("Job queue su Postgres", () => {
   const createdMessageIds: string[] = [];
   const createdThreadIds: string[] = [];
   const createdMailboxIds: string[] = [];
+  const createdJobIds: string[] = [];
 
   afterAll(async () => {
+    await prisma.job.deleteMany({ where: { id: { in: createdJobIds } } });
     if (createdCaseIds.length > 0) {
       await prisma.auditLog.deleteMany({ where: { caseId: { in: createdCaseIds } } });
       await prisma.actionProposalRun.deleteMany({ where: { caseId: { in: createdCaseIds } } });
@@ -49,6 +51,7 @@ describe("Job queue su Postgres", () => {
   it("enqueueJob è idempotente: la stessa chiave con un job PENDING non ne crea uno nuovo", async () => {
     const key = `test-idempotency-${Date.now()}`;
     const first = await enqueueJob({ type: "PROCESS_INCOMING_MESSAGE", payload: { emailMessageId: "does-not-matter" }, idempotencyKey: key });
+    createdJobIds.push(first.jobId);
     const second = await enqueueJob({ type: "PROCESS_INCOMING_MESSAGE", payload: { emailMessageId: "does-not-matter" }, idempotencyKey: key });
 
     expect(second.jobId).toBe(first.jobId);
@@ -61,6 +64,7 @@ describe("Job queue su Postgres", () => {
   it("riarma da zero un job in stato terminale (SUCCEEDED) con la stessa idempotencyKey", async () => {
     const key = `test-rearm-${Date.now()}`;
     const first = await enqueueJob({ type: "PROCESS_INCOMING_MESSAGE", payload: { emailMessageId: "x" }, idempotencyKey: key });
+    createdJobIds.push(first.jobId);
     await prisma.job.update({ where: { id: first.jobId }, data: { status: "SUCCEEDED", attempts: 3 } });
 
     const second = await enqueueJob({ type: "PROCESS_INCOMING_MESSAGE", payload: { emailMessageId: "x" }, idempotencyKey: key });
