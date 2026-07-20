@@ -39,6 +39,11 @@ export interface AppealIndicatorInput {
   daysRemainingGdp: number | null;
   /** Giorni residui per il termine al Prefetto (60gg da notification_date). */
   daysRemainingPrefetto: number | null;
+  /** true solo se un operatore ha esplicitamente confermato `notification_date` (CaseField
+   * `confirmedAt` non nullo). `null` quando `notification_date` non è disponibile (nessun termine
+   * calcolato, la distinzione non si applica). Finché non confermata, i termini si mostrano
+   * comunque (FASE 11, punto A3: mai nasconderli) ma marcati come provvisori in `breakdown`. */
+  notificationDateConfirmed: boolean | null;
 }
 
 export interface AppealIndicatorResult {
@@ -57,8 +62,10 @@ export interface AppealIndicatorResult {
   gdpCost: number | null;
   /** Scomposizione testuale del "perché" (docs/SPEC-AUTOVELOX-DRAFT.md §15.7) — solo la parte
    * economica/temporale: la parte documentale (es. "dispositivo non censito") è responsabilità
-   * del chiamante, che la conosce meglio di questa funzione pura. */
-  breakdown: string[];
+   * del chiamante, che la conosce meglio di questa funzione pura. `provisional: true` marca le
+   * righe di scadenza calcolate da una `notification_date` non ancora confermata — il termine
+   * resta visibile (mai nascosto, FASE 11 punto A3) ma va letto come stimato. */
+  breakdown: { text: string; provisional?: boolean }[];
 }
 
 function computeEconomicAxis(
@@ -80,29 +87,40 @@ function computeEconomicAxis(
   return { economicAxis, valueAtStake, gdpCost };
 }
 
-function buildBreakdown(input: AppealIndicatorInput): string[] {
-  const breakdown: string[] = [];
+function buildBreakdown(input: AppealIndicatorInput): { text: string; provisional?: boolean }[] {
+  const breakdown: { text: string; provisional?: boolean }[] = [];
+  const deadlinesProvisional = input.notificationDateConfirmed === false;
 
-  breakdown.push(input.amount === null ? "Importo non disponibile" : `Importo ${formatCurrency(input.amount)}`);
+  breakdown.push({ text: input.amount === null ? "Importo non disponibile" : `Importo ${formatCurrency(input.amount)}` });
 
   if (input.points > 0) {
     if (input.driverProfessionalCqc === true) {
-      breakdown.push(`${input.points} punti (autista professionale CQC, valore equivalente incluso)`);
+      breakdown.push({ text: `${input.points} punti (autista professionale CQC, valore equivalente incluso)` });
     } else if (input.driverProfessionalCqc === false) {
-      breakdown.push(`${input.points} punti (autista non professionale, non conteggiati)`);
+      breakdown.push({ text: `${input.points} punti (autista non professionale, non conteggiati)` });
     } else {
-      breakdown.push(`${input.points} punti (professionalità autista non confermata, non conteggiati)`);
+      breakdown.push({ text: `${input.points} punti (professionalità autista non confermata, non conteggiati)` });
     }
   }
 
   if (input.daysRemainingGdp !== null) {
-    breakdown.push(`${input.daysRemainingGdp} giorni residui per il Giudice di Pace`);
+    breakdown.push({
+      text: deadlinesProvisional
+        ? `${input.daysRemainingGdp} giorni residui (stimati) per il Giudice di Pace — termine provvisorio: conferma la data di notifica`
+        : `${input.daysRemainingGdp} giorni residui per il Giudice di Pace`,
+      ...(deadlinesProvisional ? { provisional: true as const } : {}),
+    });
   }
   if (input.daysRemainingPrefetto !== null) {
-    breakdown.push(`${input.daysRemainingPrefetto} giorni residui per il Prefetto`);
+    breakdown.push({
+      text: deadlinesProvisional
+        ? `${input.daysRemainingPrefetto} giorni residui (stimati) per il Prefetto — termine provvisorio: conferma la data di notifica`
+        : `${input.daysRemainingPrefetto} giorni residui per il Prefetto`,
+      ...(deadlinesProvisional ? { provisional: true as const } : {}),
+    });
   }
   if (input.daysRemainingGdp === null && input.daysRemainingPrefetto === null) {
-    breakdown.push("Data di notifica non disponibile: termini non calcolabili");
+    breakdown.push({ text: "Data di notifica non disponibile: termini non calcolabili" });
   }
 
   return breakdown;

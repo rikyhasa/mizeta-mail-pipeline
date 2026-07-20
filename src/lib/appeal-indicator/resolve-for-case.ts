@@ -10,6 +10,11 @@ import type { RuleSettingsData } from "@/lib/rules/types";
 export interface CaseFieldLookup {
   fieldKey: string;
   value: string | null;
+  /** Presente solo quando un operatore ha confermato esplicitamente il campo tramite il
+   * meccanismo di conferma già esistente (stesso segnale usato da ExtractedFieldCell per mostrare
+   * "Confermato") — `undefined`/`null` = non confermato. Serve solo a `notification_date` qui
+   * (FASE 11, punto A3): gli altri campi non ne hanno bisogno in questo modulo. */
+  confirmedAt?: Date | null;
 }
 
 function parseNumber(raw: string | null): number | null {
@@ -27,6 +32,17 @@ function parseTriStateBoolean(raw: string | null): boolean | null {
 }
 
 /**
+ * true quando esiste un valore per `notification_date` ma nessun operatore l'ha ancora confermato
+ * esplicitamente — condizione che rende provvisori i termini di ricorso (FASE 11, punto A3).
+ * Riusata sia da `resolveAppealIndicatorForCase` sotto sia da `src/lib/cases/blockers.ts` per
+ * generare il blocker prioritario "Conferma la data di notifica", stessa logica in un solo posto.
+ */
+export function isNotificationDateUnconfirmed(fields: CaseFieldLookup[]): boolean {
+  const field = fields.find((f) => f.fieldKey === "notification_date");
+  return field !== undefined && field.value !== null && (field.confirmedAt ?? null) === null;
+}
+
+/**
  * Assembla l'input per `calculateAppealIndicator` a partire dai `CaseField` già caricati di una
  * pratica (nessuna query aggiuntiva) — calcolato a lettura, mai persistito (docs/SPEC.md §10bis).
  * L'asse documentale usa i segnali reali del modulo autovelox (`enforcementCheck`, già caricato
@@ -40,14 +56,16 @@ export function resolveAppealIndicatorForCase(
   settings: RuleSettingsData,
   now: Date,
 ): AppealIndicatorResult {
-  const fieldsByKey = new Map(fields.map((f) => [f.fieldKey, f.value]));
+  const fieldsByKey = new Map(fields.map((f) => [f.fieldKey, f]));
 
-  const amount = parseNumber(fieldsByKey.get("amount") ?? null);
-  const points = parseNumber(fieldsByKey.get("points") ?? null) ?? 0;
-  const driverProfessionalCqc = parseTriStateBoolean(fieldsByKey.get("driver_professional_cqc") ?? null);
+  const amount = parseNumber(fieldsByKey.get("amount")?.value ?? null);
+  const points = parseNumber(fieldsByKey.get("points")?.value ?? null) ?? 0;
+  const driverProfessionalCqc = parseTriStateBoolean(fieldsByKey.get("driver_professional_cqc")?.value ?? null);
 
-  const notificationDateRaw = fieldsByKey.get("notification_date") ?? null;
+  const notificationDateField = fieldsByKey.get("notification_date") ?? null;
+  const notificationDateRaw = notificationDateField?.value ?? null;
   const notificationDate = notificationDateRaw ? new Date(notificationDateRaw) : null;
+  const notificationDateConfirmed = notificationDate ? (notificationDateField?.confirmedAt ?? null) !== null : null;
   const { daysRemainingGdp, daysRemainingPrefetto } = calculateAppealDeadlines(notificationDate, now);
 
   const { axis: documentaryStrength, status: documentaryStatus } = enforcementCheck
@@ -63,6 +81,7 @@ export function resolveAppealIndicatorForCase(
       documentaryStatus,
       daysRemainingGdp,
       daysRemainingPrefetto,
+      notificationDateConfirmed,
     },
     settings,
   );

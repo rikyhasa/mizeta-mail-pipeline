@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { classifyFieldTier } from "@/app/(app)/pratiche/[id]/_components/field-tiers";
 import { ENFORCEMENT_DOCUMENT_TYPE_LABELS } from "@/lib/i18n/labels";
+import { isNotificationDateUnconfirmed } from "@/lib/appeal-indicator/resolve-for-case";
 import type { EnforcementCheckApplicability } from "@/generated/prisma/enums";
 
 const ENFORCEMENT_DOCUMENT_TYPE_COUNT = Object.keys(ENFORCEMENT_DOCUMENT_TYPE_LABELS).length;
@@ -21,7 +22,8 @@ export type CaseBlockerKind =
   | "pending_relations"
   | "enforcement_identify"
   | "enforcement_missing_fields"
-  | "enforcement_missing_docs";
+  | "enforcement_missing_docs"
+  | "notification_date_unconfirmed";
 
 /**
  * Priorità di visualizzazione (numero più basso = mostrato per primo in "Prossima azione", che
@@ -41,6 +43,7 @@ const BLOCKER_PRIORITY: Record<CaseBlockerKind, number> = {
   missing_fields: 1,
   needs_review: 1,
   enforcement_missing_fields: 1,
+  notification_date_unconfirmed: 1,
   low_confidence: 2,
   anomaly: 2,
   enforcement_missing_docs: 2,
@@ -70,6 +73,10 @@ export interface CaseBlockerInput {
     needsHumanReview: boolean;
     missingDocumentCount: number;
   } | null;
+  /** true quando `notification_date` ha un valore ma nessun operatore l'ha ancora confermato
+   * esplicitamente (FASE 11, punto A3) — le scadenze di ricorso restano visibili ma provvisorie
+   * finché questo non viene risolto; vedi `isNotificationDateUnconfirmed`. */
+  notificationDateUnconfirmed: boolean;
 }
 
 /**
@@ -129,6 +136,9 @@ export function deriveCaseBlockers(input: CaseBlockerInput): CaseBlockerReason[]
       }
     }
   }
+  if (input.notificationDateUnconfirmed) {
+    blockers.push({ text: "Data di notifica da confermare", href: "#dati-estratti", kind: "notification_date_unconfirmed" });
+  }
   // `sort` è stabile (garanzia ES2019+): a parità di priorità l'ordine di inserimento sopra resta
   // invariato — nessun cambiamento per i test che verificano solo un blocker alla volta.
   return blockers.sort((a, b) => BLOCKER_PRIORITY[a.kind] - BLOCKER_PRIORITY[b.kind]);
@@ -147,7 +157,7 @@ export async function getCaseBlockers(caseId: string): Promise<CaseBlockerReason
       needsHumanReview: true,
       confidence: true,
       assignedToId: true,
-      fields: { select: { fieldKey: true, value: true, needsHumanReview: true, confirmedBy: { select: { name: true } } } },
+      fields: { select: { fieldKey: true, value: true, needsHumanReview: true, confirmedAt: true, confirmedBy: { select: { name: true } } } },
       messages: { select: { securityFlags: true } },
       relationsAsSource: { where: { status: "PENDING" }, select: { id: true } },
       enforcementDeviceCheck: {
@@ -183,5 +193,6 @@ export async function getCaseBlockers(caseId: string): Promise<CaseBlockerReason
             ENFORCEMENT_DOCUMENT_TYPE_COUNT - caseRecord.enforcementDeviceCheck.documentChecks.filter((d) => d.status === "PRESENT").length,
         }
       : null,
+    notificationDateUnconfirmed: isNotificationDateUnconfirmed(caseRecord.fields),
   });
 }

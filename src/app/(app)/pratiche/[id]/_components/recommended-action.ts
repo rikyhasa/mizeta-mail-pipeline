@@ -24,6 +24,7 @@ export const CTA_LABEL_BY_BLOCKER_KIND: Record<CaseBlockerKind, string> = {
   enforcement_identify: "Identifica il dispositivo",
   enforcement_missing_fields: "Conferma i dati del dispositivo",
   enforcement_missing_docs: "Richiedi i documenti mancanti",
+  notification_date_unconfirmed: "Conferma la data di notifica",
 };
 
 /** Pura, nessuna nuova logica di business: deriva un solo suggerimento dalla stessa lista di

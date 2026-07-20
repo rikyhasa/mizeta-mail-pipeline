@@ -10,6 +10,7 @@ const BASE: CaseBlockerInput = {
   securityFlagsCount: 0,
   pendingRelationsCount: 0,
   enforcement: null,
+  notificationDateUnconfirmed: false,
 };
 
 describe("deriveCaseBlockers", () => {
@@ -66,6 +67,7 @@ describe("deriveCaseBlockers", () => {
       securityFlagsCount: 1,
       pendingRelationsCount: 1,
       enforcement: null,
+      notificationDateUnconfirmed: false,
     });
     expect(blockers).toHaveLength(7);
   });
@@ -112,5 +114,14 @@ describe("deriveCaseBlockers", () => {
       enforcement: { applicability: "TO_BE_IDENTIFIED", needsHumanReview: true, missingDocumentCount: 5 },
     });
     expect(blockers).toEqual([{ text: "Dispositivo di rilevamento da identificare", href: "#verifica-autovelox", kind: "enforcement_identify" }]);
+  });
+
+  it("A3 — flags an unconfirmed notification_date as a priority blocker", () => {
+    const blockers = deriveCaseBlockers({ ...BASE, notificationDateUnconfirmed: true });
+    expect(blockers).toEqual([{ text: "Data di notifica da confermare", href: "#dati-estratti", kind: "notification_date_unconfirmed" }]);
+  });
+
+  it("A3 — no blocker when notification_date is confirmed or absent", () => {
+    expect(deriveCaseBlockers({ ...BASE, notificationDateUnconfirmed: false })).toEqual([]);
   });
 });

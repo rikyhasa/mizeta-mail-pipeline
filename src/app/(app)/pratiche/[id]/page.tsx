@@ -24,7 +24,7 @@ import { deriveRecommendedAction } from "./_components/recommended-action";
 import type { RelationSummary } from "./_components/relation-types";
 import { deriveCaseBlockers } from "@/lib/cases/blockers";
 import { getRuleSettings } from "@/lib/rules/settings-repository";
-import { resolveAppealIndicatorForCase } from "@/lib/appeal-indicator/resolve-for-case";
+import { isNotificationDateUnconfirmed, resolveAppealIndicatorForCase } from "@/lib/appeal-indicator/resolve-for-case";
 import { AppealIndicatorCard } from "./_components/AppealIndicatorCard";
 import { EnforcementVerificationCard } from "./_components/EnforcementVerificationCard";
 
@@ -145,6 +145,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             enforcementDocumentTypeCount - caseRecord.enforcementDeviceCheck.documentChecks.filter((d) => d.status === "PRESENT").length,
         }
       : null,
+    notificationDateUnconfirmed: isNotificationDateUnconfirmed(caseRecord.fields),
   });
 
   const recommendedAction = deriveRecommendedAction({

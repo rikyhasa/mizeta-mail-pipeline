@@ -14,6 +14,7 @@ const BASE: AppealIndicatorInput = {
   documentaryStatus: "strong",
   daysRemainingGdp: 20,
   daysRemainingPrefetto: 50,
+  notificationDateConfirmed: true,
 };
 
 describe("calculateAppealIndicator — esempi guida di docs/SPEC-AUTOVELOX-DRAFT.md §15.5", () => {
@@ -51,7 +52,31 @@ describe("calculateAppealIndicator — driver_professional_cqc non confermato (n
 
   it("il breakdown distingue 'non confermato' da 'confermato: no', ma il valore non cambia", () => {
     const result = calculateAppealIndicator({ ...BASE, points: 5, driverProfessionalCqc: null }, SETTINGS);
-    expect(result.breakdown.some((line) => line.includes("non confermata"))).toBe(true);
+    expect(result.breakdown.some((line) => line.text.includes("non confermata"))).toBe(true);
+  });
+});
+
+describe("calculateAppealIndicator — A3, scadenze provvisorie da notification_date non confermata", () => {
+  it("notificationDateConfirmed false: le righe di scadenza sono marcate provisional e lo dicono nel testo", () => {
+    const result = calculateAppealIndicator({ ...BASE, notificationDateConfirmed: false }, SETTINGS);
+    const deadlineLines = result.breakdown.filter((l) => l.text.includes("giorni residui"));
+    expect(deadlineLines.length).toBe(2);
+    expect(deadlineLines.every((l) => l.provisional === true)).toBe(true);
+    expect(deadlineLines.every((l) => l.text.includes("conferma la data di notifica"))).toBe(true);
+  });
+
+  it("notificationDateConfirmed true: nessun marcatore provvisorio", () => {
+    const result = calculateAppealIndicator({ ...BASE, notificationDateConfirmed: true }, SETTINGS);
+    const deadlineLines = result.breakdown.filter((l) => l.text.includes("giorni residui"));
+    expect(deadlineLines.every((l) => l.provisional === undefined)).toBe(true);
+  });
+
+  it("notificationDateConfirmed null (nessuna data): nessun marcatore, resta il messaggio 'non disponibile'", () => {
+    const result = calculateAppealIndicator(
+      { ...BASE, daysRemainingGdp: null, daysRemainingPrefetto: null, notificationDateConfirmed: null },
+      SETTINGS,
+    );
+    expect(result.breakdown.some((l) => l.provisional)).toBe(false);
   });
 });
 

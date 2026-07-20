@@ -77,7 +77,10 @@ export function AppealIndicatorCard({
       {result.breakdown.length > 0 && (
         <ul className="mt-3 flex flex-col gap-1 text-sm text-[var(--color-ink)]">
           {result.breakdown.map((line, index) => (
-            <li key={index}>· {line}</li>
+            <li key={index} className="flex items-center gap-2">
+              <span>· {line.text}</span>
+              {line.provisional && <Badge tone="warning">Provvisorio</Badge>}
+            </li>
           ))}
         </ul>
       )}

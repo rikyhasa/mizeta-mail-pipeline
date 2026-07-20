@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { resolveAppealIndicatorForCase, type CaseFieldLookup } from "@/lib/appeal-indicator/resolve-for-case";
+import { isNotificationDateUnconfirmed, resolveAppealIndicatorForCase, type CaseFieldLookup } from "@/lib/appeal-indicator/resolve-for-case";
 import type { EnforcementDeviceCheckForDocumentaryStrength } from "@/lib/appeal-indicator/documentary-strength";
 import { DEFAULT_RULE_SETTINGS } from "@/lib/rules/default-settings";
 
 const NOW = new Date("2026-07-17T00:00:00.000Z");
 
-function fields(overrides: Record<string, string | null>): CaseFieldLookup[] {
-  return Object.entries(overrides).map(([fieldKey, value]) => ({ fieldKey, value }));
+function fields(overrides: Record<string, string | null>, confirmedKeys: string[] = []): CaseFieldLookup[] {
+  return Object.entries(overrides).map(([fieldKey, value]) => ({
+    fieldKey,
+    value,
+    confirmedAt: confirmedKeys.includes(fieldKey) ? NOW : null,
+  }));
 }
 
 const RICH_FIELDS = fields({ amount: "5000", notification_date: "2026-07-01T00:00:00.000Z" });
@@ -145,5 +149,37 @@ describe("resolveAppealIndicatorForCase", () => {
     expect(result.documentaryAxis).toBe("NONE");
     expect(result.documentaryStatus).toBe("verified");
     expect(result.indication).toBe("NO_RELEVANT_ELEMENT");
+  });
+
+  describe("A3 — scadenze provvisorie da notification_date non confermata", () => {
+    it("notification_date presente ma non confermata: righe di scadenza marcate provisional", () => {
+      const result = resolveAppealIndicatorForCase(RICH_FIELDS, null, DEFAULT_RULE_SETTINGS, NOW);
+      const deadlineLines = result.breakdown.filter((l) => l.text.includes("giorni residui"));
+      expect(deadlineLines.length).toBeGreaterThan(0);
+      expect(deadlineLines.every((l) => l.provisional === true)).toBe(true);
+      expect(deadlineLines.every((l) => l.text.includes("conferma la data di notifica"))).toBe(true);
+    });
+
+    it("notification_date confermata: nessuna riga di scadenza marcata provisional", () => {
+      const confirmedFields = fields({ amount: "5000", notification_date: "2026-07-01T00:00:00.000Z" }, ["notification_date"]);
+      const result = resolveAppealIndicatorForCase(confirmedFields, null, DEFAULT_RULE_SETTINGS, NOW);
+      const deadlineLines = result.breakdown.filter((l) => l.text.includes("giorni residui"));
+      expect(deadlineLines.length).toBeGreaterThan(0);
+      expect(deadlineLines.every((l) => l.provisional === undefined)).toBe(true);
+    });
+  });
+
+  describe("isNotificationDateUnconfirmed", () => {
+    it("true quando il campo esiste, ha un valore e non è confermato", () => {
+      expect(isNotificationDateUnconfirmed(fields({ notification_date: "2026-07-01T00:00:00.000Z" }))).toBe(true);
+    });
+
+    it("false quando il campo è confermato", () => {
+      expect(isNotificationDateUnconfirmed(fields({ notification_date: "2026-07-01T00:00:00.000Z" }, ["notification_date"]))).toBe(false);
+    });
+
+    it("false quando il campo non esiste affatto", () => {
+      expect(isNotificationDateUnconfirmed(fields({}))).toBe(false);
+    });
   });
 });
