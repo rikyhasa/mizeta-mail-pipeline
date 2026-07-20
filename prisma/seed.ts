@@ -3,6 +3,7 @@ import { prisma } from "../src/lib/db/prisma";
 import { hashPassword } from "../src/lib/auth/password";
 import { MockMailProviderAdapter } from "../src/lib/adapters/mail/mock-mail-provider";
 import { ingestRawMessage } from "../src/lib/mail/ingest-mailbox";
+import { extractMessageAttachments } from "../src/lib/attachments/extract-message-attachments";
 import { env } from "../src/lib/config/env";
 import { SEED_EMAILS } from "./seed-data/emails";
 import { enrichCasesWithPipelineArtifacts } from "./seed-enrich";
@@ -157,12 +158,17 @@ async function seedMailbox(params: SeedMailboxParams) {
       caseMap.set(fixture.caseKey, caseId);
     }
 
-    await ingestRawMessage({
+    const { emailMessageId, hasAttachments } = await ingestRawMessage({
       mailboxConnectionId: mailbox.id,
       raw,
       caseId,
       storageKeyPrefix: "seed",
     });
+    // Nessun worker di job gira durante il seed (FASE 10, docs/FASE-10-LETTURA-ALLEGATI.md):
+    // l'estrazione allegati va eseguita subito in-process, PRIMA di
+    // enrichCasesWithPipelineArtifacts più sotto, esattamente come farebbe EXTRACT_ATTACHMENTS
+    // prima di PROCESS_INCOMING_MESSAGE nella pipeline reale.
+    if (hasAttachments) await extractMessageAttachments(emailMessageId);
 
     await adapter.markProcessingResult(externalAccountId, change.providerMessageId, { ok: true });
   }

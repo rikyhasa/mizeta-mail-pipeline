@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "@/lib/db/prisma";
 import { processIncomingMessage } from "@/lib/pipeline/process-incoming-message";
+import { extractMessageAttachments } from "@/lib/attachments/extract-message-attachments";
 
 /**
  * Test end-to-end dell'orchestratore (SPEC.md §6, §7, §8) contro Postgres di test. Crea le
@@ -98,6 +99,10 @@ describe("processIncomingMessage — orchestratore pipeline", () => {
       if (params.attachment.isReadable) {
         const { attachmentStorage } = await import("@/lib/storage/local-storage");
         await attachmentStorage.put(`test-pipeline/${message.id}/${params.attachment.fileName}`, params.attachment.text);
+        // FASE 10: processIncomingMessage legge il testo già estratto (Attachment.extractedPages),
+        // mai più i byte grezzi — l'estrazione va simulata qui esattamente come farebbe il job
+        // EXTRACT_ATTACHMENTS reale prima di PROCESS_INCOMING_MESSAGE.
+        await extractMessageAttachments(message.id);
       }
     }
 

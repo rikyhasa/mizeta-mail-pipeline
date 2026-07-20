@@ -1,9 +1,8 @@
 import type { CaseCategory, DeadlineKind } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db/prisma";
-import { attachmentStorage } from "@/lib/storage/local-storage";
 import { isExtractableCategory } from "@/lib/adapters/llm/schemas/extraction-index";
 import type { ClassificationResult } from "@/lib/adapters/llm/schemas";
-import type { ExtractionMessageInput, LLMResult } from "@/lib/adapters/llm/types";
+import type { AttachmentInput, ExtractionMessageInput, LLMResult } from "@/lib/adapters/llm/types";
 import { getCachedLLMProvider } from "@/lib/adapters/llm/llm-provider-factory";
 import { matchEmailToCase } from "@/lib/matching/match-email-to-case";
 import { PrismaCaseRepository } from "@/lib/matching/prisma-case-repository";
@@ -56,6 +55,43 @@ export function readFieldSourceMessageId(data: Record<string, unknown>, fieldKey
     return typeof value === "string" ? value : null;
   }
   return null;
+}
+
+/**
+ * Sovrascrive con confidenza 1.0 i campi di SUPPLIER_INVOICE già letti da un parser
+ * strutturato (XML FatturaPA, FASE 10 — `Attachment.structuredFields`, popolato da
+ * `extractStructuredFatturaPa`): mai l'LLM ha l'ultima parola su un dato che un parser
+ * deterministico ha già letto con certezza ("allegato autoritativo", CLAUDE.md invariante 6).
+ * Muta `data` in place; i campi non coperti dal parser (centro di costo, viaggio collegato,
+ * motivazione anomalia...) restano quelli prodotti dall'estrazione LLM, mai saltata. Se più
+ * allegati strutturati coprono lo stesso campo, vince il messaggio più recente (`messages` è
+ * già ordinato per data crescente al chiamante).
+ */
+export function mergeStructuredInvoiceFields(data: Record<string, unknown>, messages: ExtractionMessageInput[]): void {
+  const overrides = new Map<string, { value: string | number | boolean; sourceMessageId: string; sourceAttachmentId: string }>();
+  for (const message of messages) {
+    for (const attachment of message.attachments) {
+      if (!attachment.structuredFields) continue;
+      for (const [fieldKey, value] of Object.entries(attachment.structuredFields)) {
+        overrides.set(fieldKey, { value, sourceMessageId: message.emailMessageId, sourceAttachmentId: attachment.attachmentId });
+      }
+    }
+  }
+
+  for (const [fieldKey, override] of overrides) {
+    if (!(fieldKey in data)) continue; // solo field key già previsti dallo schema della categoria
+    data[fieldKey] = {
+      value: override.value,
+      normalized_value: null,
+      confidence: 1.0,
+      source_type: "ATTACHMENT_STRUCTURED",
+      source_message_id: override.sourceMessageId,
+      source_attachment_id: override.sourceAttachmentId,
+      source_page: null,
+      source_excerpt: null,
+      needs_human_review: false,
+    };
+  }
 }
 
 /**
@@ -239,6 +275,9 @@ export async function runPipelineForMessage(input: PipelineMessageInput, deps: P
         messages: allMessages,
       });
       extraction = { category: classificationCategory, result: extractionResult };
+      if (classificationCategory === "SUPPLIER_INVOICE") {
+        mergeStructuredInvoiceFields(extraction.result.data as Record<string, unknown>, allMessages);
+      }
     } catch (error) {
       throw new PipelineExtractionError(error instanceof Error ? error.message : String(error), match.caseId ?? null);
     }
@@ -361,9 +400,40 @@ export async function runPipelineForMessage(input: PipelineMessageInput, deps: P
   };
 }
 
-async function readAttachmentText(storageKey: string): Promise<string> {
-  const buffer = await attachmentStorage.get(storageKey);
-  return buffer.toString("utf-8");
+function attachmentInputFromRow(a: {
+  id: string;
+  fileName: string;
+  isReadable: boolean;
+  extractionMethod: string | null;
+  extractedPages: unknown;
+  structuredFields: unknown;
+}): AttachmentInput {
+  const structuredFields = a.structuredFields as Record<string, string | number | boolean> | null;
+  if (a.extractionMethod === "STRUCTURED" && structuredFields) {
+    // Nessun "testo" nel senso classico per un allegato strutturato (FASE 10): un riepilogo
+    // leggibile dei campi già certi dà comunque contesto al modello (es. per confrontare
+    // l'importo dichiarato nel corpo email con quello di fattura) — i valori restano
+    // comunque sovrascritti con confidenza 1.0 dal merge server-side in
+    // `mergeStructuredInvoiceFields`, mai dedotti di nuovo dal modello.
+    const text = Object.entries(structuredFields)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join("\n");
+    return { attachmentId: a.id, fileName: a.fileName, isReadable: true, text, structuredFields };
+  }
+
+  const pages = a.extractedPages as { page: number; text: string }[] | null;
+  if (a.isReadable && pages && pages.length > 0) {
+    // Marcatori di pagina espliciti dentro il blocco ATTACHMENT_CONTENT (src/lib/adapters/llm/
+    // anthropic/prompts.ts): permettono al modello di riportare un source_page reale, prima
+    // sempre assente perché non esisteva alcuna estrazione per-pagina.
+    const text = pages.length === 1 ? pages[0].text : pages.map((p) => `--- pagina ${p.page} ---\n${p.text}`).join("\n\n");
+    return { attachmentId: a.id, fileName: a.fileName, isReadable: true, text, structuredFields: null };
+  }
+
+  // isReadable=true ma nessun contenuto estratto (es. riga non ancora passata da
+  // EXTRACT_ATTACHMENTS): degrada in modo sicuro a illeggibile, mai testo vuoto spacciato
+  // per contenuto reale (CLAUDE.md invariante 6).
+  return { attachmentId: a.id, fileName: a.fileName, isReadable: false, text: null, structuredFields: null };
 }
 
 async function loadPipelineMessageInput(emailMessageId: string): Promise<PipelineMessageInput> {
@@ -372,14 +442,7 @@ async function loadPipelineMessageInput(emailMessageId: string): Promise<Pipelin
     include: { attachments: true, thread: true },
   });
 
-  const attachments = await Promise.all(
-    message.attachments.map(async (a) => ({
-      attachmentId: a.id,
-      fileName: a.fileName,
-      isReadable: a.isReadable,
-      text: a.isReadable ? await readAttachmentText(a.storageKey) : null,
-    })),
-  );
+  const attachments = message.attachments.map(attachmentInputFromRow);
 
   return {
     mailboxConnectionId: message.mailboxConnectionId,
@@ -405,22 +468,13 @@ export async function loadCaseMessages(caseId: string): Promise<ExtractionMessag
     orderBy: { receivedAt: "asc" },
   });
 
-  return Promise.all(
-    messages.map(async (m) => ({
-      emailMessageId: m.id,
-      subject: m.subject,
-      bodyText: m.bodyText,
-      receivedAt: m.receivedAt.toISOString(),
-      attachments: await Promise.all(
-        m.attachments.map(async (a) => ({
-          attachmentId: a.id,
-          fileName: a.fileName,
-          isReadable: a.isReadable,
-          text: a.isReadable ? await readAttachmentText(a.storageKey) : null,
-        })),
-      ),
-    })),
-  );
+  return messages.map((m) => ({
+    emailMessageId: m.id,
+    subject: m.subject,
+    bodyText: m.bodyText,
+    receivedAt: m.receivedAt.toISOString(),
+    attachments: m.attachments.map(attachmentInputFromRow),
+  }));
 }
 
 async function lookupSupplierIbanByName(name: string): Promise<string | null> {

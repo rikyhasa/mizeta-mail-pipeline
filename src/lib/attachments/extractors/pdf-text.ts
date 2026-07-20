@@ -61,6 +61,11 @@ async function extractRealPdfPages(content: Buffer): Promise<{ pages: { page: nu
 export async function extractPdfText(content: Buffer, sizeBytes: number): Promise<PdfTextExtractionResult> {
   if (!isRealPdf(content)) {
     const text = content.toString("utf-8");
+    if (text.trim().length === 0) {
+      // Byte assenti/vuoti (es. allegato corrotto dal provider): un successo con testo vuoto
+      // spaccerebbe per "letto" un allegato che in realtà non ha alcun contenuto.
+      return { needsVisionFallback: false, outcome: { status: "FAILED", reason: "Allegato vuoto o senza contenuto leggibile." } };
+    }
     return {
       needsVisionFallback: false,
       outcome: { status: "SUCCEEDED", method: "LOCAL_TEXT", pages: [{ page: 1, text }], pageCount: 1, extractionCostUsd: null },

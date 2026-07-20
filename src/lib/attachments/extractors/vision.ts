@@ -51,6 +51,10 @@ export async function extractAttachmentVision(
   dailyBudgetUsd: number,
   now: Date = new Date(),
 ): Promise<AttachmentExtractionOutcome> {
+  if (attachment.content.length === 0) {
+    return { status: "FAILED", reason: "Allegato vuoto o senza contenuto leggibile." };
+  }
+
   if (!isSupportedVisionMimeType(attachment.mimeType)) {
     return {
       status: "FAILED",
