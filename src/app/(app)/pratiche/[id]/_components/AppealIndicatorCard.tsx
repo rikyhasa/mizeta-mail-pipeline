@@ -9,6 +9,7 @@ import {
   APPEAL_INDICATION_LABELS,
 } from "@/lib/i18n/labels";
 import type { AppealIndicatorResult } from "@/lib/appeal-indicator/calculate";
+import { APPEAL_DOCUMENTARY_STATUS_PENDING_LABELS } from "@/lib/appeal-indicator/documentary-strength";
 import type { AppealDecisionKind } from "@/generated/prisma/enums";
 import { AppealDecisionForm } from "./AppealDecisionForm";
 
@@ -20,6 +21,19 @@ const INDICATION_TONE: Record<AppealIndicatorResult["indication"], BadgeTone> = 
   DEADLINES_EXPIRED: "critical",
   INSUFFICIENT_DATA: "muted",
 };
+
+/** Deriva l'etichetta "Elementi documentali" da asse + stato ausiliario (FASE 11, A4): mai
+ * "Assenti" per uno stato ancora in sospeso, quell'etichetta implica un'assenza verificata. */
+function documentaryLabel(axis: AppealIndicatorResult["documentaryAxis"], status: AppealIndicatorResult["documentaryStatus"]): string {
+  if (status && status in APPEAL_DOCUMENTARY_STATUS_PENDING_LABELS) {
+    return APPEAL_DOCUMENTARY_STATUS_PENDING_LABELS[status]!;
+  }
+  return APPEAL_DOCUMENTARY_STRENGTH_LABELS[axis];
+}
+
+function documentaryTone(status: AppealIndicatorResult["documentaryStatus"]): BadgeTone {
+  return status && status in APPEAL_DOCUMENTARY_STATUS_PENDING_LABELS ? "muted" : "neutral";
+}
 
 interface AppealDecisionData {
   decision: AppealDecisionKind;
@@ -57,7 +71,7 @@ export function AppealIndicatorCard({
         <div>
           <span className="detail-label">Elementi documentali</span>
           <div className="mt-1">
-            <Badge tone="neutral">{APPEAL_DOCUMENTARY_STRENGTH_LABELS[result.documentaryAxis]}</Badge>
+            <Badge tone={documentaryTone(result.documentaryStatus)}>{documentaryLabel(result.documentaryAxis, result.documentaryStatus)}</Badge>
           </div>
         </div>
         <div>

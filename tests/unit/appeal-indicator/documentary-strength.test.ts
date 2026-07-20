@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  APPEAL_DOCUMENTARY_STATUS_PENDING_LABELS,
   deriveEnforcementDocumentaryStrength,
   deriveGenericDocumentaryStrength,
   type EnforcementDeviceCheckForDocumentaryStrength,
@@ -66,5 +67,19 @@ describe("deriveEnforcementDocumentaryStrength", () => {
       }),
     );
     expect(result).toEqual({ axis: "NONE", status: "verified" });
+  });
+});
+
+describe("A4 — APPEAL_DOCUMENTARY_STATUS_PENDING_LABELS", () => {
+  it("copre esattamente gli stati 'non ancora valutato' prodotti da deriveEnforcementDocumentaryStrength", () => {
+    expect(APPEAL_DOCUMENTARY_STATUS_PENDING_LABELS).toEqual({
+      not_yet_evaluated: "Non ancora valutati",
+      device_to_be_identified: "Dispositivo da identificare",
+      registry_not_consulted: "Registro non consultato",
+    });
+  });
+
+  it("'verified' (l'unico stato NONE che è davvero 'Assenti') non ha un'etichetta pending", () => {
+    expect(APPEAL_DOCUMENTARY_STATUS_PENDING_LABELS.verified).toBeUndefined();
   });
 });

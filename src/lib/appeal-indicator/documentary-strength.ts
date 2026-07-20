@@ -45,6 +45,21 @@ export interface EnforcementDocumentaryResult {
   status: AppealDocumentaryStatus;
 }
 
+/**
+ * Etichette per gli stati "non ancora valutato" (FASE 11, punto A4): oggi tutti collassano
+ * sull'asse persistito `NONE`, ma l'utente non deve mai leggere "Assenti" — che implica
+ * un'assenza verificata — quando la verifica autovelox non è nemmeno conclusa. Solo
+ * `verified` (asse `NONE`) resta "Assenti" tramite `APPEAL_DOCUMENTARY_STRENGTH_LABELS`
+ * (src/lib/i18n/labels.ts), colocata qui invece che lì per evitare un ciclo di import fra un
+ * modulo i18n di basso livello e questa logica di dominio. Gli stati `weak`/`relevant`/`strong`/
+ * `conflict`/`not_applicable` non compaiono qui: hanno già un'etichetta reale via l'asse.
+ */
+export const APPEAL_DOCUMENTARY_STATUS_PENDING_LABELS: Partial<Record<AppealDocumentaryStatus, string>> = {
+  not_yet_evaluated: "Non ancora valutati",
+  device_to_be_identified: "Dispositivo da identificare",
+  registry_not_consulted: "Registro non consultato",
+};
+
 export interface EnforcementDeviceCheckForDocumentaryStrength {
   applicability: EnforcementCheckApplicability;
   registryMatch: EnforcementRegistryMatchState | null;
