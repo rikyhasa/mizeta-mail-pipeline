@@ -183,3 +183,52 @@ resta `null`): da tarare dalle Impostazioni con l'uso reale, come da approvazion
 Nessuno di questi punti è bloccante per l'uso del modulo così com'è: ogni limitazione è
 documentata, mai nascosta, e il comportamento in loro assenza è sempre il più prudente
 (dato mancante onesto, mai un'invenzione).
+
+## 7. FASE 11 — correzioni logiche + gerarchia UI + provenienza
+
+Aggiornamento successivo a questo report (branch `fix/autovelox-logic` → `feature/autovelox-slice`,
+dopo il troncone A/B/C che ha già chiuso i punti 1 e 2 della sezione 6 sopra — il confronto
+registro↔dispositivo e il segnale reale sull'asse documentale esistono da allora, questo report
+non li aggiorna retroattivamente). Dettaglio completo in `docs/SPEC-AUTOVELOX-DRAFT.md` §16.
+
+**5 bug logici confermati e corretti** (branch `fix/autovelox-logic`, 5 commit separati,
+docs/SPEC-AUTOVELOX-DRAFT.md §16.1): assenza di segnali che produceva `NOT_APPLICABLE`
+invece di `TO_BE_IDENTIFIED`; matcher registro che poteva dichiarare `MATCH` ignorando una
+matricola incompatibile nel fallback per decreto; scadenze di ricorso calcolate da una data
+di notifica mai verificata come confermata (ora sempre visibili ma marcate provvisorie);
+etichetta "Assenti" mostrata anche per elementi documentali non ancora valutati; collegamento
+documenti che preselezionava il primo allegato senza possibilità di scollegare.
+
+**Ricomposizione UI a 3 livelli** (branch `feature/autovelox-slice`,
+docs/SPEC-AUTOVELOX-DRAFT.md §16.2): il pannello "Verifica autovelox" apriva entrambe le
+sezioni Identificazione/Documentazione ogni volta che c'erano problemi in entrambe.
+Ricomposto in Livello 1 (sempre visibile, sola lettura, una sola azione reale), Livello 2
+(espandibile, mai più di una sezione aperta di default, campi già confermati compressi),
+Livello 3 (provenienza). Controlli interattivi visibili di default nel pannello, misurati dal
+vivo sulla pratica seed più problematica (EML-046, `SPEED_CAMERA_MOBILE`, nessun dato tecnico
+nel testo):
+
+| Stato | Controlli visibili di default |
+|---|---|
+| Prima (entrambe le sezioni sempre aperte, stima da confronto con la reference) | ~37-47 |
+| EML-046 dopo (7 campi problematici, nessun documento collegato) | 10 |
+| case-050 dopo match registro (5 documenti mancanti, sezione documenti aperta) | 11 |
+| case-050 completo (registro `MATCH` + tutti i documenti collegati, nessun blocker) | 0 |
+
+Tutti e 6 gli stati richiesti (non identificato, identificato senza registro, match,
+mismatch, documentazione incompleta, completo) verificati dal vivo nel dev server via Chrome;
+match/mismatch/completo richiedono uno snapshot registro non presente nel seed statico,
+prodotto per la sola verifica con `recordManualSpeedRegistryUpload`/
+`matchAndPersistDeviceRegistryMatch` già esistenti (nessun nuovo percorso di codice, nessuna
+modifica permanente al seed).
+
+**Pannello provenienza** (docs/SPEC-AUTOVELOX-DRAFT.md §16.3): `FieldSourceInfo` sostituito
+da `FieldProvenancePanel` — stesso pattern chiuso di default, ma ora mostra pagina, estratto
+evidenziato, confidenza, stato di revisione, chi/quando ha confermato (dati già nello schema,
+mai propagati fino al componente). Riusabile identicamente per `CaseField` generici, non solo
+per l'autovelox.
+
+**Simulato/rimandato di questa fase**: dimensione eval "applicabilità dispositivo" (solo test
+unitario qui, fixture seed dedicata rimandata alla FASE 10 insieme all'estensione del dataset
+già prevista lì); "metodo di estrazione" nel pannello provenienza usa `sourceType` come proxy,
+nessun campo schema dedicato aggiunto.

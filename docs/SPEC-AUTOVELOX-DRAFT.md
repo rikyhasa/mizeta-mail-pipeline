@@ -1101,6 +1101,108 @@ dettaglio pratica; nuova `AuditAction.APPEAL_DECISION_RECORDED`.
 
 ---
 
+## 16. FASE 11 — correzione di 5 criticità logiche + gerarchia UI a 3 livelli + provenienza
+
+Vertical slice successiva alla Fase E (implementata, troncone A/B/C inclusi):
+un confronto diretto con la reference visiva ha portato a verificare 5
+sospetti logici (tutti confermati leggendo il codice) e a ricomporre il
+pannello "Verifica autovelox" in tre livelli. Branch `fix/autovelox-logic`
+(Parte A, 5 commit separati) + `feature/autovelox-slice` (Parti B/C).
+
+### 16.1 Correzioni logiche (Parte A)
+
+- **Applicabilità** (§4): l'assenza di segnali nel testo produceva
+  `NOT_APPLICABLE` invece di `TO_BE_IDENTIFIED` — corretto in
+  `analyzeEnforcementDeviceHeuristically` e nel prompt Anthropic.
+  `NOT_APPLICABLE` resta riservato a evidenza positiva di violazione non di
+  velocità (ZTL/semaforo/varco/**sosta vietata**, aggiunta alla lista di
+  esclusione per coprire un caso reale del seed che altrimenti sarebbe
+  ricaduto nel fallback onesto).
+- **Matcher registro** (§7bis): il fallback per numero decreto confrontava
+  solo produttore/modello, mai la matricola — un verbale con matricola
+  diversa da quella della riga trovata per decreto risultava `MATCH`. Il
+  confronto ora copre tutti i campi identificativi presenti su entrambi i
+  lati (`DeviceIdentityFieldKey` esteso a matricola/decreto/versione).
+- **Scadenze di ricorso** (§15.5): calcolate da `notification_date` senza mai
+  controllarne la conferma. Ora restano sempre visibili (mai nascoste) ma
+  marcate "provvisorio — conferma la data di notifica" finché
+  `CaseField.confirmedAt` è nullo; la conferma diventa un nuovo blocker
+  prioritario (`notification_date_unconfirmed`, stessa lista condivisa
+  sidebar/pannello).
+- **Etichetta "Elementi documentali"** (§15.3): ignorava `documentaryStatus`
+  (già calcolato, mai letto dalla UI), mostrando "Assenti" anche per
+  dispositivo-da-identificare/registro-non-consultato. "Assenti" resta
+  riservato al solo stato `verified`.
+- **Collegamento documenti** (§8): preselezionava il primo allegato
+  disponibile e non offriva modo di disfare l'associazione. Selezione vuota
+  di default, conferma esplicita col tipo di documento nominato, nuovo
+  endpoint `DELETE` con audit `ENFORCEMENT_DOCUMENT_UNLINKED` (nuovo valore
+  `AuditAction`, migrazione dedicata).
+
+### 16.2 Gerarchia UI a 3 livelli (Parte B, sostituisce parte di §8)
+
+Il pannello passa da tutto-allo-stesso-livello (entrambe le sezioni
+Identificazione/Documentazione si aprivano insieme ogni volta che c'erano
+problemi in entrambe) a:
+
+- **Livello 1** (sempre visibile): badge esito + confronto registro, 4 dati
+  essenziali di sola lettura (tipo dispositivo, produttore e modello uniti,
+  matricola, stato di consultazione del registro MIT — nessun controllo per
+  campo qui), UNA azione reale (link diretto, non testo statico, alla
+  sezione del Livello 2 già aperta sul blocker corrente).
+- **Livello 2** (espandibile, mai più di una sezione aperta di default,
+  derivata dallo stesso blocker della sidebar — nessuna logica duplicata):
+  Identificazione dispositivo (campi già confermati compressi in una
+  Disclosure annidata chiusa — stessi controlli, solo non contati fra quelli
+  visibili di default), Documentazione tecnica, Anomalie e motivazioni
+  (nuova — stato verifica, motivi, data di consultazione registro, prima
+  sempre visibili nel Livello 1), Azioni manuali (i 3 bottoni prima sempre
+  visibili, ora dietro una Disclosure mai auto-aperta).
+- Colori: riusati i tone esistenti di `Badge.tsx` (nessun nuovo componente
+  colore). `Disclosure` estesa con un `id` opzionale per l'ancora della CTA.
+
+Misurato dal vivo (`scripts/ui-compare.ts`, nuova voce `enforcement-device`,
+resolver sulla pratica seed EML-046 — l'unica con `SPEED_CAMERA_MOBILE` fra i
+6 scenari, il caso più problematico): controlli interattivi (bottoni/select)
+visibili di default nel pannello passati da ~37-47 stimati (entrambe le
+sezioni sempre aperte) a **10** sullo stesso caso; **11** su un caso con solo
+la sezione documenti aperta (5 mancanti); **0** su un caso completo (registro
+`MATCH` + tutti i documenti collegati, nessun blocker). Tutti e 6 gli stati
+richiesti (non identificato, identificato senza registro, match, mismatch,
+documentazione incompleta, completo) verificati dal vivo nel dev server;
+match/mismatch/completo richiedono uno snapshot registro non presente nel
+seed statico, prodotto per la verifica con le funzioni già esistenti
+`recordManualSpeedRegistryUpload`/`matchAndPersistDeviceRegistryMatch`
+(nessun nuovo percorso di codice).
+
+### 16.3 Pannello provenienza (Parte C, Livello 3)
+
+`FieldSourceInfo` (mostrava solo tipo fonte + link email/allegato) sostituito
+da `FieldProvenancePanel`: stesso pattern `<details>` chiuso di default,
+ma ora mostra anche pagina, estratto evidenziato, confidenza, stato di
+revisione, chi/quando ha confermato — dati già presenti nello schema
+(`CaseField` ed `EnforcementDeviceField` condividono la stessa forma) ma mai
+propagati fino al componente. "Apri al punto" riusa l'ancora `#msg-<id>` già
+esistente in `EmailTimelineCard`, con una regola `:target` in `globals.css`
+per l'evidenziazione temporanea (nessun JavaScript nuovo). "Metodo di
+estrazione" non ha un campo dedicato nello schema — `sourceType` resta il
+proxy più vicino, limite noto non colmato in questa fase. Riusabile
+identicamente per i `CaseField` generici (stesso `ExtractedFieldCell`, unico
+punto di chiamata in entrambi i pannelli).
+
+### 16.4 Fuori scope, esplicitamente rimandato
+
+- Confronto automatico registro→campo strutturato per-dispositivo (oltre al
+  matcher esistente): non richiesto da questa fase.
+  Dimensione eval "applicabilità dispositivo" (fixture seed dedicata +
+  metrica in `eval/metrics.ts`): rimandata alla FASE 10 insieme
+  all'estensione del dataset già prevista lì (vedi nota in
+  `FASE-10-LETTURA-ALLEGATI.md`) — in questa fase solo test unitario.
+- Densità elenco pratiche/dashboard e rifiniture mobile: fasi separate,
+  esplicitamente fuori scope del brief originale di questa fase.
+
+---
+
 **Fine dell'estensione FASE 9B.** Come richiesto: nessuna implementazione in
 questa sessione. In attesa di approvazione complessiva dei tre elementi della
 specifica (modulo autovelox §1-§14, integrazione registro MIT §7bis,

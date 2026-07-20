@@ -8,9 +8,9 @@ Generato da `npm run eval` contro `MockLLMProvider` (nessuna chiamata Anthropic,
 - Recall multe/reclami urgenti: **100.0%**
 - Accuratezza importi: **100.0%**
 - Accuratezza scadenze: **30.0%**
-- Tasso pratiche in revisione (needs_human_review): **31.8%**
+- Tasso pratiche in revisione (needs_human_review): **30.0%**
 - Recall duplicati (EML-010 su EML-009): **100.0%**
-- Falsi positivi duplicati: **3**
+- Falsi positivi duplicati: **4**
 - Recall security flags (prompt injection): **100.0%**
 
 ## Dettaglio per fixture
@@ -86,21 +86,27 @@ Generato da `npm run eval` contro `MockLLMProvider` (nessuna chiamata Anthropic,
 | EML-019 | CLAIM_OR_DAMAGE | HIGH | no | — | no |
 | EML-021 | CUSTOMER_COMMUNICATION | NORMAL | no | — | no |
 | EML-022 | ADMINISTRATIVE | NORMAL | no | — | no |
+| EML-047 | FINE_OR_PENALTY | NORMAL | no | — | no |
+| EML-050 | FINE_OR_PENALTY | NORMAL | no | — | no |
 | EML-023 | OTHER | NORMAL | no | — | no |
+| EML-045 | FINE_OR_PENALTY | NORMAL | no | — | no |
 | EML-024 | UNCERTAIN | LOW | sì | — | no |
 | EML-025 | CLAIM_OR_DAMAGE | HIGH | sì | — | no |
 | EML-026 | UNCERTAIN | LOW | sì | prompt_injection_detected, suspicious_exfiltration_target | no |
 | EML-027 | QUOTE_REQUEST | NORMAL | no | — | no |
+| EML-046 | FINE_OR_PENALTY | NORMAL | no | — | no |
 | EML-015 | FINE_OR_PENALTY | HIGH | no | — | no |
 | EML-016 | FINE_OR_PENALTY | HIGH | no | — | no |
 | EML-028 | ADMINISTRATIVE | NORMAL | no | — | no |
 | EML-029 | SUPPLIER_INVOICE | NORMAL | no | — | no |
 | EML-032 | QUOTE_REQUEST | NORMAL | no | — | no |
-| EML-030 | FINE_OR_PENALTY | NORMAL | no | — | no |
+| EML-030 | FINE_OR_PENALTY | NORMAL | sì | — | sì |
 | EML-031 | CLAIM_OR_DAMAGE | HIGH | no | — | no |
+| EML-048 | FINE_OR_PENALTY | NORMAL | no | — | no |
 | EML-033 | UNCERTAIN | LOW | sì | — | no |
 | EML-034 | CLAIM_OR_DAMAGE | HIGH | no | — | no |
 | EML-035 | CUSTOMER_RECEIVABLE | NORMAL | no | — | no |
+| EML-049 | FINE_OR_PENALTY | NORMAL | no | — | no |
 | EML-036 | PAYMENT_NOTICE | NORMAL | sì | — | sì |
 | EML-037 | UNCERTAIN | LOW | sì | — | no |
 | EML-038 | UNCERTAIN | LOW | sì | — | no |
