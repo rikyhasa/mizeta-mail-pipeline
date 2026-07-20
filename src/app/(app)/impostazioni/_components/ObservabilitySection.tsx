@@ -5,7 +5,7 @@ import { WorkPanel } from "@/components/ui/WorkPanel";
 /** Riepilogo compatto coda job + costo/errori AI (SPEC.md §17). Il dettaglio completo, con
  * metadati più estesi, resta disponibile via `/api/observability` (ADMIN). */
 export function ObservabilitySection({ snapshot }: { snapshot: ObservabilitySnapshot }) {
-  const { jobs, aiRuns, manualCorrections } = snapshot;
+  const { jobs, aiRuns, manualCorrections, attachmentExtraction } = snapshot;
 
   return (
     <WorkPanel title="Osservabilità" description="Stato della coda job e utilizzo dei modelli AI.">
@@ -41,6 +41,27 @@ export function ObservabilitySection({ snapshot }: { snapshot: ObservabilitySnap
           <div className="mb-1 font-medium text-[var(--color-ink)]">Correzioni manuali — ultimi 7 giorni</div>
           <div>
             {manualCorrections.last7d.fieldsUpdated} campi corretti · {manualCorrections.last7d.fieldsConfirmed} campi confermati
+          </div>
+        </div>
+        <div className="rounded-lg border border-[var(--color-border)] p-3 text-xs text-[var(--color-ink-muted)]">
+          <div className="mb-1 font-medium text-[var(--color-ink)]">Estrazione allegati — ultime 24h</div>
+          <div>
+            {attachmentExtraction.last24h.structured} strutturati · {attachmentExtraction.last24h.localText} testo locale ·{" "}
+            {attachmentExtraction.last24h.vision} visione ({formatCurrency(attachmentExtraction.last24h.visionCostUsd)}) ·{" "}
+            {attachmentExtraction.last24h.failed} falliti · {attachmentExtraction.last24h.totalPages} pagine
+          </div>
+        </div>
+        <div className="rounded-lg border border-[var(--color-border)] p-3 text-xs text-[var(--color-ink-muted)]">
+          <div className="mb-1 flex items-center justify-between font-medium text-[var(--color-ink)]">
+            <span>Estrazione allegati — ultimi 7 giorni</span>
+            {attachmentExtraction.deferredBudgetPending > 0 && (
+              <span className="text-[var(--color-warning)]">{attachmentExtraction.deferredBudgetPending} in attesa di budget</span>
+            )}
+          </div>
+          <div>
+            {attachmentExtraction.last7d.structured} strutturati · {attachmentExtraction.last7d.localText} testo locale ·{" "}
+            {attachmentExtraction.last7d.vision} visione ({formatCurrency(attachmentExtraction.last7d.visionCostUsd)}) ·{" "}
+            {attachmentExtraction.last7d.failed} falliti · {attachmentExtraction.last7d.totalPages} pagine
           </div>
         </div>
       </div>

@@ -31,11 +31,23 @@ export interface ManualCorrectionWindowSummary {
   fieldsConfirmed: number;
 }
 
+/** FASE 10, docs/FASE-10-LETTURA-ALLEGATI.md §"Metriche in osservabilità": allegati processati
+ * per metodo, fallimenti, costo visione cumulato, pagine per documento. */
+export interface AttachmentExtractionWindowSummary {
+  structured: number;
+  localText: number;
+  vision: number;
+  failed: number;
+  totalPages: number;
+  visionCostUsd: number;
+}
+
 export interface ObservabilitySnapshot {
   jobs: JobStatusCounts;
   mailboxes: MailboxObservabilityRow[];
   aiRuns: { last24h: AiRunWindowSummary; last7d: AiRunWindowSummary };
   manualCorrections: { last24h: ManualCorrectionWindowSummary; last7d: ManualCorrectionWindowSummary };
+  attachmentExtraction: { last24h: AttachmentExtractionWindowSummary; last7d: AttachmentExtractionWindowSummary; deferredBudgetPending: number };
 }
 
 async function getJobStatusCounts(): Promise<JobStatusCounts> {
@@ -113,6 +125,37 @@ async function getManualCorrectionWindowSummary(since: Date): Promise<ManualCorr
   return summary;
 }
 
+/**
+ * Estrazione allegati per metodo/esito nella finestra (FASE 10): stesso pattern di aggregazione
+ * di `getAiRunWindowSummary`, sulla tabella `Attachment` già popolata dal job
+ * `EXTRACT_ATTACHMENTS`. `visionCostUsd` conta solo le estrazioni riuscite (una rinviata per
+ * budget non ha generato alcuna spesa).
+ */
+async function getAttachmentExtractionWindowSummary(since: Date): Promise<AttachmentExtractionWindowSummary> {
+  const [byMethod, failed] = await Promise.all([
+    prisma.attachment.groupBy({
+      by: ["extractionMethod"],
+      where: { extractionStatus: "SUCCEEDED", extractedAt: { gte: since } },
+      _count: { _all: true },
+      _sum: { pageCount: true, extractionCostUsd: true },
+    }),
+    prisma.attachment.count({ where: { extractionStatus: "FAILED", extractedAt: { gte: since } } }),
+  ]);
+
+  const summary: AttachmentExtractionWindowSummary = { structured: 0, localText: 0, vision: 0, failed, totalPages: 0, visionCostUsd: 0 };
+  for (const row of byMethod) {
+    const count = row._count._all;
+    if (row.extractionMethod === "STRUCTURED") summary.structured += count;
+    if (row.extractionMethod === "LOCAL_TEXT") summary.localText += count;
+    if (row.extractionMethod === "VISION") {
+      summary.vision += count;
+      summary.visionCostUsd += row._sum.extractionCostUsd ? Number(row._sum.extractionCostUsd) : 0;
+    }
+    summary.totalPages += row._sum.pageCount ?? 0;
+  }
+  return summary;
+}
+
 /** Snapshot di osservabilità (SPEC.md §17): stato coda job, stato/scadenza subscription per
  * mailbox, costo/errori AI e correzioni manuali nelle ultime 24h/7g. Esposto solo da
  * `/api/observability` (`settings:manage`): contiene dettaglio costi/errori, non è liveness
@@ -122,7 +165,17 @@ export async function getObservabilitySnapshot(): Promise<ObservabilitySnapshot>
   const since24h = new Date(now - 24 * 60 * 60 * 1000);
   const since7d = new Date(now - 7 * 24 * 60 * 60 * 1000);
 
-  const [jobs, mailboxes, aiRunsLast24h, aiRunsLast7d, correctionsLast24h, correctionsLast7d] = await Promise.all([
+  const [
+    jobs,
+    mailboxes,
+    aiRunsLast24h,
+    aiRunsLast7d,
+    correctionsLast24h,
+    correctionsLast7d,
+    attachmentExtractionLast24h,
+    attachmentExtractionLast7d,
+    deferredBudgetPending,
+  ] = await Promise.all([
     getJobStatusCounts(),
     prisma.mailboxConnection.findMany({
       select: {
@@ -140,6 +193,9 @@ export async function getObservabilitySnapshot(): Promise<ObservabilitySnapshot>
     getAiRunWindowSummary(since7d),
     getManualCorrectionWindowSummary(since24h),
     getManualCorrectionWindowSummary(since7d),
+    getAttachmentExtractionWindowSummary(since24h),
+    getAttachmentExtractionWindowSummary(since7d),
+    prisma.attachment.count({ where: { extractionStatus: "DEFERRED_BUDGET" } }),
   ]);
 
   return {
@@ -147,5 +203,6 @@ export async function getObservabilitySnapshot(): Promise<ObservabilitySnapshot>
     mailboxes,
     aiRuns: { last24h: aiRunsLast24h, last7d: aiRunsLast7d },
     manualCorrections: { last24h: correctionsLast24h, last7d: correctionsLast7d },
+    attachmentExtraction: { last24h: attachmentExtractionLast24h, last7d: attachmentExtractionLast7d, deferredBudgetPending },
   };
 }
