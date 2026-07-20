@@ -19,7 +19,7 @@ import { prisma } from "@/lib/db/prisma";
 import { createSession } from "@/lib/auth/session";
 import { PATCH as patchCheck } from "@/app/api/cases/[id]/enforcement/check/route";
 import { PATCH as patchField } from "@/app/api/cases/[id]/enforcement/fields/[fieldKey]/route";
-import { PATCH as patchDocument } from "@/app/api/cases/[id]/enforcement/documents/[documentType]/route";
+import { DELETE as deleteDocument, PATCH as patchDocument } from "@/app/api/cases/[id]/enforcement/documents/[documentType]/route";
 import { POST as postRequestDocuments } from "@/app/api/cases/[id]/enforcement/request-documents/route";
 import { POST as postTechnicalReview } from "@/app/api/cases/[id]/enforcement/technical-review/route";
 import { POST as postLegalEscalate } from "@/app/api/cases/[id]/enforcement/legal-escalate/route";
@@ -278,6 +278,38 @@ describe("Endpoint pannello verifica autovelox", () => {
 
       const audit = await prisma.auditLog.findFirst({ where: { action: "ENFORCEMENT_DOCUMENT_LINKED", caseId: caseWithCheckId } });
       expect(audit).toBeTruthy();
+    });
+  });
+
+  describe("DELETE /enforcement/documents/[documentType] (FASE 11, A5)", () => {
+    it("rejects a READ_ONLY user with 403", async () => {
+      await createSession(readOnlyId);
+      const res = await deleteDocument(jsonRequest("DELETE"), { params: Promise.resolve({ id: caseWithCheckId, documentType: "OTHER" }) });
+      expect(res.status).toBe(403);
+    });
+
+    it("returns 404 when nothing is linked for this document type", async () => {
+      await createSession(adminId);
+      const res = await deleteDocument(jsonRequest("DELETE"), { params: Promise.resolve({ id: caseWithCheckId, documentType: "TECHNICAL_MANUAL" }) });
+      expect(res.status).toBe(404);
+    });
+
+    it("unlinks a PRESENT document back to MISSING and writes ENFORCEMENT_DOCUMENT_UNLINKED", async () => {
+      await createSession(adminId);
+      const linkRes = await patchDocument(jsonRequest("PATCH", { attachmentId }), {
+        params: Promise.resolve({ id: caseWithCheckId, documentType: "OTHER" }),
+      });
+      expect(linkRes.status).toBe(200);
+
+      const res = await deleteDocument(jsonRequest("DELETE"), { params: Promise.resolve({ id: caseWithCheckId, documentType: "OTHER" }) });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.documentCheck.status).toBe("MISSING");
+      expect(body.documentCheck.attachmentId).toBeNull();
+
+      const audit = await prisma.auditLog.findFirst({ where: { action: "ENFORCEMENT_DOCUMENT_UNLINKED", caseId: caseWithCheckId } });
+      expect(audit).toBeTruthy();
+      expect((audit?.metadata as { previousAttachmentId: string } | null)?.previousAttachmentId).toBe(attachmentId);
     });
   });
 

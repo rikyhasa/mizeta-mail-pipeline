@@ -290,14 +290,27 @@ export function EnforcementVerificationCard({
                     </Badge>
                   </div>
                   {doc?.attachmentFileName && doc.attachmentId && (
-                    <a
-                      href={`/api/attachments/${doc.attachmentId}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs font-medium text-[var(--color-brand-dark)] hover:underline"
-                    >
-                      {doc.attachmentFileName}
-                    </a>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <a
+                        href={`/api/attachments/${doc.attachmentId}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-medium text-[var(--color-brand-dark)] hover:underline"
+                      >
+                        {doc.attachmentFileName}
+                      </a>
+                      {permissions.canConfirm && status === "PRESENT" && (
+                        <ActionButton
+                          method="DELETE"
+                          url={`/api/cases/${caseId}/enforcement/documents/${type}`}
+                          variant="tertiary"
+                          size="sm"
+                          confirmMessage={`Scollegare "${doc.attachmentFileName}" da ${ENFORCEMENT_DOCUMENT_TYPE_LABELS[type]}?`}
+                        >
+                          Scollega
+                        </ActionButton>
+                      )}
+                    </div>
                   )}
                   {permissions.canConfirm && status !== "PRESENT" && (
                     <EnforcementDocumentLinkForm caseId={caseId} documentType={type} attachments={attachments} />

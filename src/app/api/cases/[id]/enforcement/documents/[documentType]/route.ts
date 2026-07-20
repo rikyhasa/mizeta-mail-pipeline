@@ -67,3 +67,52 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     return Response.json({ documentCheck: updated });
   });
 }
+
+/**
+ * "Scollega documento" (FASE 11, punto A5): rimedio a un collegamento sbagliato — riporta lo
+ * stato a MISSING e azzera allegato/nota (update, non cancellazione della riga: stesso stile
+ * idempotente dell'upsert sopra). Stesso permesso del collegamento; audit dedicato per non
+ * confondere l'operazione con un nuovo collegamento nello storico.
+ */
+export async function DELETE(request: Request, context: { params: Promise<{ id: string; documentType: string }> }) {
+  return withPermission("enforcement:confirm", async (user) => {
+    const { id: caseId, documentType: rawDocumentType } = await context.params;
+    const documentTypeParsed = documentTypeSchema.safeParse(rawDocumentType);
+    if (!documentTypeParsed.success) {
+      return Response.json({ error: "Tipo documento non valido" }, { status: 400 });
+    }
+    const documentType = documentTypeParsed.data;
+
+    const check = await prisma.enforcementDeviceCheck.findUnique({ where: { caseId } });
+    if (!check) {
+      return Response.json({ error: "Controllo dispositivo non trovato per questa pratica" }, { status: 404 });
+    }
+
+    const existing = await prisma.enforcementDocumentCheck.findUnique({
+      where: { checkId_documentType: { checkId: check.id, documentType } },
+    });
+    if (!existing || existing.status !== "PRESENT") {
+      return Response.json({ error: "Nessun documento collegato da scollegare" }, { status: 404 });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const documentCheck = await tx.enforcementDocumentCheck.update({
+        where: { id: existing.id },
+        data: { status: "MISSING", attachmentId: null, note: null },
+      });
+
+      await writeAuditLog(tx, {
+        action: "ENFORCEMENT_DOCUMENT_UNLINKED",
+        entityType: "EnforcementDocumentCheck",
+        entityId: documentCheck.id,
+        caseId,
+        actorId: user.id,
+        metadata: { documentType, previousAttachmentId: existing.attachmentId },
+      });
+
+      return documentCheck;
+    });
+
+    return Response.json({ documentCheck: updated });
+  });
+}

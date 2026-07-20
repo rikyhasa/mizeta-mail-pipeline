@@ -140,6 +140,7 @@ export const AUDIT_ACTION_LABELS: Record<AuditAction, string> = {
   JOB_DEAD_LETTERED: "Job scartato (dead-letter)",
   ENFORCEMENT_DEVICE_CONFIRMED: "Dato dispositivo confermato",
   ENFORCEMENT_DOCUMENT_LINKED: "Documento tecnico collegato",
+  ENFORCEMENT_DOCUMENT_UNLINKED: "Documento tecnico scollegato",
   ENFORCEMENT_LEGAL_ESCALATED: "Segnalato per verifica legale",
   SPEED_REGISTRY_SYNCED: "Registro MIT sincronizzato",
   SPEED_REGISTRY_MANUAL_UPLOAD: "Registro MIT caricato manualmente",

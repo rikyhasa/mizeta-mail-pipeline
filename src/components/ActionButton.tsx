@@ -18,7 +18,7 @@ export function ActionButton({
   disabledReason,
 }: {
   id?: string;
-  method: "POST" | "PATCH";
+  method: "POST" | "PATCH" | "DELETE";
   url: string;
   body?: unknown;
   children: React.ReactNode;
