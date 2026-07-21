@@ -22,6 +22,9 @@ export async function writeReport(metrics: EvalMetrics, records: EvalRecord[]): 
   lines.push(`- Recall duplicati (EML-010 su EML-009): **${(metrics.duplicateRecall * 100).toFixed(1)}%**`);
   lines.push(`- Falsi positivi duplicati: **${metrics.duplicateFalsePositives}**`);
   lines.push(`- Recall security flags (prompt injection): **${(metrics.securityFlagsRecall * 100).toFixed(1)}%**`);
+  lines.push(
+    `- Accuratezza applicabilità dispositivo autovelox (guardia di regressione, non generalizzazione): **${(metrics.enforcementDeviceApplicabilityAccuracy * 100).toFixed(1)}%**`,
+  );
   lines.push("");
   lines.push("## Dettaglio per fixture");
   lines.push("");

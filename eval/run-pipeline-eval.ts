@@ -1,4 +1,4 @@
-import type { CaseCategory, CasePriority, CaseStatus } from "@/generated/prisma/enums";
+import type { CaseCategory, CasePriority, CaseStatus, EnforcementCheckApplicability } from "@/generated/prisma/enums";
 import type { LLMProvider } from "@/lib/adapters/llm/types";
 import { InMemoryCaseRepository } from "@/lib/matching/in-memory-case-repository";
 import { runPipelineForMessage } from "@/lib/pipeline/process-incoming-message";
@@ -43,6 +43,7 @@ interface EvalCase {
   fields: Record<string, unknown>;
   securityFlags: Set<string>;
   possibleDuplicateFlagged: boolean;
+  enforcementDeviceApplicability: EnforcementCheckApplicability | null;
 }
 
 function extractFieldValues(dataRaw: unknown): Record<string, unknown> {
@@ -101,6 +102,7 @@ export async function runEvalWithProvider(llmProvider: LLMProvider, options: Run
           isPossibleDuplicateFlagged: evalCase?.possibleDuplicateFlagged ?? false,
           fields: evalCase?.fields ?? {},
           receivedAt: input.receivedAt.toISOString(),
+          enforcementDeviceApplicability: evalCase?.enforcementDeviceApplicability ?? null,
         });
         options.onFixtureDone?.(fixture.id, i + 1, orderedFixtures.length);
         continue;
@@ -108,6 +110,7 @@ export async function runEvalWithProvider(llmProvider: LLMProvider, options: Run
 
       const caseId = result.match.caseId ?? `eval-case-${++caseCounter}`;
       const extractedFieldValues = result.extraction ? extractFieldValues(result.extraction.result.data) : {};
+      const applicability = result.enforcementDeviceAnalysis?.data.applicability.value ?? null;
       let evalCase = evalCases.get(caseId);
 
       if (!evalCase) {
@@ -119,6 +122,7 @@ export async function runEvalWithProvider(llmProvider: LLMProvider, options: Run
           fields: extractedFieldValues,
           securityFlags: new Set(result.classification.data.security_flags),
           possibleDuplicateFlagged: Boolean(result.match.possibleDuplicateOf),
+          enforcementDeviceApplicability: applicability,
         };
         evalCases.set(caseId, evalCase);
       } else {
@@ -127,6 +131,7 @@ export async function runEvalWithProvider(llmProvider: LLMProvider, options: Run
         evalCase.fields = { ...evalCase.fields, ...extractedFieldValues };
         for (const flag of result.classification.data.security_flags) evalCase.securityFlags.add(flag);
         if (result.match.possibleDuplicateOf) evalCase.possibleDuplicateFlagged = true;
+        if (applicability) evalCase.enforcementDeviceApplicability = applicability;
       }
 
       const strField = (key: string) => (typeof extractedFieldValues[key] === "string" ? [extractedFieldValues[key] as string] : []);
@@ -162,6 +167,7 @@ export async function runEvalWithProvider(llmProvider: LLMProvider, options: Run
         isPossibleDuplicateFlagged: evalCase.possibleDuplicateFlagged,
         fields: evalCase.fields,
         receivedAt: input.receivedAt.toISOString(),
+        enforcementDeviceApplicability: evalCase.enforcementDeviceApplicability,
       });
       options.onFixtureDone?.(fixture.id, i + 1, orderedFixtures.length);
     } catch (error) {
