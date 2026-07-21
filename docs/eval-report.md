@@ -4,14 +4,15 @@ Generato da `npm run eval` contro `MockLLMProvider` (nessuna chiamata Anthropic,
 
 ## Metriche (SPEC.md §18)
 
-- Accuratezza categoria principale: **90.9%** (44 fixture)
+- Accuratezza categoria principale: **92.5%** (53 fixture)
 - Recall multe/reclami urgenti: **100.0%**
 - Accuratezza importi: **100.0%**
-- Accuratezza scadenze: **30.0%**
-- Tasso pratiche in revisione (needs_human_review): **30.0%**
+- Accuratezza scadenze: **46.2%**
+- Tasso pratiche in revisione (needs_human_review): **28.3%**
 - Recall duplicati (EML-010 su EML-009): **100.0%**
 - Falsi positivi duplicati: **4**
 - Recall security flags (prompt injection): **100.0%**
+- Accuratezza applicabilità dispositivo autovelox (guardia di regressione, non generalizzazione): **100.0%**
 
 ## Dettaglio per fixture
 
@@ -33,7 +34,7 @@ Generato da `npm run eval` contro `MockLLMProvider` (nessuna chiamata Anthropic,
 | EML-014 | OK | baseline avviso di pagamento |
 | EML-015 | OK | multa con termine ridotto vicino alla scadenza: deve risultare CRITICAL |
 | EML-016 | OK | ricevuta di consegna PEC di EML-015 |
-| EML-017 | OK | multa ordinaria non urgente |
+| EML-017 | OK | multa ordinaria non urgente (sosta vietata: non legata alla velocità) |
 | EML-018 | OK | reclamo con foto allegata |
 | EML-019 | OK | reclamo senza CMR/POD |
 | EML-020 | OK | CMR firmato per l'ordine ORD-2026-0456: si aggancia correttamente alla pratica TRANSPORT_ORDER esistente (EML-005) via numero ordine (SPEC.md §7 livello 4) — comportamento corretto, non un errore di classificazione: una pratica può ricevere più email di categorie diverse. |
@@ -61,6 +62,15 @@ Generato da `npm run eval` contro `MockLLMProvider` (nessuna chiamata Anthropic,
 | EML-042 | OK | held-out: caso limite ADMINISTRATIVE/CLAIM_OR_DAMAGE più sfumato di EML-033/034 (menziona una spedizione di sfuggita) |
 | EML-043 | NO | held-out: caso limite CUSTOMER_RECEIVABLE/PAYMENT_NOTICE, cliente nominato ma stile da avviso di sistema |
 | EML-044 | OK | held-out: caso limite di segnale debole, strutturalmente diverso dal terzetto di tuning EML-037/038/039 |
+| EML-045 | OK | autovelox fisso con dati tecnici completi (produttore, matricola, decreto) |
+| EML-046 | OK | autovelox mobile senza dati tecnici nel testo |
+| EML-047 | OK | controllo velocità media (Tutor) senza dati tecnici |
+| EML-048 | OK | telelaser |
+| EML-049 | OK | violazione di velocità senza alcun dispositivo nominato: mai NOT_APPLICABLE per un dispositivo non identificabile (CLAUDE.md invariante 9) |
+| EML-050 | OK | scenario integrato completo (dispositivo identificato + notification_date + punti) |
+| EML-051 | OK | fattura tedesca: data con punto come separatore (12.07.2026), importo già nel formato punto migliaia/virgola decimale |
+| EML-052 | OK | fattura francese: importo con spazio come separatore delle migliaia (1 500,00) |
+| EML-053 | OK | fattura inglese per completezza: date e importo scelti apposta per essere non ambigui (giorno > 12, nessun separatore delle migliaia) |
 
 ## Esito completo per pratica (fixture)
 
@@ -97,6 +107,8 @@ Generato da `npm run eval` contro `MockLLMProvider` (nessuna chiamata Anthropic,
 | EML-046 | FINE_OR_PENALTY | NORMAL | no | — | no |
 | EML-015 | FINE_OR_PENALTY | HIGH | no | — | no |
 | EML-016 | FINE_OR_PENALTY | HIGH | no | — | no |
+| EML-051 | SUPPLIER_INVOICE | NORMAL | no | — | no |
+| EML-052 | SUPPLIER_INVOICE | NORMAL | no | — | no |
 | EML-028 | ADMINISTRATIVE | NORMAL | no | — | no |
 | EML-029 | SUPPLIER_INVOICE | NORMAL | no | — | no |
 | EML-032 | QUOTE_REQUEST | NORMAL | no | — | no |
@@ -112,6 +124,7 @@ Generato da `npm run eval` contro `MockLLMProvider` (nessuna chiamata Anthropic,
 | EML-038 | UNCERTAIN | LOW | sì | — | no |
 | EML-039 | UNCERTAIN | LOW | sì | — | no |
 | EML-040 | SUPPLIER_INVOICE | NORMAL | sì | — | sì |
+| EML-053 | SUPPLIER_INVOICE | NORMAL | no | — | no |
 | EML-041 | FINE_OR_PENALTY | NORMAL | no | — | no |
 | EML-042 | ADMINISTRATIVE | NORMAL | no | — | no |
 | EML-043 | UNCERTAIN | LOW | sì | — | no |
