@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { ShieldAlert, Check, AlertTriangle } from "lucide-react";
-import { WorkPanel } from "@/components/ui/WorkPanel";
+import { Check, AlertTriangle } from "lucide-react";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { Disclosure } from "@/components/ui/Disclosure";
 import { buttonClassName } from "@/components/ui/Button";
@@ -160,9 +159,10 @@ export function EnforcementVerificationCard({
 }) {
   if (!check || check.applicability === "NOT_APPLICABLE") {
     return (
-      <WorkPanel id="verifica-autovelox" title="Verifica autovelox">
-        <p className="text-sm text-[var(--color-ink-muted)]">Controllo velocità non applicabile a questa tipologia di verbale.</p>
-      </WorkPanel>
+      <div id="verifica-autovelox" className="scroll-mt-24">
+        <h3 className="text-card-title font-semibold text-[var(--color-ink)]">Verifica tecnica</h3>
+        <p className="mt-2 text-sm text-[var(--color-ink-muted)]">Controllo velocità non applicabile a questa tipologia di verbale.</p>
+      </div>
     );
   }
 
@@ -255,14 +255,8 @@ export function EnforcementVerificationCard({
   ];
 
   return (
-    <WorkPanel id="verifica-autovelox" title="Verifica autovelox">
-      <div className="flex items-start gap-2 rounded-lg bg-[var(--color-surface-muted)] p-3 text-xs text-[var(--color-ink-muted)]">
-        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-        <span>
-          Questo pannello verifica la presenza e la coerenza della documentazione tecnica disponibile. Non esprime alcuna
-          valutazione sulla validità della sanzione né sull&apos;esito di un eventuale ricorso.
-        </span>
-      </div>
+    <div id="verifica-autovelox" className="scroll-mt-24">
+      <h3 className="text-card-title font-semibold text-[var(--color-ink)]">Verifica tecnica</h3>
 
       {/* Livello 1 — colpo d'occhio: esito, dati essenziali di sola lettura, un'unica azione
        * reale. Nessun controllo per campo qui (FASE 11): sono la leva principale per restare
@@ -444,6 +438,6 @@ export function EnforcementVerificationCard({
           </Disclosure>
         )}
       </div>
-    </WorkPanel>
+    </div>
   );
 }

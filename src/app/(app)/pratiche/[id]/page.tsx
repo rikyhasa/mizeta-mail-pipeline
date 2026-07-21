@@ -27,8 +27,7 @@ import { deriveCaseBlockers } from "@/lib/cases/blockers";
 import { getRuleSettings } from "@/lib/rules/settings-repository";
 import { isNotificationDateUnconfirmed, resolveAppealIndicatorForCase } from "@/lib/appeal-indicator/resolve-for-case";
 import { calculateAppealDueDate } from "@/lib/appeal-indicator/deadlines";
-import { AppealIndicatorCard } from "./_components/AppealIndicatorCard";
-import { EnforcementVerificationCard } from "./_components/EnforcementVerificationCard";
+import { AnalisiMultaCard } from "./_components/AnalisiMultaCard";
 
 /** Documenti implementati in questa fase (SPEC.md §12), uno per categoria prioritaria. Le
  * altre categorie non mostrano alcun selettore: nulla è ancora implementato per loro. */
@@ -225,10 +224,10 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             amountFormatted={formatCurrency(amount)}
           />
 
-          {caseRecord.category === "FINE_OR_PENALTY" && (
-            <EnforcementVerificationCard
+          {caseRecord.category === "FINE_OR_PENALTY" && appealIndicatorResult && (
+            <AnalisiMultaCard
               caseId={caseRecord.id}
-              check={
+              enforcementCheck={
                 caseRecord.enforcementDeviceCheck
                   ? {
                       applicability: caseRecord.enforcementDeviceCheck.applicability,
@@ -256,14 +255,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
                 canLegalEscalate: hasPermission(user.role, "enforcement:legal-escalate"),
               }}
               blockers={blockerReasons}
-            />
-          )}
-
-          {appealIndicatorResult && (
-            <AppealIndicatorCard
-              caseId={caseRecord.id}
-              result={appealIndicatorResult}
-              decision={
+              appealResult={appealIndicatorResult}
+              appealDecision={
                 caseRecord.appealDecision
                   ? {
                       decision: caseRecord.appealDecision.decision,

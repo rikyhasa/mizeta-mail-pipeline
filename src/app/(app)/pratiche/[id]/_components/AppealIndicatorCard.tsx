@@ -1,5 +1,3 @@
-import { ShieldAlert } from "lucide-react";
-import { WorkPanel } from "@/components/ui/WorkPanel";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
 import { formatDateTime } from "@/lib/format";
 import {
@@ -35,7 +33,7 @@ function documentaryTone(status: AppealIndicatorResult["documentaryStatus"]): Ba
   return status && status in APPEAL_DOCUMENTARY_STATUS_PENDING_LABELS ? "muted" : "neutral";
 }
 
-interface AppealDecisionData {
+export interface AppealDecisionData {
   decision: AppealDecisionKind;
   note: string | null;
   decidedByName: string | null;
@@ -58,14 +56,8 @@ export function AppealIndicatorCard({
   decision: AppealDecisionData | null;
 }) {
   return (
-    <WorkPanel id="indicatore-ricorso" title="Indicatore ricorso">
-      <div className="flex items-start gap-2 rounded-lg bg-[var(--color-surface-muted)] p-3 text-xs text-[var(--color-ink-muted)]">
-        <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-        <span>
-          Indicazione basata su dati documentali ed economici. Non costituisce parere legale né previsione sull&apos;esito di un
-          ricorso.
-        </span>
-      </div>
+    <div id="indicatore-ricorso" className="scroll-mt-24">
+      <h3 className="text-card-title font-semibold text-[var(--color-ink)]">Indicatore ricorso</h3>
 
       <div className="mt-3 flex flex-wrap items-center gap-4">
         <div>
@@ -112,6 +104,6 @@ export function AppealIndicatorCard({
           <AppealDecisionForm caseId={caseId} initialNote={decision?.note ?? null} />
         </div>
       </div>
-    </WorkPanel>
+    </div>
   );
 }
