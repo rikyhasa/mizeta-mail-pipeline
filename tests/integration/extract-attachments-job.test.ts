@@ -252,4 +252,47 @@ describe("Job di estrazione allegati", () => {
       await updateRuleSettings({ visionExtractionDailyBudgetUsd: settingsBefore.visionExtractionDailyBudgetUsd }, adminUserId);
     }
   });
+
+  it("allegato HEIC: flag pulito UNSUPPORTED_FORMAT, mai un crash del job (FASE 10, nessun decoder aggiunto)", async () => {
+    await drainQueue();
+    const { messageId, attachmentId } = await createMessageWithAttachment({
+      providerMessageId: "EXTRACT-JOB-HEIC-1",
+      fileName: "foto.heic",
+      mimeType: "image/heic",
+      // Contenuto finto, mai decodificato: il rilevamento è per MIME type/estensione, non serve
+      // un file HEIC valido per verificarlo.
+      content: Buffer.from([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]),
+    });
+
+    const { jobId } = await enqueueJob({
+      type: "EXTRACT_ATTACHMENTS",
+      payload: { emailMessageId: messageId },
+      idempotencyKey: extractAttachmentsIdempotencyKey(messageId),
+    });
+    createdJobIds.push(jobId);
+
+    const { claimed, jobId: claimedJobId } = await runWorkerOnce();
+    expect(claimed).toBe(true);
+    expect(claimedJobId).toBe(jobId);
+
+    // Il job EXTRACT_ATTACHMENTS stesso non fallisce mai per un formato non supportato — solo
+    // l'allegato viene marcato, mai l'intera email bloccata.
+    const job = await prisma.job.findUniqueOrThrow({ where: { id: jobId } });
+    expect(job.status).toBe("SUCCEEDED");
+
+    const attachment = await prisma.attachment.findUniqueOrThrow({ where: { id: attachmentId } });
+    expect(attachment.extractionStatus).toBe("UNSUPPORTED_FORMAT");
+    expect(attachment.isReadable).toBe(false);
+    expect(attachment.extractionMethod).toBeNull();
+    expect(attachment.extractionError).toMatch(/non supportato/i);
+    expect(attachment.extractionError).toMatch(/converti manualmente/i);
+
+    // PROCESS_INCOMING_MESSAGE viene comunque accodato ed eseguito con successo.
+    const chainedJob = await prisma.job.findUniqueOrThrow({ where: { idempotencyKey: processIncomingMessageIdempotencyKey(messageId) } });
+    createdJobIds.push(chainedJob.id);
+    await drainQueue();
+    const finishedChainedJob = await prisma.job.findUniqueOrThrow({ where: { id: chainedJob.id } });
+    expect(finishedChainedJob.status).toBe("SUCCEEDED");
+    await trackCaseFor(messageId);
+  });
 });

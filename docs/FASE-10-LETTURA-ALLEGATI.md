@@ -16,6 +16,22 @@ Strategia a tre livelli (dati strutturati → PDF digitali → visione), job
 queue, cache per `contentHash`, budget visione, sicurezza (XXE, injection
 dentro un allegato) — vedi il piano eseguito e i commit `feat(fase-10): ...`.
 
+**HEIC/HEIF — rilevato e segnalato per conversione manuale: implementato**
+(versione leggera, nessun decoder né dipendenza nuova). Prima: un allegato
+HEIC/HEIF falliva con lo stato generico `FAILED`, indistinguibile da un vero
+errore di parsing — il fallimento era di fatto silenzioso, perché l'operatore
+non aveva modo di capire che si trattava di un formato mai supportato.
+Ora: rilevato esplicitamente per MIME type (`image/heic`, `image/heif`,
+`image/heic-sequence`, `image/heif-sequence`) o, in fallback, per estensione
+del file quando il client email invia un MIME type generico, prima di
+qualunque tentativo di estrazione. Nuovo stato dedicato e pulito
+`Attachment.extractionStatus = UNSUPPORTED_FORMAT`, con motivo esplicito
+("converti manualmente in JPEG o PNG") in `extractionError` — mai un crash
+del job `EXTRACT_ATTACHMENTS`, mai un'email bloccata. Vedi
+`src/lib/attachments/extract-message-attachments.ts`,
+`tests/unit/attachments/heic-detection.test.ts`,
+`tests/integration/extract-attachments-job.test.ts`.
+
 **Rinviato a un piano FASE 10b successivo** (per decisione esplicita,
 verificato prima dell'implementazione che il resto della fase fosse
 davvero indipendente dal blocco A):
@@ -61,9 +77,13 @@ STRATEGIA A TRE LIVELLI (in ordine di costo)
 3. SCANSIONI E IMMAGINI — visione del modello via LLMProvider (Anthropic
    supporta PDF/immagini in input): usata SOLO quando il livello 2 produce
    testo assente o scarso (euristica di densità configurabile) o per formati
-   immagine (jpg/png/webp/heic). Output: testo per pagina. La chiamata visione
-   include le stesse istruzioni di sicurezza anti-injection della pipeline
-   (il contenuto è dato non affidabile, delimitato, mai istruzioni).
+   immagine (jpg/png/gif/webp). HEIC/HEIF NON è supportato dall'input
+   multimodale del provider e non arriva nemmeno a questo livello: rilevato
+   prima, segnalato come `UNSUPPORTED_FORMAT` per la conversione manuale,
+   mai un tentativo di decodifica (vedi STATO in cima al documento). Output:
+   testo per pagina. La chiamata visione include le stesse istruzioni di
+   sicurezza anti-injection della pipeline (il contenuto è dato non
+   affidabile, delimitato, mai istruzioni).
 
 PERSISTENZA E RIUSO
 - Estendi il modello: testo estratto per allegato (testo per pagina, metodo di
@@ -102,7 +122,9 @@ visione (mockato nei test, reale nell'eval); immagine foto reclamo; XML
 FatturaPA → campi esatti senza LLM; .p7m → estrazione XML dalla busta; file
 corrotto → isReadable false con motivo; file oltre i limiti → estrazione
 parziale; contentHash identico → nessuna seconda estrazione; injection in
-allegato → flag di sicurezza; budget visione esaurito → stato rinviato.
+allegato → flag di sicurezza; budget visione esaurito → stato rinviato;
+allegato HEIC/HEIF (MIME type e, in fallback, estensione file) → stato
+`UNSUPPORTED_FORMAT` pulito, mai un crash del job.
 Estendi il dataset eval con 5+ fixture di allegati realistici e misura
 l'accuratezza dell'estrazione campi da allegato (era il punto forte promesso
 dalla spec: "importo discordante, allegato autoritativo"). [RINVIATO A FASE
