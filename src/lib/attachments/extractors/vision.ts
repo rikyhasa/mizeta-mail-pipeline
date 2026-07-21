@@ -4,9 +4,11 @@ import { romeMidnightToUtcDate } from "@/lib/text/date-normalizer";
 import type { AttachmentExtractionOutcome } from "@/lib/attachments/types";
 import type { AttachmentVisionExtractionInput, LLMProvider } from "@/lib/adapters/llm/types";
 
-/** jpeg/png/gif/webp per le immagini, PDF nativo per i documenti (nessun HEIC: non supportato
- * dall'input multimodale del provider — limitazione nota, da documentare, mai finta di
- * funzionare). */
+/** jpeg/png/gif/webp per le immagini, PDF nativo per i documenti. HEIC/HEIF non compare qui
+ * (mai supportato dall'input multimodale del provider) ma non arriva nemmeno fin qui: intercettato
+ * prima, in `extractOneAttachment` (extract-message-attachments.ts), con lo stato dedicato
+ * UNSUPPORTED_FORMAT (FASE 10). Questo guard resta comunque il fallback per qualunque altro
+ * formato immagine esotico non riconosciuto esplicitamente (es. TIFF, BMP). */
 const SUPPORTED_VISION_MIME_TYPES = new Set<AttachmentVisionExtractionInput["mimeType"]>([
   "application/pdf",
   "image/jpeg",
@@ -58,7 +60,7 @@ export async function extractAttachmentVision(
   if (!isSupportedVisionMimeType(attachment.mimeType)) {
     return {
       status: "FAILED",
-      reason: `Formato "${attachment.mimeType}" non supportato dall'estrazione visione (es. HEIC): richiede conversione manuale, non gestita in questa fase.`,
+      reason: `Formato "${attachment.mimeType}" non supportato dall'estrazione visione: richiede conversione manuale, non gestita in questa fase.`,
     };
   }
 

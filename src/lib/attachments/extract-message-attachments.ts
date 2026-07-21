@@ -20,6 +20,16 @@ function isStructuredCandidate(fileName: string): boolean {
 
 type AttachmentRow = Pick<Attachment, "id" | "fileName" | "mimeType" | "sizeBytes">;
 
+// Nessun decoder aggiunto (limite noto, sempre dichiarato): rilevamento per MIME type e, in
+// fallback, per estensione del nome file — un client email a volte invia HEIC con un MIME type
+// generico (es. application/octet-stream), l'estensione resta il segnale più affidabile in quel
+// caso, stesso principio di `isStructuredCandidate` sopra.
+const HEIC_HEIF_MIME_TYPES = new Set(["image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence"]);
+
+export function isHeicOrHeifAttachment(attachment: Pick<AttachmentRow, "fileName" | "mimeType">): boolean {
+  return HEIC_HEIF_MIME_TYPES.has(attachment.mimeType.toLowerCase()) || /\.(heic|heif)$/i.test(attachment.fileName);
+}
+
 /**
  * Strategia a tre livelli in ordine di costo (FASE 10, docs/FASE-10-LETTURA-ALLEGATI.md):
  * dati strutturati → testo PDF locale → visione, solo quando il livello 2 è insufficiente. Non
@@ -36,6 +46,17 @@ async function extractOneAttachment(
   try {
     if (isStructuredCandidate(attachment.fileName)) {
       return extractStructuredFatturaPa(attachment.fileName, content);
+    }
+
+    // Rilevato esplicitamente prima del ramo image/* generico: nessun decoder HEIC/HEIF aggiunto
+    // in questa fase (limite noto, mai finto di funzionare), ma un formato riconosciuto non deve
+    // mai finire nel fallimento generico indistinguibile da un vero errore di parsing — stato
+    // pulito dedicato, mai un crash del job (docs/FASE-10-LETTURA-ALLEGATI.md).
+    if (isHeicOrHeifAttachment(attachment)) {
+      return {
+        status: "UNSUPPORTED_FORMAT",
+        reason: `Formato immagine non supportato (${attachment.mimeType}) — converti manualmente in JPEG o PNG prima di allegarlo.`,
+      };
     }
 
     if (attachment.mimeType === "application/pdf") {
@@ -111,6 +132,19 @@ function outcomeToUpdateData(outcome: AttachmentExtractionOutcome, extractedAt: 
       extractedAt: null,
     };
   }
+  if (outcome.status === "UNSUPPORTED_FORMAT") {
+    return {
+      isReadable: false,
+      extractionMethod: null,
+      extractionStatus: "UNSUPPORTED_FORMAT",
+      extractionError: outcome.reason,
+      pageCount: null,
+      extractionCostUsd: null,
+      extractedPages: Prisma.JsonNull,
+      structuredFields: Prisma.JsonNull,
+      extractedAt,
+    };
+  }
   return {
     isReadable: false,
     extractionMethod: null,
@@ -176,7 +210,9 @@ export async function extractMessageAttachments(emailMessageId: string): Promise
     }
 
     const outcome = await extractOneAttachment(llmProvider, attachment, content, settings.visionExtractionDailyBudgetUsd);
-    const extractedAt = outcome.status === "SUCCEEDED" ? new Date() : outcome.status === "FAILED" ? new Date() : null;
+    // DEFERRED_BUDGET resta null (esito ancora pendente, riprovato dal job ricorrente): tutti gli
+    // altri stati sono definitivi, quindi datati.
+    const extractedAt = outcome.status === "DEFERRED_BUDGET" ? null : new Date();
     await prisma.attachment.update({
       where: { id: attachment.id },
       data: { contentHash, ...outcomeToUpdateData(outcome, extractedAt) },

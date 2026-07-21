@@ -107,6 +107,10 @@ enum AttachmentExtractionStatus {
   SUCCEEDED
   FAILED
   DEFERRED_BUDGET
+  /** Formato riconosciuto ma non estraibile senza un decoder dedicato (es. HEIC/HEIF) — stato
+   * pulito e distinto da FAILED: non un errore di parsing, un formato mai stato supportato,
+   * segnalato esplicitamente per la conversione manuale (FASE 10). */
+  UNSUPPORTED_FORMAT
 }
 
 enum DeadlineKind {

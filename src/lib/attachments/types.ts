@@ -30,11 +30,20 @@ export interface ExtractionDeferred {
   reason: string;
 }
 
+/** Formato riconosciuto (es. HEIC/HEIF) ma volutamente mai estratto: nessun decoder aggiunto,
+ * segnalato esplicitamente per la conversione manuale — distinto da FAILED, che resta per gli
+ * errori di parsing veri e propri su un formato altrimenti supportato. */
+export interface ExtractionUnsupportedFormat {
+  status: "UNSUPPORTED_FORMAT";
+  reason: string;
+}
+
 export type AttachmentExtractionOutcome =
   | StructuredExtractionSuccess
   | PagedExtractionSuccess
   | ExtractionFailure
-  | ExtractionDeferred;
+  | ExtractionDeferred
+  | ExtractionUnsupportedFormat;
 
 export interface AttachmentToExtract {
   attachmentId: string;
