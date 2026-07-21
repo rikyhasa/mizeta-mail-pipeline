@@ -22,7 +22,21 @@ type AutomationFields = Pick<
   | "attachmentRetentionDays"
   | "auditLogRetentionDays"
   | "visionExtractionDailyBudgetUsd"
+  | "appealGdpUnifiedContributionLowValue"
+  | "appealGdpUnifiedContributionHighValue"
+  | "appealGdpUnifiedContributionThreshold"
+  | "appealGdpStampDutyAmount"
+  | "appealInternalHandlingCost"
+  | "appealLicensePointValueEquivalent"
+  | "appealFavorableMultiplier"
+  | "appealCostParamsSource"
+  | "appealCostParamsVerifiedAt"
 >;
+
+/** `input[type=date]` vuole `YYYY-MM-DD`, mai un `Date` diretto. */
+function toDateInputValue(value: Date | null): string {
+  return value ? value.toISOString().slice(0, 10) : "";
+}
 
 export function AutomationSettingsForm({ settings }: { settings: RuleSettingsData }) {
   const router = useRouter();
@@ -64,6 +78,42 @@ export function AutomationSettingsForm({ settings }: { settings: RuleSettingsDat
           value={form[key] ?? ""}
           onChange={(e) => {
             setForm((f) => ({ ...f, [key]: e.target.value === "" ? null : Number(e.target.value) }));
+            setDirty(true);
+            setSaved(false);
+          }}
+          className={fieldControlClassName}
+        />
+      </FormField>
+    );
+  }
+
+  function nullableTextField(key: "appealCostParamsSource", label: string) {
+    return (
+      <FormField label={label} htmlFor={`auto-${key}`}>
+        <input
+          id={`auto-${key}`}
+          type="text"
+          value={form[key] ?? ""}
+          onChange={(e) => {
+            setForm((f) => ({ ...f, [key]: e.target.value === "" ? null : e.target.value }));
+            setDirty(true);
+            setSaved(false);
+          }}
+          className={fieldControlClassName}
+        />
+      </FormField>
+    );
+  }
+
+  function nullableDateField(key: "appealCostParamsVerifiedAt", label: string) {
+    return (
+      <FormField label={label} htmlFor={`auto-${key}`}>
+        <input
+          id={`auto-${key}`}
+          type="date"
+          value={toDateInputValue(form[key])}
+          onChange={(e) => {
+            setForm((f) => ({ ...f, [key]: e.target.value === "" ? null : new Date(e.target.value) }));
             setDirty(true);
             setSaved(false);
           }}
@@ -131,6 +181,32 @@ export function AutomationSettingsForm({ settings }: { settings: RuleSettingsDat
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {numberField("visionExtractionDailyBudgetUsd", "Budget giornaliero estrazione visione (USD)", 0.5, 0)}
+        </div>
+      </WorkPanel>
+
+      <WorkPanel
+        title="Parametri indicatore ricorso"
+        description="Valori usati dall'indicatore ricorso (docs/SPEC.md §10bis) — solo trasparenza sui dati di input, mai una valutazione sulla validità della sanzione o sull'esito di un ricorso: l'indicatore resta sempre un'indicazione operativa scomposta, mai un giudizio."
+      >
+        <p className="mb-3 text-xs font-medium text-[var(--color-ink-muted)]">
+          Normativo — contributo unificato e marca da bollo sono fatti tabellati per legge, non scelte di prodotto.
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {numberField("appealGdpUnifiedContributionLowValue", "Contributo unificato — importo basso (EUR)", 1, 0)}
+          {numberField("appealGdpUnifiedContributionHighValue", "Contributo unificato — importo alto (EUR)", 1, 0)}
+          {numberField("appealGdpUnifiedContributionThreshold", "Soglia importo per contributo alto (EUR)", 1, 0)}
+          {numberField("appealGdpStampDutyAmount", "Marca da bollo (EUR)", 1, 0)}
+          {nullableTextField("appealCostParamsSource", "Fonte dei valori normativi")}
+          {nullableDateField("appealCostParamsVerifiedAt", "Verificato il")}
+        </div>
+
+        <p className="mt-5 mb-3 text-xs font-medium text-[var(--color-ink-muted)]">
+          Stima di prodotto — da tarare con l&apos;uso reale, non normativo.
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {numberField("appealInternalHandlingCost", "Costo interno gestione pratica (EUR)", 1, 0)}
+          {numberField("appealLicensePointValueEquivalent", "Valore equivalente per punto patente (EUR)", 1, 0)}
+          {numberField("appealFavorableMultiplier", "Moltiplicatore di convenienza", 0.1, 1)}
         </div>
       </WorkPanel>
 

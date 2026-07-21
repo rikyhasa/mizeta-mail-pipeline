@@ -3,6 +3,7 @@ import type {
   AppealDocumentaryStrength,
   AppealEconomicConvenience,
   AppealIndication,
+  AttachmentExtractionStatus,
   AuditAction,
   CaseCategory,
   CasePriority,
@@ -242,4 +243,19 @@ export const ENFORCEMENT_REGISTRY_MATCH_LABELS: Record<EnforcementRegistryMatchS
   MISMATCH: "Non corrisponde al registro",
   NOT_FOUND: "Non trovato nel registro",
   NOT_CONSULTED: "Registro non consultato",
+};
+
+/** Solo gli stati che meritano un badge in "Cronologia email" (FASE 12, P4): SUCCEEDED e
+ * PENDING non compaiono qui — nessun segnale da mostrare, il link all'allegato basta. Il
+ * testo secondario mostrato accanto a ciascuno (extractionError) è sempre curato/deterministico
+ * per questi 4 stati — mai testo grezzo di un'eccezione (vedi FAILED sotto, CLAUDE.md
+ * invariante 7). */
+export const ATTACHMENT_EXTRACTION_STATUS_LABELS: Partial<Record<AttachmentExtractionStatus, string>> = {
+  PARTIAL_VISION_DEFERRED: "In elaborazione",
+  DEFERRED_BUDGET: "In attesa di budget",
+  // FAILED può derivare da un errore imprevisto del provider vision (extractors/vision.ts,
+  // ramo catch): il messaggio associato non è sempre curato, quindi qui si mostra solo il
+  // badge, mai extractionError in chiaro (CLAUDE.md invariante 7).
+  FAILED: "Non leggibile",
+  UNSUPPORTED_FORMAT: "Formato non supportato",
 };

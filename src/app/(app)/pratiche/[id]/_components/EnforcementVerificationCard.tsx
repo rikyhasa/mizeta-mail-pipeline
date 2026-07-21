@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { ShieldAlert, Check, AlertTriangle } from "lucide-react";
 import { WorkPanel } from "@/components/ui/WorkPanel";
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
@@ -228,13 +229,28 @@ export function EnforcementVerificationCard({
     return raw ? formatFieldValue(key, raw) : null;
   };
   const manufacturerModel = [essentialFieldValue("manufacturer"), essentialFieldValue("model")].filter(Boolean).join(" ") || "—";
-  const essentialItems = [
+  const essentialItems: { label: string; value: ReactNode; noTruncate?: boolean }[] = [
     { label: "Tipo dispositivo", value: ENFORCEMENT_CHECK_APPLICABILITY_LABELS[check.applicability] },
     { label: "Produttore e modello", value: manufacturerModel },
     { label: "Matricola", value: essentialFieldValue("serial_number") ?? "—" },
     {
       label: "Registro MIT",
-      value: check.registrySnapshot ? `Consultato il ${formatDateTime(check.registrySnapshot.fetchedAt)}` : "Non ancora consultato",
+      value: check.registrySnapshot ? (
+        <span className="flex flex-col gap-0.5">
+          <span>Consultato il {formatDateTime(check.registrySnapshot.fetchedAt)}</span>
+          <a
+            href={check.registrySnapshot.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs font-medium text-[var(--color-brand-dark)] hover:underline"
+          >
+            Apri il registro consultato ↗
+          </a>
+        </span>
+      ) : (
+        "Non ancora consultato"
+      ),
+      noTruncate: true,
     },
   ];
 
@@ -262,7 +278,7 @@ export function EnforcementVerificationCard({
         {essentialItems.map((item) => (
           <div key={item.label}>
             <dt className="detail-label">{item.label}</dt>
-            <dd className="detail-value truncate font-normal">{item.value}</dd>
+            <dd className={`detail-value font-normal ${item.noTruncate ? "" : "truncate"}`}>{item.value}</dd>
           </div>
         ))}
       </dl>
