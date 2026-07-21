@@ -43,9 +43,13 @@ export async function getVisionSpendToday(now: Date = new Date()): Promise<numbe
 /**
  * Livello 3 di estrazione allegati (FASE 10, docs/FASE-10-LETTURA-ALLEGATI.md): usato solo
  * quando il livello 2 (testo locale) produce testo assente/scarso, o per immagini dirette.
- * Gated dal budget giornaliero (RuleSettings.visionExtractionDailyBudgetUsd, Impostazioni):
- * budget esaurito → DEFERRED_BUDGET, mai un tentativo silenzioso di procedere comunque né una
- * spesa mai limitata (SPEC.md §16).
+ * Gated dalla soglia di spesa giornaliera (RuleSettings.visionExtractionDailyBudgetUsd,
+ * Impostazioni): soglia raggiunta → DEFERRED_BUDGET, mai un tentativo silenzioso di procedere
+ * comunque (SPEC.md §16). È una soglia operativa, non un tetto rigido: il costo della singola
+ * chiamata non viene riservato in anticipo, quindi l'ultima chiamata del giorno può superarla
+ * del proprio costo — decisione di prodotto (FASE 12, Bug 2): l'eventuale piccolo sforamento è
+ * sanato dal giorno/retry successivo (PARTIAL_VISION_DEFERRED, extract-message-attachments.ts),
+ * non da uno stimatore di costo per-chiamata che non esiste in questa fase.
  */
 export async function extractAttachmentVision(
   llmProvider: LLMProvider,

@@ -31,6 +31,7 @@ export function ContextPanel({
   driverName,
   secondaryCategories,
   needsHumanReview,
+  enforcementNeedsReview,
 }: {
   partyType: "customer" | "supplier" | null;
   partyName: string | null;
@@ -46,6 +47,10 @@ export function ContextPanel({
   driverName: string | null;
   secondaryCategories: CaseCategory[];
   needsHumanReview: boolean;
+  /** Item enforcement pendenti (dispositivo da confermare o documenti tecnici mancanti) —
+   * prima ignorati qui: la pratica poteva mostrare "Nessuna revisione in sospeso" con la verifica
+   * autovelox ancora aperta (FASE 12, Bug 6). */
+  enforcementNeedsReview: boolean;
 }) {
   return (
     <div className="detail-panel">
@@ -67,7 +72,7 @@ export function ContextPanel({
         <div>
           <span className="detail-label">Stato revisione</span>
           <div className="mt-1">
-            {needsHumanReview ? (
+            {needsHumanReview || enforcementNeedsReview ? (
               <Badge tone="warning" icon={AlertTriangle}>
                 Revisione necessaria
               </Badge>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateAppealDeadlines } from "@/lib/appeal-indicator/deadlines";
+import { calculateAppealDeadlines, calculateAppealDueDate } from "@/lib/appeal-indicator/deadlines";
 
 describe("calculateAppealDeadlines", () => {
   it("returns null for both terms when notificationDate is missing", () => {
@@ -29,5 +29,16 @@ describe("calculateAppealDeadlines", () => {
     const first = calculateAppealDeadlines(notificationDate, now);
     const second = calculateAppealDeadlines(notificationDate, now);
     expect(first).toEqual(second);
+  });
+});
+
+describe("calculateAppealDueDate (FASE 12, Bug 4)", () => {
+  it("restituisce null senza notification_date", () => {
+    expect(calculateAppealDueDate(null)).toBeNull();
+  });
+
+  it("restituisce notification_date + 30gg (termine Giudice di Pace, il più vicino dei due)", () => {
+    const notificationDate = new Date("2026-07-01T00:00:00.000Z");
+    expect(calculateAppealDueDate(notificationDate)).toEqual(new Date("2026-07-31T00:00:00.000Z"));
   });
 });

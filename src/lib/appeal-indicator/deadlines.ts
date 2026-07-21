@@ -27,3 +27,16 @@ export function calculateAppealDeadlines(notificationDate: Date | null, now: Dat
     daysRemainingPrefetto: Math.ceil((prefettoDueAt.getTime() - now.getTime()) / MS_PER_DAY),
   };
 }
+
+/**
+ * Termine di ricorso al Giudice di Pace (30gg da `notification_date`, il più vicino dei due —
+ * FASE 12, Bug 4): usato come scadenza di fallback nell'header di "Sintesi operativa" quando la
+ * pratica non ha ancora un `CaseDeadline` persistito (`appeal_due_at` non estratto dal verbale),
+ * per evitare che l'header mostri "Nessuna scadenza" mentre l'indicatore ricorso calcola già un
+ * termine reale da `notification_date`. Sempre marcata provvisoria a valle (mai una data nuda che
+ * sembri confermata, FASE 11 punto A3): è una stima, non un termine estratto dal documento.
+ */
+export function calculateAppealDueDate(notificationDate: Date | null): Date | null {
+  if (!notificationDate) return null;
+  return new Date(notificationDate.getTime() + GDP_APPEAL_DAYS * MS_PER_DAY);
+}

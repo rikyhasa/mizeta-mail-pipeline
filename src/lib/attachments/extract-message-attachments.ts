@@ -18,6 +18,11 @@ function isStructuredCandidate(fileName: string): boolean {
   return /\.(xml|p7m)$/i.test(fileName);
 }
 
+/** Stati non definitivi in attesa del fallback visione, soggetti al retry ricorrente e sempre
+ * di nuovo al budget giornaliero — mai un bypass (FASE 12, Bug 1: `PARTIAL_VISION_DEFERRED`
+ * copre il caso in cui il locale aveva comunque prodotto testo). */
+export const PENDING_VISION_STATUSES = ["DEFERRED_BUDGET", "PARTIAL_VISION_DEFERRED"] as const;
+
 type AttachmentRow = Pick<Attachment, "id" | "fileName" | "mimeType" | "sizeBytes">;
 
 // Nessun decoder aggiunto (limite noto, sempre dichiarato): rilevamento per MIME type e, in
@@ -69,8 +74,14 @@ async function extractOneAttachment(
         visionDailyBudgetUsd,
       );
       if (visionOutcome.status === "SUCCEEDED") return visionOutcome;
-      // La visione è fallita o è stata rinviata per budget: se il livello locale aveva comunque
-      // prodotto un risultato (anche scarso), non buttarlo via — mai perdere dati già estratti.
+      if (visionOutcome.status === "DEFERRED_BUDGET" && outcome.status === "SUCCEEDED" && outcome.method === "LOCAL_TEXT") {
+        // Il locale ha comunque prodotto testo (scarso ma non nullo): non va marcato SUCCEEDED,
+        // altrimenti il job di retry non riproverà mai la visione (FASE 12, Bug 1).
+        return { status: "PARTIAL_VISION_DEFERRED", method: "LOCAL_TEXT", pages: outcome.pages, pageCount: outcome.pageCount, reason: visionOutcome.reason };
+      }
+      // La visione è fallita (non per budget) o il livello locale non aveva prodotto nulla di
+      // utilizzabile: se il livello locale aveva comunque un risultato, non buttarlo via — mai
+      // perdere dati già estratti.
       return outcome.status === "SUCCEEDED" ? outcome : visionOutcome;
     }
 
@@ -128,6 +139,19 @@ function outcomeToUpdateData(outcome: AttachmentExtractionOutcome, extractedAt: 
       pageCount: null,
       extractionCostUsd: null,
       extractedPages: Prisma.JsonNull,
+      structuredFields: Prisma.JsonNull,
+      extractedAt: null,
+    };
+  }
+  if (outcome.status === "PARTIAL_VISION_DEFERRED") {
+    return {
+      isReadable: true,
+      extractionMethod: "LOCAL_TEXT",
+      extractionStatus: "PARTIAL_VISION_DEFERRED",
+      extractionError: outcome.reason,
+      pageCount: outcome.pageCount,
+      extractionCostUsd: null,
+      extractedPages: outcome.pages as unknown as Prisma.InputJsonValue,
       structuredFields: Prisma.JsonNull,
       extractedAt: null,
     };
@@ -210,9 +234,9 @@ export async function extractMessageAttachments(emailMessageId: string): Promise
     }
 
     const outcome = await extractOneAttachment(llmProvider, attachment, content, settings.visionExtractionDailyBudgetUsd);
-    // DEFERRED_BUDGET resta null (esito ancora pendente, riprovato dal job ricorrente): tutti gli
-    // altri stati sono definitivi, quindi datati.
-    const extractedAt = outcome.status === "DEFERRED_BUDGET" ? null : new Date();
+    // Gli stati pendenti (DEFERRED_BUDGET, PARTIAL_VISION_DEFERRED) restano senza data: esito
+    // ancora non definitivo, riprovato dal job ricorrente. Tutti gli altri stati sono definitivi.
+    const extractedAt = (PENDING_VISION_STATUSES as readonly string[]).includes(outcome.status) ? null : new Date();
     await prisma.attachment.update({
       where: { id: attachment.id },
       data: { contentHash, ...outcomeToUpdateData(outcome, extractedAt) },
@@ -221,15 +245,16 @@ export async function extractMessageAttachments(emailMessageId: string): Promise
 }
 
 /**
- * Job ricorrente: ritenta gli allegati rimasti `DEFERRED_BUDGET` (budget visione esaurito al
- * tentativo precedente), di nuovo soggetti allo stesso budget giornaliero — mai un bypass. Per
- * ogni messaggio il cui numero di allegati ancora rinviati diminuisce (almeno uno è riuscito o
+ * Job ricorrente: ritenta gli allegati rimasti in uno stato pendente di visione — `DEFERRED_BUDGET`
+ * (budget esaurito, nessun testo locale) o `PARTIAL_VISION_DEFERRED` (testo locale scarso, visione
+ * ancora da tentare) — di nuovo soggetti allo stesso budget giornaliero, mai un bypass. Per ogni
+ * messaggio il cui numero di allegati ancora pendenti diminuisce (almeno uno è riuscito o
  * definitivamente fallito), riaccoda `PROCESS_INCOMING_MESSAGE`: solo così la pratica riflette
  * il nuovo dato, senza rielaborare inutilmente messaggi il cui esito non è cambiato.
  */
 export async function retryDeferredAttachmentExtractions(): Promise<{ retriedMessageIds: string[]; resolvedMessageIds: string[] }> {
   const deferredAttachments = await prisma.attachment.findMany({
-    where: { extractionStatus: "DEFERRED_BUDGET" },
+    where: { extractionStatus: { in: [...PENDING_VISION_STATUSES] } },
     select: { emailMessageId: true },
   });
   const messageIds = [...new Set(deferredAttachments.map((a) => a.emailMessageId))];
@@ -238,9 +263,9 @@ export async function retryDeferredAttachmentExtractions(): Promise<{ retriedMes
   const resolvedMessageIds: string[] = [];
 
   for (const emailMessageId of messageIds) {
-    const before = await prisma.attachment.count({ where: { emailMessageId, extractionStatus: "DEFERRED_BUDGET" } });
+    const before = await prisma.attachment.count({ where: { emailMessageId, extractionStatus: { in: [...PENDING_VISION_STATUSES] } } });
     await extractMessageAttachments(emailMessageId);
-    const after = await prisma.attachment.count({ where: { emailMessageId, extractionStatus: "DEFERRED_BUDGET" } });
+    const after = await prisma.attachment.count({ where: { emailMessageId, extractionStatus: { in: [...PENDING_VISION_STATUSES] } } });
     retriedMessageIds.push(emailMessageId);
 
     if (after < before) {

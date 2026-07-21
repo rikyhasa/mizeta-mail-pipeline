@@ -124,4 +124,30 @@ describe("deriveCaseBlockers", () => {
   it("A3 — no blocker when notification_date is confirmed or absent", () => {
     expect(deriveCaseBlockers({ ...BASE, notificationDateUnconfirmed: false })).toEqual([]);
   });
+
+  it("FASE 12, Bug 5 — ordina in modo deterministico i blocker a pari priorità precedente (missing_fields, needs_review, enforcement_missing_fields, notification_date_unconfirmed)", () => {
+    const blockers = deriveCaseBlockers({
+      ...BASE,
+      problematicCount: 1,
+      needsHumanReview: true,
+      notificationDateUnconfirmed: true,
+      enforcement: { applicability: "SPEED_CAMERA_FIXED", needsHumanReview: true, missingDocumentCount: 0 },
+    });
+    expect(blockers.map((b) => b.kind)).toEqual([
+      "missing_fields",
+      "needs_review",
+      "enforcement_missing_fields",
+      "notification_date_unconfirmed",
+    ]);
+  });
+
+  it("FASE 12, Bug 5 — ordina in modo deterministico i blocker dell'ex tier 2 (low_confidence, anomaly, enforcement_missing_docs)", () => {
+    const blockers = deriveCaseBlockers({
+      ...BASE,
+      confidence: 0.5,
+      anomalyReason: "importo discordante",
+      enforcement: { applicability: "SPEED_CAMERA_FIXED", needsHumanReview: false, missingDocumentCount: 1 },
+    });
+    expect(blockers.map((b) => b.kind)).toEqual(["low_confidence", "anomaly", "enforcement_missing_docs"]);
+  });
 });

@@ -30,6 +30,17 @@ export interface ExtractionDeferred {
   reason: string;
 }
 
+/** Testo locale già estratto e usabile, ma il fallback visione (necessario per bassa densità
+ * testuale) è stato rinviato per budget esaurito — mai scartare il testo locale già ottenuto,
+ * ma nemmeno spacciarlo per un'estrazione completa: il job di retry deve poterlo riprendere. */
+export interface PartialVisionDeferred {
+  status: "PARTIAL_VISION_DEFERRED";
+  method: "LOCAL_TEXT";
+  pages: { page: number; text: string }[];
+  pageCount: number;
+  reason: string;
+}
+
 /** Formato riconosciuto (es. HEIC/HEIF) ma volutamente mai estratto: nessun decoder aggiunto,
  * segnalato esplicitamente per la conversione manuale — distinto da FAILED, che resta per gli
  * errori di parsing veri e propri su un formato altrimenti supportato. */
@@ -43,7 +54,8 @@ export type AttachmentExtractionOutcome =
   | PagedExtractionSuccess
   | ExtractionFailure
   | ExtractionDeferred
-  | ExtractionUnsupportedFormat;
+  | ExtractionUnsupportedFormat
+  | PartialVisionDeferred;
 
 export interface AttachmentToExtract {
   attachmentId: string;

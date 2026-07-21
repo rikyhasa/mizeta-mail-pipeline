@@ -17,6 +17,7 @@ import {
   ENFORCEMENT_DOCUMENT_STATUS_LABELS,
   ENFORCEMENT_REGISTRY_MATCH_LABELS,
 } from "@/lib/i18n/labels";
+import { ALL_ENFORCEMENT_DOCUMENT_TYPES, REQUIRED_ENFORCEMENT_DOCUMENT_TYPES, countMissingRequiredDocuments } from "@/lib/cases/enforcement-documents";
 import { formatDateTime } from "@/lib/format";
 import type { CaseBlockerKind, CaseBlockerReason } from "@/lib/cases/blockers";
 import type {
@@ -47,7 +48,6 @@ const REGISTRY_MATCH_TONE: Record<EnforcementRegistryMatchState, BadgeTone> = {
   NOT_CONSULTED: "muted",
 };
 
-const DOCUMENT_TYPES = Object.keys(ENFORCEMENT_DOCUMENT_TYPE_LABELS) as EnforcementDocumentType[];
 const APPLICABILITY_OPTIONS = Object.entries(ENFORCEMENT_CHECK_APPLICABILITY_LABELS).map(([value, label]) => ({ value, label }));
 /** Campi effettivamente confrontati dal matcher registro MIT (Troncone C, §2.1.A) — solo per
  * questi ha senso l'etichetta "Verificato dal registro MIT" invece del bottone di conferma in
@@ -166,7 +166,7 @@ export function EnforcementVerificationCard({
   }
 
   const tieredFields = tierFields(check.fields, ENFORCEMENT_DEVICE_FIELD_ORDER);
-  const missingDocumentCount = DOCUMENT_TYPES.length - check.documentChecks.filter((d) => d.status === "PRESENT").length;
+  const missingDocumentCount = countMissingRequiredDocuments(check.documentChecks);
   const problematicFieldCount = tieredFields.filter((f) => f.tier === "problematic").length;
   const highConfidenceFieldCount = tieredFields.filter((f) => f.tier === "middle").length;
   const outcome = deriveEnforcementOutcome(check, missingDocumentCount, problematicFieldCount);
@@ -329,11 +329,11 @@ export function EnforcementVerificationCard({
           summary={
             missingDocumentCount > 0
               ? `Documentazione tecnica — ${missingDocumentCount} mancante/i`
-              : `Documentazione tecnica — completa (${DOCUMENT_TYPES.length})`
+              : `Documentazione tecnica — completa (${REQUIRED_ENFORCEMENT_DOCUMENT_TYPES.length})`
           }
         >
           <ul className="flex flex-col gap-2">
-            {DOCUMENT_TYPES.map((type) => {
+            {ALL_ENFORCEMENT_DOCUMENT_TYPES.map((type) => {
               const doc = check.documentChecks.find((d) => d.documentType === type) ?? null;
               const status = doc?.status ?? "MISSING";
               return (

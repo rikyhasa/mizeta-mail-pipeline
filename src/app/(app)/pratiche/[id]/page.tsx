@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { requireUserOrRedirect } from "@/lib/auth/guard";
 import { hasPermission } from "@/lib/auth/rbac";
-import { CASE_STATUS_LABELS, ENFORCEMENT_DOCUMENT_TYPE_LABELS } from "@/lib/i18n/labels";
+import { CASE_STATUS_LABELS } from "@/lib/i18n/labels";
+import { countMissingRequiredDocuments } from "@/lib/cases/enforcement-documents";
 import { formatCurrency } from "@/lib/format";
 import { AMOUNT_FIELD_BY_CATEGORY, parseFieldNumber } from "@/lib/dashboard/field-keys";
 import { isExtractableCategory } from "@/lib/adapters/llm/schemas/extraction-index";
@@ -25,6 +26,7 @@ import type { RelationSummary } from "./_components/relation-types";
 import { deriveCaseBlockers } from "@/lib/cases/blockers";
 import { getRuleSettings } from "@/lib/rules/settings-repository";
 import { isNotificationDateUnconfirmed, resolveAppealIndicatorForCase } from "@/lib/appeal-indicator/resolve-for-case";
+import { calculateAppealDueDate } from "@/lib/appeal-indicator/deadlines";
 import { AppealIndicatorCard } from "./_components/AppealIndicatorCard";
 import { EnforcementVerificationCard } from "./_components/EnforcementVerificationCard";
 
@@ -113,6 +115,17 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   const otherDeadlines = caseRecord.deadlines.filter((d) => d.id !== nextDeadline?.id);
   const isOpenCase = caseRecord.status !== "COMPLETED" && caseRecord.status !== "ARCHIVED";
 
+  // Fallback scadenza ricorso (FASE 12, Bug 4): se non esiste ancora un `CaseDeadline` persistito
+  // (il verbale non riportava esplicitamente `appeal_due_at`) ma `notification_date` è nota, non
+  // mostrare "Nessuna scadenza" nell'header mentre l'indicatore ricorso sotto calcola già un
+  // termine reale dallo stesso dato — sempre marcato provvisorio (è una stima, mai un termine
+  // estratto dal documento, coerente con l'etichetta già usata da AppealIndicatorCard).
+  const notificationDateRaw = fieldsByKey.get("notification_date")?.value ?? null;
+  const fallbackAppealDueAt =
+    caseRecord.category === "FINE_OR_PENALTY" && !nextDeadline && notificationDateRaw
+      ? calculateAppealDueDate(new Date(notificationDateRaw))
+      : null;
+
   const partyType: "customer" | "supplier" | null = caseRecord.customer ? "customer" : caseRecord.supplier ? "supplier" : null;
   const partyName = caseRecord.customer?.name ?? caseRecord.supplier?.name ?? null;
 
@@ -128,7 +141,6 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   // duplicato. Presentazione soltanto, nessuna nuova logica di business rispetto a prima.
   // anomaly_reason è già un campo ordinario in "Dati estratti" (vedi CATEGORY_FIELD_ORDER), qui
   // serve solo a comporre il messaggio del blocker.
-  const enforcementDocumentTypeCount = Object.keys(ENFORCEMENT_DOCUMENT_TYPE_LABELS).length;
   const blockerReasons = deriveCaseBlockers({
     problematicCount,
     needsHumanReview: caseRecord.needsHumanReview,
@@ -141,8 +153,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
       ? {
           applicability: caseRecord.enforcementDeviceCheck.applicability,
           needsHumanReview: caseRecord.enforcementDeviceCheck.needsHumanReview,
-          missingDocumentCount:
-            enforcementDocumentTypeCount - caseRecord.enforcementDeviceCheck.documentChecks.filter((d) => d.status === "PRESENT").length,
+          missingDocumentCount: countMissingRequiredDocuments(caseRecord.enforcementDeviceCheck.documentChecks),
         }
       : null,
     notificationDateUnconfirmed: isNotificationDateUnconfirmed(caseRecord.fields),
@@ -152,6 +163,16 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     blockers: blockerReasons,
     activeDraftStatus: activeDraft?.status ?? null,
   });
+
+  // "Stato revisione" nel pannello Contesto (FASE 12, Bug 6): prima leggeva solo
+  // `caseRecord.needsHumanReview`, ignorando gli item enforcement pendenti (dispositivo da
+  // confermare o documenti tecnici mancanti), che alimentano già gli stessi blocker
+  // `enforcement_missing_fields`/`enforcement_missing_docs` sopra ma non questo flag — una
+  // pratica poteva mostrare "Nessuna revisione in sospeso" con verifica autovelox ancora aperta.
+  const enforcementNeedsReview = caseRecord.enforcementDeviceCheck
+    ? caseRecord.enforcementDeviceCheck.needsHumanReview ||
+      countMissingRequiredDocuments(caseRecord.enforcementDeviceCheck.documentChecks) > 0
+    : false;
 
   const firstMessage = caseRecord.messages[0] ?? null;
   const lastMessage = caseRecord.messages[caseRecord.messages.length - 1] ?? null;
@@ -198,7 +219,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
             statusOptions={statusOptions}
             assignedToId={caseRecord.assignedToId}
             assigneeOptions={assigneeOptions}
-            nextDeadlineAt={nextDeadline?.dueAt ?? null}
+            nextDeadlineAt={nextDeadline?.dueAt ?? fallbackAppealDueAt}
+            nextDeadlineProvisional={fallbackAppealDueAt !== null}
             otherDeadlines={otherDeadlines}
             amountFormatted={formatCurrency(amount)}
           />
@@ -307,6 +329,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           driverName={fieldsByKey.get("driver_name")?.value ?? null}
           secondaryCategories={caseRecord.secondaryCategories}
           needsHumanReview={caseRecord.needsHumanReview}
+          enforcementNeedsReview={enforcementNeedsReview}
         />
       </div>
     </div>

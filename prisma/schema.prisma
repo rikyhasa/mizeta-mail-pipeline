@@ -111,6 +111,11 @@ enum AttachmentExtractionStatus {
    * pulito e distinto da FAILED: non un errore di parsing, un formato mai stato supportato,
    * segnalato esplicitamente per la conversione manuale (FASE 10). */
   UNSUPPORTED_FORMAT
+  /** PDF a bassa densità testuale: il livello locale ha comunque prodotto del testo (usabile,
+   * non buttato via) ma il fallback visione è stato rinviato per budget esaurito — distinto da
+   * SUCCEEDED perché la visione non è mai stata eseguita e resta da riprovare (FASE 12, Bug 1:
+   * senza questo stato il job di retry non selezionava mai questi allegati). */
+  PARTIAL_VISION_DEFERRED
 }
 
 enum DeadlineKind {

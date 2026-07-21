@@ -1,10 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { classifyFieldTier } from "@/app/(app)/pratiche/[id]/_components/field-tiers";
-import { ENFORCEMENT_DOCUMENT_TYPE_LABELS } from "@/lib/i18n/labels";
+import { countMissingRequiredDocuments } from "@/lib/cases/enforcement-documents";
 import { isNotificationDateUnconfirmed } from "@/lib/appeal-indicator/resolve-for-case";
 import type { EnforcementCheckApplicability } from "@/generated/prisma/enums";
-
-const ENFORCEMENT_DOCUMENT_TYPE_COUNT = Object.keys(ENFORCEMENT_DOCUMENT_TYPE_LABELS).length;
 
 /** Stesso valore già usato in ExtractedFieldCell.tsx (70%), non un nuovo numero inventato. */
 const LOW_CONFIDENCE_THRESHOLD = 0.7;
@@ -27,7 +25,7 @@ export type CaseBlockerKind =
 
 /**
  * Priorità di visualizzazione (numero più basso = mostrato per primo in "Prossima azione", che
- * usa solo `blockers[0]`): fino a questa modifica l'ordine era implicitamente quello di
+ * usa solo `blockers[0]`): fino a una modifica precedente l'ordine era implicitamente quello di
  * inserimento in `deriveCaseBlockers`, che metteva sempre i blocker autovelox in coda — per una
  * pratica FINE_OR_PENALTY con dati generici ancora da confermare (praticamente ogni pratica
  * appena arrivata), il blocker specifico "Identifica il dispositivo"/"Conferma i dati del
@@ -37,19 +35,26 @@ export type CaseBlockerKind =
  * `no_assignee` è retrocesso deliberatamente: sapere COSA manca è più utile di sapere CHI deve
  * occuparsene, ed è quasi sempre vero per una pratica appena arrivata (rischiava di vincere ogni
  * volta per pura frequenza, non per rilevanza).
+ *
+ * Ogni `CaseBlockerKind` ha un valore univoco (FASE 12, Bug 5): prima alcuni kind condividevano
+ * lo stesso numero e il pareggio si risolveva solo perché `Array.prototype.sort` è stabile e
+ * l'ordine di inserimento sopra li discriminava implicitamente — corretto ma non dichiarato come
+ * contratto, quindi fragile a un futuro riordino dei `push` in `deriveCaseBlockers`. I valori qui
+ * sotto riproducono esattamente l'ordine già in vigore, ma come regola esplicita e stabile nel
+ * tempo, non più un effetto collaterale della stabilità di `sort`.
  */
 const BLOCKER_PRIORITY: Record<CaseBlockerKind, number> = {
   enforcement_identify: 0,
   missing_fields: 1,
-  needs_review: 1,
-  enforcement_missing_fields: 1,
-  notification_date_unconfirmed: 1,
-  low_confidence: 2,
-  anomaly: 2,
-  enforcement_missing_docs: 2,
-  security_flags: 3,
-  no_assignee: 4,
-  pending_relations: 5,
+  needs_review: 2,
+  enforcement_missing_fields: 3,
+  notification_date_unconfirmed: 4,
+  low_confidence: 5,
+  anomaly: 6,
+  enforcement_missing_docs: 7,
+  security_flags: 8,
+  no_assignee: 9,
+  pending_relations: 10,
 };
 
 export interface CaseBlockerReason {
@@ -139,8 +144,9 @@ export function deriveCaseBlockers(input: CaseBlockerInput): CaseBlockerReason[]
   if (input.notificationDateUnconfirmed) {
     blockers.push({ text: "Data di notifica da confermare", href: "#dati-estratti", kind: "notification_date_unconfirmed" });
   }
-  // `sort` è stabile (garanzia ES2019+): a parità di priorità l'ordine di inserimento sopra resta
-  // invariato — nessun cambiamento per i test che verificano solo un blocker alla volta.
+  // Nessun pareggio possibile: ogni kind ha una priorità univoca (vedi commento su
+  // BLOCKER_PRIORITY), quindi l'ordine risultante non dipende dalla stabilità di `sort` né
+  // dall'ordine dei `push` sopra.
   return blockers.sort((a, b) => BLOCKER_PRIORITY[a.kind] - BLOCKER_PRIORITY[b.kind]);
 }
 
@@ -164,7 +170,7 @@ export async function getCaseBlockers(caseId: string): Promise<CaseBlockerReason
         select: {
           applicability: true,
           needsHumanReview: true,
-          documentChecks: { select: { status: true } },
+          documentChecks: { select: { documentType: true, status: true } },
         },
       },
     },
@@ -189,8 +195,7 @@ export async function getCaseBlockers(caseId: string): Promise<CaseBlockerReason
       ? {
           applicability: caseRecord.enforcementDeviceCheck.applicability,
           needsHumanReview: caseRecord.enforcementDeviceCheck.needsHumanReview,
-          missingDocumentCount:
-            ENFORCEMENT_DOCUMENT_TYPE_COUNT - caseRecord.enforcementDeviceCheck.documentChecks.filter((d) => d.status === "PRESENT").length,
+          missingDocumentCount: countMissingRequiredDocuments(caseRecord.enforcementDeviceCheck.documentChecks),
         }
       : null,
     notificationDateUnconfirmed: isNotificationDateUnconfirmed(caseRecord.fields),

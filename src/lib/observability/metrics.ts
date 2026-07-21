@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { PENDING_VISION_STATUSES } from "@/lib/attachments/extract-message-attachments";
 
 export interface JobStatusCounts {
   PENDING: number;
@@ -195,7 +196,7 @@ export async function getObservabilitySnapshot(): Promise<ObservabilitySnapshot>
     getManualCorrectionWindowSummary(since7d),
     getAttachmentExtractionWindowSummary(since24h),
     getAttachmentExtractionWindowSummary(since7d),
-    prisma.attachment.count({ where: { extractionStatus: "DEFERRED_BUDGET" } }),
+    prisma.attachment.count({ where: { extractionStatus: { in: [...PENDING_VISION_STATUSES] } } }),
   ]);
 
   return {

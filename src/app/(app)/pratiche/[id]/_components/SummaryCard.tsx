@@ -28,6 +28,7 @@ export function SummaryCard({
   assignedToId,
   assigneeOptions,
   nextDeadlineAt,
+  nextDeadlineProvisional = false,
   otherDeadlines,
   amountFormatted,
 }: {
@@ -40,6 +41,10 @@ export function SummaryCard({
   assignedToId: string | null;
   assigneeOptions: { value: string; label: string }[];
   nextDeadlineAt: Date | null;
+  /** true quando la scadenza è stimata da `notification_date` (fallback dell'indicatore ricorso,
+   * FASE 12 Bug 4), non un termine estratto dal verbale — mai mostrare una data "nuda" che sembri
+   * confermata in questo caso (FASE 11 punto A3, stessa etichetta di AppealIndicatorCard). */
+  nextDeadlineProvisional?: boolean;
   otherDeadlines: DeadlineData[];
   amountFormatted: string;
 }) {
@@ -60,7 +65,12 @@ export function SummaryCard({
         />
         <div>
           <span className="detail-label">Scadenza</span>
-          <div className="detail-value">{nextDeadlineAt ? formatDate(nextDeadlineAt) : "Nessuna scadenza"}</div>
+          <div className="detail-value">
+            {nextDeadlineAt ? formatDate(nextDeadlineAt) : "Nessuna scadenza"}
+            {nextDeadlineAt && nextDeadlineProvisional && (
+              <span className="ml-1.5 text-xs font-normal text-[var(--color-ink-muted)]">(provvisoria)</span>
+            )}
+          </div>
         </div>
         <div>
           <span className="detail-label">Importo</span>

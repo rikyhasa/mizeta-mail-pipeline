@@ -2,10 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { withPermission } from "@/lib/auth/route-helpers";
 import { writeAuditLog } from "@/lib/pipeline/audit";
 import { createEnforcementDocumentRequestDraft } from "@/lib/pipeline/create-enforcement-document-request-draft";
-import { ENFORCEMENT_DOCUMENT_TYPE_LABELS } from "@/lib/i18n/labels";
-import type { EnforcementDocumentType } from "@/generated/prisma/enums";
-
-const ALL_DOCUMENT_TYPES = Object.keys(ENFORCEMENT_DOCUMENT_TYPE_LABELS) as EnforcementDocumentType[];
+import { REQUIRED_ENFORCEMENT_DOCUMENT_TYPES } from "@/lib/cases/enforcement-documents";
 
 /**
  * "Richiedi documentazione" (docs/SPEC-AUTOVELOX-DRAFT.md §8): genera una bozza `EmailDraft`
@@ -22,7 +19,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     }
 
     const presentTypes = new Set(check.documentChecks.filter((d) => d.status === "PRESENT").map((d) => d.documentType));
-    const missingTypes = ALL_DOCUMENT_TYPES.filter((t) => !presentTypes.has(t));
+    // Mai OTHER: catch-all facoltativo, non richiesto esplicitamente in bozza (FASE 12, Bug 3).
+    const missingTypes = REQUIRED_ENFORCEMENT_DOCUMENT_TYPES.filter((t) => !presentTypes.has(t));
     if (missingTypes.length === 0) {
       return Response.json({ error: "Nessun documento mancante da richiedere" }, { status: 422 });
     }

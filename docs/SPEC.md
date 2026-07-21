@@ -303,9 +303,11 @@ Mai segreti o token.
 Provider email e stato connessione; ultima sincronizzazione; stato webhook/polling PEC;
 soglia minima di confidenza; soglie economiche; retention; categorie abilitate; utenti e
 ruoli; regole di assegnazione; modelli di risposta; reparto predefinito per categoria;
-modalità mock; test connessione; sincronizzazione manuale controllata; budget massimo
-giornaliero per l'estrazione visione degli allegati (FASE 10, superato il budget gli allegati
-restano in coda con stato "estrazione rinviata", mai persi silenziosamente).
+modalità mock; test connessione; sincronizzazione manuale controllata; soglia di spesa
+giornaliera per l'estrazione visione degli allegati (FASE 10) — soglia operativa, non un
+tetto rigido: la spesa non viene riservata prima della singola chiamata, quindi l'ultima
+chiamata del giorno può superarla del proprio costo (FASE 12, Bug 2); raggiunta la soglia
+gli allegati restano in coda con stato "estrazione rinviata", mai persi silenziosamente.
 
 Parametri dell'indicatore ricorso (§10bis): contributo unificato (soglia,
 valore basso/alto), marca da bollo, costo interno di gestione pratica, valore

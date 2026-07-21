@@ -127,7 +127,7 @@ export function AutomationSettingsForm({ settings }: { settings: RuleSettingsDat
 
       <WorkPanel
         title="Estrazione allegati"
-        description="Budget massimo giornaliero per l'estrazione visione (livello 3, scansioni e foto). Superato il budget, gli allegati restano in coda con stato «estrazione rinviata»."
+        description="Soglia di spesa giornaliera indicativa (non un tetto rigido: l'ultima chiamata del giorno può superarla del proprio costo) per l'estrazione visione (livello 3, scansioni e foto). Raggiunta la soglia, gli allegati restano in coda con stato «estrazione rinviata» e vengono ripresi automaticamente."
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {numberField("visionExtractionDailyBudgetUsd", "Budget giornaliero estrazione visione (USD)", 0.5, 0)}

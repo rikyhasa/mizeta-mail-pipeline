@@ -30,6 +30,7 @@ export function DetailSidebar({
   driverName,
   secondaryCategories,
   needsHumanReview,
+  enforcementNeedsReview,
 }: {
   caseId: string;
   isOpenCase: boolean;
@@ -51,6 +52,9 @@ export function DetailSidebar({
   driverName: string | null;
   secondaryCategories: CaseCategory[];
   needsHumanReview: boolean;
+  /** Item enforcement pendenti (dispositivo da confermare o documenti tecnici mancanti) — non
+   * inclusi in `needsHumanReview` (FASE 12, Bug 6). */
+  enforcementNeedsReview: boolean;
 }) {
   return (
     <div className="flex flex-col gap-4 print:hidden lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
@@ -73,6 +77,7 @@ export function DetailSidebar({
         driverName={driverName}
         secondaryCategories={secondaryCategories}
         needsHumanReview={needsHumanReview}
+        enforcementNeedsReview={enforcementNeedsReview}
       />
     </div>
   );

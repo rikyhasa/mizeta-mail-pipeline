@@ -6,6 +6,7 @@ import { runWorkerOnce } from "@/lib/jobs/worker";
 import { extractAttachmentsIdempotencyKey, processIncomingMessageIdempotencyKey } from "@/lib/jobs/types";
 import { retryDeferredAttachmentExtractions } from "@/lib/attachments/extract-message-attachments";
 import { getRuleSettings, invalidateRuleSettingsCache, updateRuleSettings } from "@/lib/rules/settings-repository";
+import { buildMinimalPdf } from "../helpers/build-minimal-pdf";
 
 /**
  * Job `EXTRACT_ATTACHMENTS`/`RETRY_DEFERRED_ATTACHMENT_EXTRACTIONS` (FASE 10,
@@ -244,6 +245,68 @@ describe("Job di estrazione allegati", () => {
         where: { idempotencyKey: processIncomingMessageIdempotencyKey(messageId), status: "PENDING" },
       });
       expect(reprocessJob).toBeTruthy();
+      if (reprocessJob) {
+        createdJobIds.push(reprocessJob.id);
+        await drainQueue();
+      }
+    } finally {
+      await updateRuleSettings({ visionExtractionDailyBudgetUsd: settingsBefore.visionExtractionDailyBudgetUsd }, adminUserId);
+    }
+  });
+
+  it("FASE 12, Bug 1 — PDF a bassa densità con visione rinviata per budget: PARTIAL_VISION_DEFERRED, mai SUCCEEDED (il retry deve poterlo riprendere)", async () => {
+    await drainQueue();
+    await ensureMailbox();
+    const settingsBefore = await getRuleSettings();
+
+    const pdf = buildMinimalPdf(["x"]); // pochissimo testo reale: needsVisionFallback = true
+    const { messageId, attachmentId } = await createMessageWithAttachment({
+      providerMessageId: "EXTRACT-JOB-PARTIAL-1",
+      fileName: "scansione.pdf",
+      mimeType: "application/pdf",
+      content: pdf,
+    });
+
+    try {
+      await updateRuleSettings({ visionExtractionDailyBudgetUsd: 0 }, adminUserId);
+
+      const { jobId } = await enqueueJob({
+        type: "EXTRACT_ATTACHMENTS",
+        payload: { emailMessageId: messageId },
+        idempotencyKey: extractAttachmentsIdempotencyKey(messageId),
+      });
+      createdJobIds.push(jobId);
+      await drainQueue();
+
+      const reloaded = await prisma.attachment.findUniqueOrThrow({ where: { id: attachmentId } });
+      // Prima del fix: qui l'attachment risultava SUCCEEDED (il testo locale scarso mascherava la
+      // visione mai eseguita) e il job di retry non lo selezionava mai più.
+      expect(reloaded.extractionStatus).toBe("PARTIAL_VISION_DEFERRED");
+      expect(reloaded.extractionStatus).not.toBe("SUCCEEDED");
+      expect(reloaded.isReadable).toBe(true); // il testo locale, per quanto scarso, resta usabile
+      expect(reloaded.extractionMethod).toBe("LOCAL_TEXT");
+      expect(reloaded.pageCount).toBe(1);
+      expect(reloaded.extractedPages).toEqual([{ page: 1, text: "x" }]);
+      expect(reloaded.extractionError).toMatch(/budget/i);
+
+      const chainedJob = await prisma.job.findUniqueOrThrow({ where: { idempotencyKey: processIncomingMessageIdempotencyKey(messageId) } });
+      createdJobIds.push(chainedJob.id);
+      expect(chainedJob.status).toBe("SUCCEEDED");
+      await trackCaseFor(messageId);
+
+      // Ripristinato il budget, il retry ricorrente deve selezionare anche PARTIAL_VISION_DEFERRED
+      // (non solo DEFERRED_BUDGET) e completare la visione.
+      await updateRuleSettings({ visionExtractionDailyBudgetUsd: settingsBefore.visionExtractionDailyBudgetUsd }, adminUserId);
+      const { resolvedMessageIds } = await retryDeferredAttachmentExtractions();
+      expect(resolvedMessageIds).toContain(messageId);
+
+      const afterRetry = await prisma.attachment.findUniqueOrThrow({ where: { id: attachmentId } });
+      expect(afterRetry.extractionStatus).toBe("SUCCEEDED");
+      expect(afterRetry.extractionMethod).toBe("VISION");
+
+      const reprocessJob = await prisma.job.findFirst({
+        where: { idempotencyKey: processIncomingMessageIdempotencyKey(messageId), status: "PENDING" },
+      });
       if (reprocessJob) {
         createdJobIds.push(reprocessJob.id);
         await drainQueue();
