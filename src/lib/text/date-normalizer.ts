@@ -14,6 +14,10 @@ export interface DateNormalizerContext {
   referenceIso: string;
 }
 
+// Include le forme tedesche e francesi oltre a quelle italiane: nomi lessicalmente distinti fra
+// le tre lingue, un'unica mappa basta e non richiede sapere la lingua dell'email in anticipo
+// (FASE 10b, docs/FASE-10-LETTURA-ALLEGATI.md — Mizeta riceve occasionalmente fatture/comunicazioni
+// da fornitori tedeschi e francesi; niente formato USA, mai richiesto da questo bacino di posta).
 const MONTH_NAMES: Record<string, number> = {
   gennaio: 1,
   gen: 1,
@@ -31,22 +35,64 @@ const MONTH_NAMES: Record<string, number> = {
   lug: 7,
   agosto: 8,
   ago: 8,
-  settembre: 9,
+  settembre: 9, // condiviso con il francese "settembre" (stessa grafia)
   set: 9,
   ottobre: 10,
   ott: 10,
-  novembre: 11,
+  novembre: 11, // condiviso con il francese "novembre" (stessa grafia)
   nov: 11,
   dicembre: 12,
   dic: 12,
+  // Tedesco
+  januar: 1,
+  jan: 1,
+  februar: 2,
+  märz: 3,
+  april: 4,
+  mai: 5, // condiviso con il francese "mai" (stesso mese, stessa grafia)
+  juni: 6,
+  juli: 7,
+  august: 8,
+  aug: 8,
+  september: 9,
+  sep: 9,
+  oktober: 10,
+  okt: 10,
+  november: 11,
+  dezember: 12,
+  dez: 12,
+  // Francese
+  janvier: 1,
+  janv: 1,
+  février: 2,
+  févr: 2,
+  mars: 3,
+  avril: 4,
+  avr: 4,
+  juin: 6,
+  juillet: 7,
+  juil: 7,
+  août: 8,
+  octobre: 10,
+  oct: 10,
+  décembre: 12,
+  déc: 12,
 };
 
-const DATE_ABSOLUTE_NUMERIC_REGEX = /\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b/;
+// Il punto è un separatore di data valido in tedesco ("17.07.2026"): nessuna sovrapposizione
+// reale con DATE_ISO_REGEX (che richiede l'ordine aaaa-mm-gg con '-') né con un importo, perché
+// il gruppo finale è vincolato a esattamente 4 cifre e i primi due a 1-2 cifre — un importo con
+// punto come separatore delle migliaia (es. "1.500,00", "1.500.000") non rispetta questa forma
+// (verificato in tests/unit/text/date-normalizer.test.ts).
+const DATE_ABSOLUTE_NUMERIC_REGEX = /\b(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})\b/;
 // Nessun \b finale: un datetime ISO completo ("2026-07-28T00:00:00.000Z") ha "T" subito dopo
 // il giorno, e "T" è un carattere di parola come le cifre — non c'è transizione di \b fra loro,
 // quindi \b\d{4}-\d{2}-\d{2}\b non troverebbe mai una data dentro un datetime completo.
 const DATE_ISO_REGEX = /\b(\d{4})-(\d{2})-(\d{2})/;
-const DATE_NAMED_MONTH_REGEX = /\b(\d{1,2})[\s/-]+([A-Za-zàèéìòù]{3,9})[\s/-]+(\d{4})\b/i;
+// Separatore giorno/mese esteso a '.' per il formato tedesco ("17. Juli 2026"). Classe di
+// lettere estesa con gli accenti tedeschi/francesi usati in MONTH_NAMES (ä di "März", û di
+// "août") oltre a quelli italiani già presenti.
+const DATE_NAMED_MONTH_REGEX = /\b(\d{1,2})[\s/.-]+([A-Za-zàèéìòùäöüûÄÖÜÛ]{3,9})[\s/.-]+(\d{4})\b/i;
 // "entro"/"tra" opzionali: il modello a volte scrive l'excerpt del campo data già ritagliato
 // dal resto della frase (es. "5 giorni lavorativi dalla notifica" invece di "pagabile entro 5
 // giorni lavorativi dalla notifica"), pur seguendo l'istruzione di non calcolare la data lui

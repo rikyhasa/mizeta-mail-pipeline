@@ -11,12 +11,21 @@ export interface TextMatch<T> {
   index: number;
 }
 
-// Alternativa 1: numero con separatore delle migliaia esplicito ("1.200,00", "3.400,00", "40.000").
-// Alternativa 2: cifre consecutive senza separatore delle migliaia, con decimali opzionali
-// ("1200.00", "980,00", "121"). Senza questa seconda alternativa, un numero a 4+ cifre scritto
-// come "1200.00" (comune negli allegati sintetici, formato inglese) veniva troncato a "120".
-const AMOUNT_REGEX = /(?:€\s*)?(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:€|EUR)?/g;
-const DATE_IT_REGEX = /\b(\d{1,2})\/(\d{1,2})\/(\d{4})\b/g;
+// Alternativa 1: numero con separatore delle migliaia esplicito ("1.200,00", "3.400,00", "40.000",
+// "1 500,00" — lo spazio, incluso il non-breaking U+00A0 già incluso in \s per lo standard
+// ECMAScript, è il separatore delle migliaia in formato francese, FASE 10b). Il separatore
+// decimale finale resta solo punto o virgola: uno spazio prima dei decimali non è mai un formato
+// reale in nessuna delle lingue coperte. Alternativa 2: cifre consecutive senza separatore delle
+// migliaia, con decimali opzionali ("1200.00", "980,00", "121"). Senza questa seconda
+// alternativa, un numero a 4+ cifre scritto come "1200.00" (comune negli allegati sintetici,
+// formato inglese) veniva troncato a "120".
+const AMOUNT_REGEX = /(?:€\s*)?(\d{1,3}(?:[.,\s]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:€|EUR)?/g;
+// Il punto è aggiunto come separatore valido (formato tedesco "17.07.2026", FASE 10b) accanto
+// allo slash italiano/francese: nessun rischio di confondere un importo con punto come
+// separatore delle migliaia ("1.500,00", "1.500.000") con una data, per lo stesso motivo
+// strutturale di DATE_ABSOLUTE_NUMERIC_REGEX in date-normalizer.ts (gruppo finale vincolato a
+// esattamente 4 cifre, i primi due a 1-2 cifre) — verificato in tests/unit/text/patterns.test.ts.
+const DATE_IT_REGEX = /\b(\d{1,2})[/.](\d{1,2})[/.](\d{4})\b/g;
 const PLATE_REGEX = /\b[A-Z]{2}\d{3}[A-Z]{2}\b/g;
 const IBAN_REGEX = /\bIT\d{2}[A-Z]\d{10}[A-Z0-9]{12}\b/gi;
 const VAT_NUMBER_REGEX = /\b(?:p\.?\s?iva|partita\s+iva)\D{0,10}(\d{11})\b/i;

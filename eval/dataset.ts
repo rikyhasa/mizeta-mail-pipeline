@@ -1,4 +1,4 @@
-import type { CaseCategory } from "@/generated/prisma/enums";
+import type { CaseCategory, EnforcementCheckApplicability } from "@/generated/prisma/enums";
 
 /**
  * Dataset di valutazione (SPEC.md §18): expected output per ciascuna delle fixture del seed.
@@ -17,6 +17,11 @@ export interface EvalExpectation {
   expectedPossibleDuplicate?: boolean;
   expectedAmountField?: { fieldKey: string; value: number; toleranceAbsolute?: number };
   expectedDeadlineField?: { fieldKey: string; isoDate: string | null };
+  /** Applicabilità attesa del modulo verifica autovelox (docs/SPEC-AUTOVELOX-DRAFT.md §4), solo
+   * per fixture FINE_OR_PENALTY: guardia di regressione sui rami di
+   * `analyzeEnforcementDeviceHeuristically`, non una misura di generalizzazione (le fixture che
+   * la valorizzano sono già scritte per esercitare esattamente quel ramo). */
+  expectedApplicability?: EnforcementCheckApplicability;
   isPecReceipt?: boolean;
   notes?: string;
   /** Fixture "held-out" (Fase 5): mai ispezionata né usata per calibrare prompt/normalizzatore
@@ -88,7 +93,13 @@ export const EVAL_DATASET: EvalExpectation[] = [
     notes: "multa con termine ridotto vicino alla scadenza: deve risultare CRITICAL",
   },
   { fixtureId: "EML-016", acceptablePrimaryCategories: ["FINE_OR_PENALTY"], isPecReceipt: true, notes: "ricevuta di consegna PEC di EML-015" },
-  { fixtureId: "EML-017", acceptablePrimaryCategories: ["FINE_OR_PENALTY"], expectedIsUrgent: false, notes: "multa ordinaria non urgente" },
+  {
+    fixtureId: "EML-017",
+    acceptablePrimaryCategories: ["FINE_OR_PENALTY"],
+    expectedIsUrgent: false,
+    expectedApplicability: "NOT_APPLICABLE",
+    notes: "multa ordinaria non urgente (sosta vietata: non legata alla velocità)",
+  },
   {
     fixtureId: "EML-018",
     acceptablePrimaryCategories: ["CLAIM_OR_DAMAGE"],
@@ -240,5 +251,70 @@ export const EVAL_DATASET: EvalExpectation[] = [
     expectedNeedsHumanReview: true,
     heldOut: true,
     notes: "held-out: caso limite di segnale debole, strutturalmente diverso dal terzetto di tuning EML-037/038/039",
+  },
+
+  // --- Scenari modulo autovelox (EML-045..EML-050, FASE E Tappa 7 / FASE 10b): coprono i rami
+  // principali di analyzeEnforcementDeviceHeuristically. Guardia di regressione sui rami già
+  // esercitati dalle fixture (expectedApplicability), non una misura di generalizzazione. ---
+  {
+    fixtureId: "EML-045",
+    acceptablePrimaryCategories: ["FINE_OR_PENALTY"],
+    expectedApplicability: "SPEED_CAMERA_FIXED",
+    notes: "autovelox fisso con dati tecnici completi (produttore, matricola, decreto)",
+  },
+  {
+    fixtureId: "EML-046",
+    acceptablePrimaryCategories: ["FINE_OR_PENALTY"],
+    expectedApplicability: "SPEED_CAMERA_MOBILE",
+    notes: "autovelox mobile senza dati tecnici nel testo",
+  },
+  {
+    fixtureId: "EML-047",
+    acceptablePrimaryCategories: ["FINE_OR_PENALTY"],
+    expectedApplicability: "AVERAGE_SPEED_CONTROL",
+    notes: "controllo velocità media (Tutor) senza dati tecnici",
+  },
+  {
+    fixtureId: "EML-048",
+    acceptablePrimaryCategories: ["FINE_OR_PENALTY"],
+    expectedApplicability: "TELELASER",
+    notes: "telelaser",
+  },
+  {
+    fixtureId: "EML-049",
+    acceptablePrimaryCategories: ["FINE_OR_PENALTY"],
+    expectedApplicability: "TO_BE_IDENTIFIED",
+    notes: "violazione di velocità senza alcun dispositivo nominato: mai NOT_APPLICABLE per un dispositivo non identificabile (CLAUDE.md invariante 9)",
+  },
+  {
+    fixtureId: "EML-050",
+    acceptablePrimaryCategories: ["FINE_OR_PENALTY"],
+    expectedApplicability: "SPEED_CAMERA_FIXED",
+    notes: "scenario integrato completo (dispositivo identificato + notification_date + punti)",
+  },
+
+  // --- Fixture multilingua (EML-051..053, FASE 10b): normalizzatore date/importi deterministico
+  // su fatture fornitore in tedesco, francese e inglese — vedi prisma/seed-data/emails.ts per il
+  // dettaglio di cosa ciascuna verifica. ---
+  {
+    fixtureId: "EML-051",
+    acceptablePrimaryCategories: ["SUPPLIER_INVOICE"],
+    expectedAmountField: { fieldKey: "amount_total", value: 2450, toleranceAbsolute: 1 },
+    expectedDeadlineField: { fieldKey: "due_date", isoDate: "2026-07-26" },
+    notes: "fattura tedesca: data con punto come separatore (12.07.2026), importo già nel formato punto migliaia/virgola decimale",
+  },
+  {
+    fixtureId: "EML-052",
+    acceptablePrimaryCategories: ["SUPPLIER_INVOICE"],
+    expectedAmountField: { fieldKey: "amount_total", value: 1500, toleranceAbsolute: 1 },
+    expectedDeadlineField: { fieldKey: "due_date", isoDate: "2026-07-26" },
+    notes: "fattura francese: importo con spazio come separatore delle migliaia (1 500,00)",
+  },
+  {
+    fixtureId: "EML-053",
+    acceptablePrimaryCategories: ["SUPPLIER_INVOICE"],
+    expectedAmountField: { fieldKey: "amount_total", value: 1500, toleranceAbsolute: 1 },
+    expectedDeadlineField: { fieldKey: "due_date", isoDate: "2026-07-29" },
+    notes: "fattura inglese per completezza: date e importo scelti apposta per essere non ambigui (giorno > 12, nessun separatore delle migliaia)",
   },
 ];

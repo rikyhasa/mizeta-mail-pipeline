@@ -22,6 +22,9 @@ async function main() {
   console.log(`Recall duplicati: ${(metrics.duplicateRecall * 100).toFixed(1)}%`);
   console.log(`Falsi positivi duplicati: ${metrics.duplicateFalsePositives}`);
   console.log(`Recall security flags: ${(metrics.securityFlagsRecall * 100).toFixed(1)}%`);
+  console.log(
+    `Accuratezza applicabilità dispositivo autovelox (guardia di regressione): ${(metrics.enforcementDeviceApplicabilityAccuracy * 100).toFixed(1)}%`,
+  );
   console.log(`\nReport completo: docs/eval-report.md`);
 }
 

@@ -8,6 +8,9 @@ import { truncateAtWordBoundary } from "@/lib/format";
 interface CategoryKeywords {
   it: string[];
   en: string[];
+  /** Sinonimi aggiuntivi solo per le categorie con fixture multilingua mirate (FASE 10b,
+   * EML-051/052 tedesco/francese) — non una copertura multilingua generale del classificatore. */
+  other?: string[];
 }
 
 const CATEGORY_KEYWORDS: Record<CaseCategory, CategoryKeywords> = {
@@ -22,6 +25,7 @@ const CATEGORY_KEYWORDS: Record<CaseCategory, CategoryKeywords> = {
   SUPPLIER_INVOICE: {
     it: ["si allega fattura", "in allegato la fattura", "invio fattura", "invio la fattura", "trasmettiamo fattura", "imponibile"],
     en: ["please find attached invoice", "attached invoice"],
+    other: ["anbei erhalten sie die rechnung", "veuillez trouver ci-joint la facture"],
   },
   CUSTOMER_RECEIVABLE: {
     it: ["sollecito", "risulta ancora aperta", "risulta ancora da saldare", "risulta già pagata", "risulta ancora insoluta", "promessa di pagamento", "pagheremo entro"],
@@ -81,7 +85,7 @@ export function scoreCategories(subject: string, body: string): CategoryScore[] 
   const bodyLower = body.toLowerCase();
 
   const scores: CategoryScore[] = CASE_CATEGORY_VALUES.filter((c) => c !== "UNCERTAIN").map((category) => {
-    const keywords = [...CATEGORY_KEYWORDS[category].it, ...CATEGORY_KEYWORDS[category].en];
+    const keywords = [...CATEGORY_KEYWORDS[category].it, ...CATEGORY_KEYWORDS[category].en, ...(CATEGORY_KEYWORDS[category].other ?? [])];
     let score = 0;
     for (const keyword of keywords) {
       score += countOccurrences(subjectLower, keyword) * 2;

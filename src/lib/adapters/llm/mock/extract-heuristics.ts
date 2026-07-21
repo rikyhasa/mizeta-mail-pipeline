@@ -300,13 +300,21 @@ function extractTransportOrder(segments: Segment[]): TransportOrderExtraction {
   };
 }
 
+// Sinonimi DE/EN/FR aggiunti solo per i campi esercitati dalle fixture multilingua EML-051/052/053
+// (FASE 10b, verifica del normalizzatore date/importi su fatture fornitore estere) — stesso
+// pattern a dizionario di CATEGORY_KEYWORDS in classify-heuristics.ts, non una copertura
+// multilingua generale del motore mock: le altre categorie/anchor restano solo italiani.
+const SUPPLIER_INVOICE_DATE_ANCHORS = ["fattura del", "data fattura", "rechnungsdatum", "date de facture", "invoice date"];
+const SUPPLIER_INVOICE_DUE_DATE_ANCHORS = ["scadenza", "fällig am", "échéance", "due date"];
+const SUPPLIER_INVOICE_TOTAL_ANCHORS = ["totale", "gesamtbetrag", "montant total", "total"];
+
 function extractSupplierInvoice(segments: Segment[]): SupplierInvoiceExtraction {
   const invoiceNumber = findAnyInvoiceNumber(segments);
-  const invoiceDate = findDateNear(segments, ["fattura del", "data fattura"]) ?? findAnyDate(segments);
+  const invoiceDate = findDateNear(segments, SUPPLIER_INVOICE_DATE_ANCHORS) ?? findAnyDate(segments);
   const netAmount = findAmountNear(segments, ["imponibile"]);
   const vatAmount = findAmountNear(segments, ["iva"]);
-  const totalAmount = findAmountNear(segments, ["totale"]);
-  const dueDate = findDateNear(segments, ["scadenza"]);
+  const totalAmount = findAmountNear(segments, SUPPLIER_INVOICE_TOTAL_ANCHORS);
+  const dueDate = findDateNear(segments, SUPPLIER_INVOICE_DUE_DATE_ANCHORS);
   const iban = findAnyIban(segments);
   const orderNumber = findAnyOrderNumber(segments);
   const plate = findAnyPlate(segments);

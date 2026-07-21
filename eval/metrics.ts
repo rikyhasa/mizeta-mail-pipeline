@@ -1,4 +1,4 @@
-import type { CaseCategory, CasePriority } from "@/generated/prisma/enums";
+import type { CaseCategory, CasePriority, EnforcementCheckApplicability } from "@/generated/prisma/enums";
 import { normalizeDateExpression } from "@/lib/text/date-normalizer";
 import type { EvalExpectation } from "./dataset";
 
@@ -16,6 +16,9 @@ export interface EvalRecord {
    * `expectedDeadlineField.isoDate` (sempre ISO) non potrebbe mai avere successo su un formato
    * italiano o relativo. */
   receivedAt: string;
+  /** Applicabilità del modulo verifica autovelox (docs/SPEC-AUTOVELOX-DRAFT.md §4), `null` se
+   * non calcolata (categoria diversa da FINE_OR_PENALTY o estrazione non riuscita). */
+  enforcementDeviceApplicability: EnforcementCheckApplicability | null;
 }
 
 export interface EvalMetrics {
@@ -28,6 +31,10 @@ export interface EvalMetrics {
   duplicateRecall: number;
   duplicateFalsePositives: number;
   securityFlagsRecall: number;
+  /** Guardia di regressione sui rami di `analyzeEnforcementDeviceHeuristically` già esercitati
+   * dalle fixture con `expectedApplicability` — non una misura di generalizzazione su testo
+   * nuovo (FASE 10b). */
+  enforcementDeviceApplicabilityAccuracy: number;
   perFixture: { fixtureId: string; categoryOk: boolean; notes?: string }[];
 }
 
@@ -54,6 +61,8 @@ export function computeMetrics(records: EvalRecord[], dataset: EvalExpectation[]
   let securityExpectedTotal = 0;
   let securityCorrect = 0;
   let needsReviewCount = 0;
+  let applicabilityChecks = 0;
+  let applicabilityCorrect = 0;
 
   for (const expectation of dataset) {
     const record = byId.get(expectation.fixtureId);
@@ -115,6 +124,11 @@ export function computeMetrics(records: EvalRecord[], dataset: EvalExpectation[]
       if (record.securityFlags.length > 0) securityCorrect += 1;
     }
 
+    if (expectation.expectedApplicability) {
+      applicabilityChecks += 1;
+      if (record.enforcementDeviceApplicability === expectation.expectedApplicability) applicabilityCorrect += 1;
+    }
+
     if (record.needsHumanReview) needsReviewCount += 1;
 
     perFixture.push({ fixtureId: expectation.fixtureId, categoryOk, notes: expectation.notes });
@@ -130,6 +144,7 @@ export function computeMetrics(records: EvalRecord[], dataset: EvalExpectation[]
     duplicateRecall: duplicateExpectedTotal > 0 ? duplicateCorrect / duplicateExpectedTotal : 1,
     duplicateFalsePositives,
     securityFlagsRecall: securityExpectedTotal > 0 ? securityCorrect / securityExpectedTotal : 1,
+    enforcementDeviceApplicabilityAccuracy: applicabilityChecks > 0 ? applicabilityCorrect / applicabilityChecks : 1,
     perFixture,
   };
 }

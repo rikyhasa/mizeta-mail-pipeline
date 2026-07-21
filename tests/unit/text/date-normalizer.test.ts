@@ -34,6 +34,32 @@ describe("normalizeDateExpression", () => {
     expect(normalizeDateExpression("17/lug/2026", REFERENCE)).toBe("2026-07-17");
   });
 
+  it("riconosce gg.mm.aaaa (formato tedesco)", () => {
+    expect(normalizeDateExpression("17.07.2026", REFERENCE)).toBe("2026-07-17");
+  });
+
+  it("riconosce il nome del mese in tedesco", () => {
+    expect(normalizeDateExpression("17. Juli 2026", REFERENCE)).toBe("2026-07-17");
+  });
+
+  it("riconosce il nome del mese in tedesco con umlaut (März)", () => {
+    expect(normalizeDateExpression("17. März 2026", { referenceIso: "2026-03-01T09:00:00+01:00" })).toBe("2026-03-17");
+  });
+
+  it("riconosce il nome del mese in francese", () => {
+    expect(normalizeDateExpression("17 juillet 2026", REFERENCE)).toBe("2026-07-17");
+  });
+
+  it("riconosce il nome del mese in francese con accento (août)", () => {
+    expect(normalizeDateExpression("17 août 2026", { referenceIso: "2026-08-01T09:00:00+02:00" })).toBe("2026-08-17");
+  });
+
+  it("NON interpreta un importo con punto come separatore delle migliaia come una data (guardia contro l'ampliamento del separatore '.')", () => {
+    expect(normalizeDateExpression("1.500,00", REFERENCE)).toBeNull();
+    expect(normalizeDateExpression("1.500.000", REFERENCE)).toBeNull();
+    expect(normalizeDateExpression("Totale: 1.500,00 EUR", REFERENCE)).toBeNull();
+  });
+
   it("risolve 'entro N giorni' come giorni di calendario rispetto al riferimento", () => {
     expect(normalizeDateExpression("entro 5 giorni", REFERENCE)).toBe("2026-07-14");
   });

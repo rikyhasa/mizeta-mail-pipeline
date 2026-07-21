@@ -1286,4 +1286,83 @@ export const SEED_EMAILS: SeedEmailFixture[] = [
       },
     ],
   },
+
+  // --- Fixture multilingua (EML-051..053, FASE 10b): verificano il normalizzatore
+  // deterministico date/importi (src/lib/text/date-normalizer.ts, src/lib/text/patterns.ts) su
+  // fatture fornitore in tedesco, francese e inglese. Niente rilevamento lingua né gestione
+  // dell'ambiguità mese/giorno in formato USA (fuori scope, posta USA sostanzialmente assente
+  // per Mizeta) — le date restano sempre giorno/mese, coerenti con IT/DE/FR.
+  {
+    id: "EML-051",
+    mailbox: "info",
+    threadKey: "thread-051",
+    caseKey: "case-051",
+    internetMessageId: "<051@autoteile-bayern.de>",
+    direction: "INBOUND",
+    from: { name: "Buchhaltung", address: "rechnungswesen@autoteile-bayern.de" },
+    to: ["info@mizeta.it"],
+    subject: "Rechnung FAT-DE-2026-4471",
+    bodyText:
+      "Sehr geehrte Damen und Herren,\n\nanbei erhalten Sie die Rechnung FAT-DE-2026-4471. " +
+      "Rechnungsdatum 12.07.2026. Gesamtbetrag 2.450,00 EUR. Fällig am 26.07.2026.\n\n" +
+      "Mit freundlichen Grüßen\nBuchhaltung",
+    receivedAt: "2026-07-12T10:00:00+02:00",
+    isPec: false,
+    language: "de",
+    category: "SUPPLIER_INVOICE",
+    priority: "NORMAL",
+    supplierName: "Autoteile Bayern GmbH",
+    hardCase:
+      "fattura fornitore tedesca: data con punto come separatore (12.07.2026) e importo già " +
+      "nel formato punto migliaia/virgola decimale (identico all'italiano, nessun guasto atteso)",
+  },
+  {
+    id: "EML-052",
+    mailbox: "info",
+    threadKey: "thread-052",
+    caseKey: "case-052",
+    internetMessageId: "<052@piecesauto-lyon.fr>",
+    direction: "INBOUND",
+    from: { name: "Service Comptabilité", address: "comptabilite@piecesauto-lyon.fr" },
+    to: ["info@mizeta.it"],
+    subject: "Facture FAT-FR-2026-2290",
+    bodyText:
+      "Madame, Monsieur,\n\nVeuillez trouver ci-joint la facture FAT-FR-2026-2290. " +
+      "Date de facture 12/07/2026. Montant total 1 500,00 EUR. Échéance 26/07/2026.\n\n" +
+      "Cordialement,\nService Comptabilité",
+    receivedAt: "2026-07-12T11:00:00+02:00",
+    isPec: false,
+    language: "fr",
+    category: "SUPPLIER_INVOICE",
+    priority: "NORMAL",
+    supplierName: "Pièces Auto Lyon SARL",
+    hardCase:
+      "fattura fornitore francese: data gg/mm già gestita, importo con spazio come separatore " +
+      "delle migliaia (1 500,00) — il guasto concreto corretto in questa fase",
+  },
+  {
+    id: "EML-053",
+    mailbox: "info",
+    threadKey: "thread-053",
+    caseKey: "case-053",
+    internetMessageId: "<053@northernfreightparts.co.uk>",
+    direction: "INBOUND",
+    from: { name: "Accounts Department", address: "accounts@northernfreightparts.co.uk" },
+    to: ["info@mizeta.it"],
+    subject: "Invoice FAT-EN-2026-0087",
+    bodyText:
+      "Dear Sir or Madam,\n\nPlease find attached invoice FAT-EN-2026-0087. " +
+      "Invoice date 15/07/2026. Total amount 1500.00 EUR. Due date 29/07/2026.\n\n" +
+      "Kind regards,\nAccounts Department",
+    receivedAt: "2026-07-15T09:00:00+02:00",
+    isPec: false,
+    language: "en",
+    category: "SUPPLIER_INVOICE",
+    priority: "NORMAL",
+    supplierName: "Northern Freight Parts Ltd",
+    hardCase:
+      "fattura fornitore inglese, per completezza: date e importo scelti apposta per essere " +
+      "non ambigui anche sotto l'assunzione giorno/mese sempre attiva (giorno > 12, nessun " +
+      "separatore delle migliaia) — nessuna gestione mese/giorno USA introdotta",
+  },
 ];
