@@ -135,6 +135,12 @@ function metricsRow(label: string, mock: number | undefined, anthropic: number):
   return `| ${label} | ${mockCell} | ${(anthropic * 100).toFixed(1)}% |`;
 }
 
+/** Come metricsRow ma per conteggi grezzi (non percentuali), es. duplicateFalsePositives. */
+function countRow(label: string, mock: number | undefined, anthropic: number): string {
+  const mockCell = mock === undefined ? "n/d" : `${mock}`;
+  return `| ${label} | ${mockCell} | ${anthropic} |`;
+}
+
 function pushMetricsSection(lines: string[], title: string, mock: EvalMetrics | null, anthropic: EvalMetrics): void {
   lines.push(title);
   lines.push("");
@@ -146,6 +152,7 @@ function pushMetricsSection(lines: string[], title: string, mock: EvalMetrics | 
   lines.push(metricsRow("Accuratezza scadenze", mock?.deadlineAccuracy, anthropic.deadlineAccuracy));
   lines.push(metricsRow("Tasso revisione", mock?.needsReviewRate, anthropic.needsReviewRate));
   lines.push(metricsRow("Recall duplicati", mock?.duplicateRecall, anthropic.duplicateRecall));
+  lines.push(countRow("Falsi positivi duplicati", mock?.duplicateFalsePositives, anthropic.duplicateFalsePositives));
   lines.push(metricsRow("Recall security flags", mock?.securityFlagsRecall, anthropic.securityFlagsRecall));
   lines.push("");
 }
@@ -164,6 +171,11 @@ function printMetricsComparison(mock: EvalMetrics | null, anthropic: EvalMetrics
     const mockStr = mockValue === undefined ? "n/d" : `${(mockValue * 100).toFixed(1)}%`;
     console.log(`${label.padEnd(32)} mock: ${mockStr.padEnd(8)} anthropic: ${(anthropicValue * 100).toFixed(1)}%`);
   }
+
+  const mockFalsePositivesStr = mock === null ? "n/d" : `${mock.duplicateFalsePositives}`;
+  console.log(
+    `${"Falsi positivi duplicati".padEnd(32)} mock: ${mockFalsePositivesStr.padEnd(8)} anthropic: ${anthropic.duplicateFalsePositives}`,
+  );
 }
 
 main().catch((error) => {

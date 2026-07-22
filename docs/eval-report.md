@@ -10,9 +10,9 @@ Report generato con il motore MOCK deterministico (nessuna API key). Le metriche
 - Recall multe/reclami urgenti: **100.0%**
 - Accuratezza importi: **100.0%**
 - Accuratezza scadenze: **46.2%** (motore mock; con provider reale Anthropic: 100.0%, vedi eval-report-anthropic.md)
-- Tasso pratiche in revisione (needs_human_review): **28.3%**
+- Tasso pratiche in revisione (needs_human_review): **26.4%**
 - Recall duplicati (EML-010 su EML-009): **100.0%**
-- Falsi positivi duplicati: **4**
+- Falsi positivi duplicati: **3**
 - Recall security flags (prompt injection): **100.0%**
 - Accuratezza applicabilità dispositivo autovelox (guardia di regressione, non generalizzazione): **100.0%**
 
@@ -116,7 +116,7 @@ Report generato con il motore MOCK deterministico (nessuna API key). Le metriche
 | EML-028 | ADMINISTRATIVE | NORMAL | no | — | no |
 | EML-029 | SUPPLIER_INVOICE | NORMAL | no | — | no |
 | EML-032 | QUOTE_REQUEST | NORMAL | no | — | no |
-| EML-030 | FINE_OR_PENALTY | NORMAL | sì | — | sì |
+| EML-030 | FINE_OR_PENALTY | NORMAL | no | — | no |
 | EML-031 | CLAIM_OR_DAMAGE | HIGH | no | — | no |
 | EML-048 | FINE_OR_PENALTY | NORMAL | no | — | no |
 | EML-033 | UNCERTAIN | LOW | sì | — | no |
