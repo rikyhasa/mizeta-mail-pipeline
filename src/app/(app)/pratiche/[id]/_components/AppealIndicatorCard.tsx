@@ -1,5 +1,5 @@
 import { Badge, type BadgeTone } from "@/components/ui/Badge";
-import { formatDateTime } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import {
   APPEAL_DECISION_LABELS,
   APPEAL_DOCUMENTARY_STRENGTH_LABELS,
@@ -50,10 +50,16 @@ export function AppealIndicatorCard({
   caseId,
   result,
   decision,
+  appealCostParamsSource,
+  appealCostParamsVerifiedAt,
 }: {
   caseId: string;
   result: AppealIndicatorResult;
   decision: AppealDecisionData | null;
+  /** Mostrata solo come tooltip nativo (title) sulla riga di trasparenza sotto — mai nel testo
+   * visibile, per non appesantire la riga (FASE 12, Blocco C — P11). */
+  appealCostParamsSource: string | null;
+  appealCostParamsVerifiedAt: Date | null;
 }) {
   return (
     <div id="indicatore-ricorso" className="scroll-mt-24">
@@ -90,6 +96,16 @@ export function AppealIndicatorCard({
           ))}
         </ul>
       )}
+
+      {/* Solo fatto/fonte dei parametri economici di input (Blocco B, P11) — mai
+       * un'affermazione sull'affidabilità del risultato (CLAUDE.md invariante 9). */}
+      <p className="mt-2 text-xs text-[var(--color-ink-muted)]" title={appealCostParamsSource ?? undefined}>
+        Parametri:{" "}
+        {appealCostParamsVerifiedAt
+          ? `normativi verificati il ${formatDate(appealCostParamsVerifiedAt)}`
+          : "normativi non ancora verificati"}{" "}
+        · interni non ancora tarati
+      </p>
 
       <div className="mt-4 border-t border-[var(--color-border)] pt-3">
         <span className="detail-label">Decisione</span>

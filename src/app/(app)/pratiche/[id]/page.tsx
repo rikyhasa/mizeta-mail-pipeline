@@ -190,6 +190,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
   // documentale usa i segnali reali del modulo autovelox quando la pratica ne ha uno (stesso
   // enforcementDeviceCheck già caricato sopra per EnforcementVerificationCard, nessuna query
   // aggiuntiva) — fallback generico solo per multe non-velox (enforcementDeviceCheck null).
+  const ruleSettings = await getRuleSettings();
   const appealIndicatorResult =
     caseRecord.category === "FINE_OR_PENALTY"
       ? resolveAppealIndicatorForCase(
@@ -201,7 +202,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
                 documentChecks: caseRecord.enforcementDeviceCheck.documentChecks,
               }
             : null,
-          await getRuleSettings(),
+          ruleSettings,
           new Date(),
         )
       : null;
@@ -275,6 +276,8 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
                     }
                   : null
               }
+              appealCostParamsSource={ruleSettings.appealCostParamsSource}
+              appealCostParamsVerifiedAt={ruleSettings.appealCostParamsVerifiedAt}
             />
           )}
 

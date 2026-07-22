@@ -29,6 +29,8 @@ export function AnalisiMultaCard({
   blockers,
   appealResult,
   appealDecision,
+  appealCostParamsSource,
+  appealCostParamsVerifiedAt,
 }: {
   caseId: string;
   enforcementCheck: EnforcementCheckData | null;
@@ -37,6 +39,8 @@ export function AnalisiMultaCard({
   blockers: CaseBlockerReason[];
   appealResult: AppealIndicatorResult;
   appealDecision: AppealDecisionData | null;
+  appealCostParamsSource: string | null;
+  appealCostParamsVerifiedAt: Date | null;
 }) {
   return (
     <WorkPanel title="Analisi multa">
@@ -53,7 +57,13 @@ export function AnalisiMultaCard({
 
       <div className="mt-4 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <EnforcementVerificationCard caseId={caseId} check={enforcementCheck} attachments={attachments} permissions={permissions} blockers={blockers} />
-        <AppealIndicatorCard caseId={caseId} result={appealResult} decision={appealDecision} />
+        <AppealIndicatorCard
+          caseId={caseId}
+          result={appealResult}
+          decision={appealDecision}
+          appealCostParamsSource={appealCostParamsSource}
+          appealCostParamsVerifiedAt={appealCostParamsVerifiedAt}
+        />
       </div>
     </WorkPanel>
   );
