@@ -153,6 +153,9 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           applicability: caseRecord.enforcementDeviceCheck.applicability,
           needsHumanReview: caseRecord.enforcementDeviceCheck.needsHumanReview,
           missingDocumentCount: countMissingRequiredDocuments(caseRecord.enforcementDeviceCheck.documentChecks),
+          deviceFieldsVerifiedByRegistry:
+            caseRecord.enforcementDeviceCheck.registryMatch === "MATCH" &&
+            caseRecord.enforcementDeviceCheck.fields.every((f) => !f.needsHumanReview),
         }
       : null,
     notificationDateUnconfirmed: isNotificationDateUnconfirmed(caseRecord.fields),
@@ -172,6 +175,12 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
     ? caseRecord.enforcementDeviceCheck.needsHumanReview ||
       countMissingRequiredDocuments(caseRecord.enforcementDeviceCheck.documentChecks) > 0
     : false;
+
+  // Segnale di revisione preciso (FASE 12, Blocco C): stesso testo del blocker
+  // enforcement_missing_fields, già calcolato sopra — riusato qui per non duplicare la
+  // stringa. null quando il dettaglio non si applica (es. il blocker attivo è solo
+  // enforcement_missing_docs, o nessuna revisione enforcement è in sospeso).
+  const enforcementReviewDetail = blockerReasons.find((b) => b.kind === "enforcement_missing_fields")?.text ?? null;
 
   const firstMessage = caseRecord.messages[0] ?? null;
   const lastMessage = caseRecord.messages[caseRecord.messages.length - 1] ?? null;
@@ -323,6 +332,7 @@ export default async function CaseDetailPage({ params }: { params: Promise<{ id:
           secondaryCategories={caseRecord.secondaryCategories}
           needsHumanReview={caseRecord.needsHumanReview}
           enforcementNeedsReview={enforcementNeedsReview}
+          enforcementReviewDetail={enforcementReviewDetail}
         />
       </div>
     </div>

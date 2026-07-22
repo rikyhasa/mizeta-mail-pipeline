@@ -32,6 +32,7 @@ export function ContextPanel({
   secondaryCategories,
   needsHumanReview,
   enforcementNeedsReview,
+  enforcementReviewDetail,
 }: {
   partyType: "customer" | "supplier" | null;
   partyName: string | null;
@@ -51,6 +52,10 @@ export function ContextPanel({
    * prima ignorati qui: la pratica poteva mostrare "Nessuna revisione in sospeso" con la verifica
    * autovelox ancora aperta (FASE 12, Bug 6). */
   enforcementNeedsReview: boolean;
+  /** Motivo preciso della revisione enforcement residua (FASE 12, Blocco C) — es. quando
+   * restano da confermare solo i dati identificativi già verificati dal registro MIT. null
+   * quando non applicabile: nessun cambio di stato, solo un dettaglio testuale in più. */
+  enforcementReviewDetail: string | null;
 }) {
   return (
     <div className="detail-panel">
@@ -82,6 +87,9 @@ export function ContextPanel({
               </Badge>
             )}
           </div>
+          {enforcementNeedsReview && enforcementReviewDetail && (
+            <p className="mt-1 text-xs text-[var(--color-ink-muted)]">{enforcementReviewDetail}</p>
+          )}
         </div>
       </div>
       <div className="mt-4 flex items-start gap-2.5 border-t border-[var(--color-border)] pt-3 text-xs text-[var(--color-ink-muted)]">

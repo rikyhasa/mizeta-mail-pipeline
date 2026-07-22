@@ -77,6 +77,11 @@ export interface CaseBlockerInput {
     applicability: EnforcementCheckApplicability;
     needsHumanReview: boolean;
     missingDocumentCount: number;
+    /** true quando il registro MIT ha già verificato deterministicamente tutti i campi tecnici
+     * del dispositivo (match-device-registry.ts, mai un LLM) e nessun EnforcementDeviceField
+     * necessita più revisione — resta comunque da confermare solo `applicability` (FASE 12,
+     * Blocco C: solo per scegliere un testo più preciso, mai per saltare il click di conferma). */
+    deviceFieldsVerifiedByRegistry?: boolean;
   } | null;
   /** true quando `notification_date` ha un valore ma nessun operatore l'ha ancora confermato
    * esplicitamente (FASE 11, punto A3) — le scadenze di ricorso restano visibili ma provvisorie
@@ -130,7 +135,13 @@ export function deriveCaseBlockers(input: CaseBlockerInput): CaseBlockerReason[]
       blockers.push({ text: "Dispositivo di rilevamento da identificare", href: "#verifica-autovelox", kind: "enforcement_identify" });
     } else {
       if (input.enforcement.needsHumanReview) {
-        blockers.push({ text: "Dati del dispositivo da confermare", href: "#verifica-autovelox", kind: "enforcement_missing_fields" });
+        blockers.push({
+          text: input.enforcement.deviceFieldsVerifiedByRegistry
+            ? "Conferma il tipo di dispositivo — i dati tecnici sono già verificati dal registro MIT"
+            : "Dati del dispositivo da confermare",
+          href: "#verifica-autovelox",
+          kind: "enforcement_missing_fields",
+        });
       }
       if (input.enforcement.missingDocumentCount > 0) {
         blockers.push({
@@ -170,7 +181,9 @@ export async function getCaseBlockers(caseId: string): Promise<CaseBlockerReason
         select: {
           applicability: true,
           needsHumanReview: true,
+          registryMatch: true,
           documentChecks: { select: { documentType: true, status: true } },
+          fields: { select: { needsHumanReview: true } },
         },
       },
     },
@@ -196,6 +209,9 @@ export async function getCaseBlockers(caseId: string): Promise<CaseBlockerReason
           applicability: caseRecord.enforcementDeviceCheck.applicability,
           needsHumanReview: caseRecord.enforcementDeviceCheck.needsHumanReview,
           missingDocumentCount: countMissingRequiredDocuments(caseRecord.enforcementDeviceCheck.documentChecks),
+          deviceFieldsVerifiedByRegistry:
+            caseRecord.enforcementDeviceCheck.registryMatch === "MATCH" &&
+            caseRecord.enforcementDeviceCheck.fields.every((f) => !f.needsHumanReview),
         }
       : null,
     notificationDateUnconfirmed: isNotificationDateUnconfirmed(caseRecord.fields),

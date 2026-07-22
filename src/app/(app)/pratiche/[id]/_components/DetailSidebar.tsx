@@ -31,6 +31,7 @@ export function DetailSidebar({
   secondaryCategories,
   needsHumanReview,
   enforcementNeedsReview,
+  enforcementReviewDetail,
 }: {
   caseId: string;
   isOpenCase: boolean;
@@ -55,6 +56,9 @@ export function DetailSidebar({
   /** Item enforcement pendenti (dispositivo da confermare o documenti tecnici mancanti) — non
    * inclusi in `needsHumanReview` (FASE 12, Bug 6). */
   enforcementNeedsReview: boolean;
+  /** Testo preciso del motivo enforcement residuo (FASE 12, Blocco C) — null quando non
+   * applicabile (nessuna revisione enforcement in sospeso, o solo documenti mancanti). */
+  enforcementReviewDetail: string | null;
 }) {
   return (
     <div className="flex flex-col gap-4 print:hidden lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
@@ -78,6 +82,7 @@ export function DetailSidebar({
         secondaryCategories={secondaryCategories}
         needsHumanReview={needsHumanReview}
         enforcementNeedsReview={enforcementNeedsReview}
+        enforcementReviewDetail={enforcementReviewDetail}
       />
     </div>
   );

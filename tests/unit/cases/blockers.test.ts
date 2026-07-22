@@ -92,6 +92,20 @@ describe("deriveCaseBlockers", () => {
     expect(blockers).toEqual([{ text: "Dati del dispositivo da confermare", href: "#verifica-autovelox", kind: "enforcement_missing_fields" }]);
   });
 
+  it("FASE 12, Blocco C — refines the text when the registry has already verified every device field, same kind/priority/href", () => {
+    const blockers = deriveCaseBlockers({
+      ...BASE,
+      enforcement: { applicability: "SPEED_CAMERA_FIXED", needsHumanReview: true, missingDocumentCount: 0, deviceFieldsVerifiedByRegistry: true },
+    });
+    expect(blockers).toEqual([
+      {
+        text: "Conferma il tipo di dispositivo — i dati tecnici sono già verificati dal registro MIT",
+        href: "#verifica-autovelox",
+        kind: "enforcement_missing_fields",
+      },
+    ]);
+  });
+
   it("does not flag missing-fields once the device check has been confirmed", () => {
     const blockers = deriveCaseBlockers({
       ...BASE,

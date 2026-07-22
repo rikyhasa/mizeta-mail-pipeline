@@ -57,6 +57,7 @@ const CONTEXT_PANEL_BASE = {
   plate: null,
   driverName: null,
   secondaryCategories: [],
+  enforcementReviewDetail: null,
 };
 
 /** FASE 12, Bug 6: prima il pannello leggeva solo `needsHumanReview` (case-level), ignorando gli
@@ -83,5 +84,35 @@ describe("ContextPanel — stato revisione include gli item enforcement (FASE 12
       createElement(ContextPanel, { ...CONTEXT_PANEL_BASE, needsHumanReview: true, enforcementNeedsReview: false }),
     );
     expect(html).toContain("Revisione necessaria");
+  });
+});
+
+/** FASE 12, Blocco C: quando resta da confermare solo il tipo di dispositivo (i campi
+ * tecnici sono già stati verificati dal registro MIT), il dettaglio lo dice con
+ * precisione invece del generico "Dati del dispositivo da confermare" — stesso gate,
+ * solo un testo più preciso. */
+describe("ContextPanel — segnale di revisione preciso (FASE 12, Blocco C)", () => {
+  it("mostra il dettaglio quando enforcementNeedsReview è true ed è fornito un testo preciso", () => {
+    const html = renderToStaticMarkup(
+      createElement(ContextPanel, {
+        ...CONTEXT_PANEL_BASE,
+        needsHumanReview: false,
+        enforcementNeedsReview: true,
+        enforcementReviewDetail: "Conferma il tipo di dispositivo — i dati tecnici sono già verificati dal registro MIT",
+      }),
+    );
+    expect(html).toContain("Conferma il tipo di dispositivo — i dati tecnici sono già verificati dal registro MIT");
+  });
+
+  it("non mostra alcun dettaglio quando enforcementNeedsReview è false, anche se un testo fosse passato", () => {
+    const html = renderToStaticMarkup(
+      createElement(ContextPanel, {
+        ...CONTEXT_PANEL_BASE,
+        needsHumanReview: false,
+        enforcementNeedsReview: false,
+        enforcementReviewDetail: "Conferma il tipo di dispositivo — i dati tecnici sono già verificati dal registro MIT",
+      }),
+    );
+    expect(html).not.toContain("Conferma il tipo di dispositivo");
   });
 });
