@@ -2,17 +2,21 @@
 
 Generato da `npm run eval` contro `MockLLMProvider` (nessuna chiamata Anthropic, costo zero).
 
+Report generato con il motore MOCK deterministico (nessuna API key). Le metriche NON riflettono la qualità in produzione con LLM reale — vedi docs/eval-report-anthropic.md.
+
 ## Metriche (SPEC.md §18)
 
 - Accuratezza categoria principale: **92.5%** (53 fixture)
 - Recall multe/reclami urgenti: **100.0%**
 - Accuratezza importi: **100.0%**
-- Accuratezza scadenze: **46.2%**
+- Accuratezza scadenze: **46.2%** (motore mock; con provider reale Anthropic: 100.0%, vedi eval-report-anthropic.md)
 - Tasso pratiche in revisione (needs_human_review): **28.3%**
 - Recall duplicati (EML-010 su EML-009): **100.0%**
 - Falsi positivi duplicati: **4**
 - Recall security flags (prompt injection): **100.0%**
 - Accuratezza applicabilità dispositivo autovelox (guardia di regressione, non generalizzazione): **100.0%**
+
+> Perché il mock fallisce sulle scadenze: il suo regex di estrazione cattura solo date con "/" o "."; su trattini, nomi di mese ed espressioni relative restituisce `null`. Il normalizzatore reale gestisce già quei formati (FASE 10b). Limitazione nota del motore demo, non un difetto di prodotto.
 
 ## Dettaglio per fixture
 
